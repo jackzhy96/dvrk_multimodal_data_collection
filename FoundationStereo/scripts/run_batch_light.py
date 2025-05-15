@@ -37,7 +37,7 @@ if __name__ == "__main__":
     parser.add_argument('--out_dir', default=os.path.join(dynamic_path, 'yaml','assets','data8_rectified','output_light'), type=str,
                         help='the directory to save results')
     parser.add_argument('--scale', default=1, type=float, help='downsize the image by scale, must be <=1')
-    parser.add_argument('--hiera', default=1, type=int,
+    parser.add_argument('--hiera', default=0, type=int,
                         help='hierarchical inference (only needed for high-resolution images (>1K))')
     parser.add_argument('--valid_iters', type=int, default=32, help='number of flow-field updates during forward pass')
     parser.add_argument('--save_depth', type=int, default=1, help='save depth map output')

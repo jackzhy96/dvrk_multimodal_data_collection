@@ -1,0 +1,7 @@
+{
+    // see https://github.com/jhu-dvrk/sawIntuitiveResearchKit/wiki/Configuration-File-Formats
+    "kinematic": "kinematic/ecm-si.json"
+    , "generation": "Si"
+    , "endoscope": "Custom_STRAIGHT"
+    , "mounting-pitch": -1.22173
+}

@@ -172,7 +172,9 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-.idea
-*.pth
+/FoundationStereo/.idea
+/FoundationStereo/yaml/preprocessing/.idea
+/.idea
+/FoundationStereo/pretrained_models
 
 
