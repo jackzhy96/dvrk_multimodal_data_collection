@@ -246,6 +246,7 @@ if __name__ == '__main__':
     ### Can modify the image topics
     left_frame_topic = '/test/left/image_raw/compressed'
     right_frame_topic = '/test/right/image_raw/compressed'
+    side_frame_topic = '/sidecam/image_raw/compressed'
 
     print("Initializing arms...")
     ral = crtk.ral('dvrk_si_test')
@@ -261,6 +262,7 @@ if __name__ == '__main__':
     # Initialize video grabber
     left_video_grabber = VideoGrabber(left_frame_topic)
     right_video_grabber = VideoGrabber(right_frame_topic)
+    side_video_grabber = VideoGrabber(side_frame_topic)
 
     input('---> Move the arm to initial position, Press \"Enter\" to start')
 
@@ -287,8 +289,10 @@ if __name__ == '__main__':
     # create frame folders
     left_image_path = './left_frames'
     right_image_path = './right_frames'
+    side_image_path = './side_frames'
     os.makedirs(left_image_path, exist_ok=True)
     os.makedirs(right_image_path, exist_ok=True)
+    os.makedirs(side_image_path, exist_ok=True)
 
     # Move the robot according to the trajectory
     api_cp_dict = {}
@@ -304,6 +308,7 @@ if __name__ == '__main__':
         # 2. save images
         left_video_grabber.extract_image(os.path.join(left_image_path, f'frame{idx}.png'))
         right_video_grabber.extract_image(os.path.join(right_image_path, f'frame{idx}.png'))
+        right_video_grabber.extract_image(os.path.join(side_image_path, f'frame{idx}.png'))
 
         # 3. record api data
         cp_temp_dict = {}
@@ -318,6 +323,11 @@ if __name__ == '__main__':
         psm1_local_t = FrameTranslation2list(psm1_local_cp.p)
         cp_temp_dict["PSM1_local"] = {"R": psm1_local_R, "t": psm1_local_t}
 
+        psm1_cv, _ = psm1.measured_cv()
+        psm1_linear = list(psm1_cv[0:3])
+        psm1_angular = list(psm1_cv[3:6])
+        cp_temp_dict["PSM1_cv"] = {"linear": psm1_linear, "angular": psm1_angular}
+
         psm2_cp, _ = psm2.measured_cp()
         psm2_R = FrameRotation2list(psm2_cp.M)
         psm2_t = FrameTranslation2list(psm2_cp.p)
@@ -327,6 +337,11 @@ if __name__ == '__main__':
         psm2_local_R = FrameRotation2list(psm2_local_cp.M)
         psm2_local_t = FrameTranslation2list(psm2_local_cp.p)
         cp_temp_dict["PSM2_local"] = {"R": psm2_local_R, "t": psm2_local_t}
+
+        psm2_cv, _ = psm2.measured_cv()
+        psm2_linear = list(psm2_cv[0:3])
+        psm2_angular = list(psm2_cv[3:6])
+        cp_temp_dict["PSM2_cv"] = {"linear": psm2_linear, "angular": psm2_angular}
 
         ecm_cp, _ = ecm.measured_cp()
         ecm_R = FrameRotation2list(ecm_cp.M)
@@ -338,6 +353,11 @@ if __name__ == '__main__':
         ecm_local_t = FrameTranslation2list(ecm_local_cp.p)
         cp_temp_dict["ECM_local"] = {"R": ecm_local_R, "t": ecm_local_t}
 
+        ecm_cv, _ = psm2.measured_cv()
+        ecm_linear = list(ecm_cv[0:3])
+        ecm_angular = list(ecm_cv[3:6])
+        cp_temp_dict["ECM_cv"] = {"linear": ecm_linear, "angular": ecm_angular}
+
         api_cp_dict[f"{idx}"] = cp_temp_dict
 
         psm1_jp, _ = psm1.measured_jp()
@@ -345,13 +365,13 @@ if __name__ == '__main__':
         ecm_jp, _ = ecm.measured_jp()
         api_jp_dict[f"{idx}"] = {"PSM1": psm1_jp.tolist(), "psm2": psm2_jp.tolist(), "ECM": ecm_jp.tolist()}
 
-        psm1_cv, _ = psm1.measured_cv() ## 6x1 ndarray, first 3 linear, the other 3 angular
-
-        psm1_scp, _ = psm1.setpoint_cp() ## same as measured_cp()
-
-        psm1_sjs = psm1.setpoint_js() ### tuple 4 (pos, vel, effort, time); pos/ve/eff 6x1 ndarray
-        print(psm1_sjs)
-        print(type(psm1_sjs))
+        # psm1_cv, _ = psm1.measured_cv() ## 6x1 ndarray, first 3 linear, the other 3 angular
+        #
+        # psm1_scp, _ = psm1.setpoint_cp() ## same as measured_cp()
+        #
+        # psm1_sjs = psm1.setpoint_js() ### tuple 4 (pos, vel, effort, time); pos/ve/eff 6x1 ndarray
+        # print(psm1_sjs)
+        # print(type(psm1_sjs))
 
 
     # Save API data as YAML files
