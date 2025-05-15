@@ -1,0 +1,98 @@
+/* -*- Mode: Javascript; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+{
+    "io":
+    {
+        "footpedals": "io/sawRobotIO1394-MTML-foot-pedals.xml"
+        , "firewire-protocol": "broadcast-read-write" // for debugging,
+        , "port": "udpfw"
+    }
+    ,
+    "arms":
+    [
+    {
+        "name": "SUJ",
+        "type": "SUJ_Si",
+        "arm": "suj-si.json"
+    }
+    ,
+    {
+        "name": "ECM",
+        "type": "ECM",
+        "arm": "ECM-438610-Custom.json",
+        "serial": "438610",
+        "base-frame": {
+            "component": "SUJ",
+            "interface": "ECM"
+        }
+    }
+    ,
+    {
+        "name": "MTML",
+        "type": "MTM",
+        "serial": "28989",
+        "base-frame": {
+            "reference-frame": "HRSV",
+            "transform": [[ -1.0, 0.0, 0.0, 0.180],
+                          [ 0.0, 0.866025404, 0.5, 0.400],
+                          [ 0.0, 0.5, -0.866025404, 0.475],
+                          [ 0.0, 0.0, 0.0, 1.0]]
+        }
+    }
+    ,
+    {
+        "name": "MTMR",
+        "type": "MTM",
+        "serial": "30924",
+        "base-frame": {
+            "reference-frame": "HRSV",
+            "transform": [[ -1.0, 0.0, 0.0, -0.180],
+                          [ 0.0, 0.866025404, 0.5, 0.400],
+                          [ 0.0, 0.5, -0.866025404, 0.475],
+                          [ 0.0, 0.0, 0.0, 1.0]]
+        }
+    }
+    ,
+    {
+        "name": "PSM1",
+        "type": "PSM",
+        "serial": "292409",
+        "base-frame": {
+            "component": "SUJ",
+            "interface": "PSM1"
+        }
+    }
+    ,
+    {
+        "name": "PSM2",
+        "type": "PSM",
+        "serial": "586288",
+        "base-frame": {
+            "component": "SUJ",
+            "interface": "PSM2"
+        }
+    }
+    ]
+    ,
+    "psm-teleops":
+    [
+    {
+        "mtm": "MTMR",
+        "psm": "PSM1",
+        "configure-parameter": {
+            "use-mtm-velocity": true // false, this just for testing - true is default
+        }
+    }
+    ,
+    {
+        "mtm": "MTML",
+        "psm": "PSM2"
+    }
+    ]
+    ,
+    "ecm-teleop":
+    {
+        "mtm-left": "MTML",
+        "mtm-right": "MTMR",
+        "ecm": "ECM"
+    }
+}
