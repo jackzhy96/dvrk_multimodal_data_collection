@@ -1,0 +1,24 @@
+<launch>
+    <node pkg="rosbag" type="record" name="recorder" output="screen" 
+            args="-o    /home/hzhou62/SurgPoseV1/record_bags/ros1/test.bag
+                  -b    4096
+                        /ECM/measured_js
+                        /ECM/measured_cp
+                        /ECM/setpoint_js
+                        /ECM/setpoint_cp
+                        /PSM1/measured_js
+                        /PSM1/measured_cp
+                        /PSM1/setpoint_js
+                        /PSM1/setpoint_cp
+                        /PSM1/jaw/measured_js
+                        /PSM1/jaw/setpoint_js
+                        /PSM2/measured_js
+                        /PSM2/measured_cp
+                        /PSM2/setpoint_js
+                        /PSM2/setpoint_cp
+                        /PSM2/jaw/measured_js
+                        /PSM2/jaw/setpoint_js
+                        /MTML/gripper/measured_js
+                        /MTMR/gripper/measured_js"/>
+
+</launch>
