@@ -176,5 +176,6 @@ cython_debug/
 /FoundationStereo/yaml/preprocessing/.idea
 /.idea
 /FoundationStereo/pretrained_models
+data
 
 

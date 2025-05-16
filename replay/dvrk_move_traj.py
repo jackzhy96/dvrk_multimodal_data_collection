@@ -13,12 +13,11 @@ from std_msgs.msg import Bool
 import math
 import numpy as np
 from cv_bridge import CvBridge
-from sensor_msgs.msg import CompressedImage
+from sensor_msgs.msg import CompressedImage, Image
 import cv2
-import yaml
 import rosbag
-from tqdm import tqdm
 import gc
+import json
 
 dynamic_path = os.path.abspath(__file__ + "/../../")
 # print(dynamic_path)
@@ -65,15 +64,19 @@ def rotation_interpolation(init_rotation, target_rotation):
 #### need to revise if get rid of compressed image
 class VideoGrabber:
     def __init__(self, frame_topic):
-        rospy.Subscriber(name=frame_topic, data_class=CompressedImage, callback=self.callback, queue_size=1,
-                         buff_size=2 ** 18)
+        self.bridge = CvBridge()
+        self.image = None
+        # rospy.Subscriber(name=frame_topic, data_class=CompressedImage, callback=self.callback, queue_size=1,
+        #                  buff_size=2 ** 18)
+        rospy.Subscriber(frame_topic, Image, self.callback, queue_size=1)
 
     def callback(self, data):
-        self.images = CvBridge().compressed_imgmsg_to_cv2(data, 'passthrough')
+        # self.image = self.bridge.compressed_imgmsg_to_cv2(data, 'passthrough')
+        self.image = self.bridge.imgmsg_to_cv2(data, 'bgr8')
 
     def extract_image(self, image_path):
-        cv2.imwrite(image_path, self.images)
-        print('frame saved!')
+        cv2.imwrite(image_path, self.image)
+        # print('frame saved!')
 
 
 class arm_psm:
@@ -244,9 +247,12 @@ if __name__ == '__main__':
     print('Total num: ', total_num)
 
     ### Can modify the image topics
-    left_frame_topic = '/test/left/image_raw/compressed'
-    right_frame_topic = '/test/right/image_raw/compressed'
-    side_frame_topic = '/sidecam/image_raw/compressed'
+    # left_frame_topic = '/test/left/image_raw/compressed'
+    # right_frame_topic = '/test/right/image_raw/compressed'
+    # side_frame_topic = '/sidecam/image_raw/compressed'
+    left_frame_topic = '/test/left/image_raw'
+    right_frame_topic = '/test/right/image_raw'
+    side_frame_topic = '/sidecam/image_raw'
 
     print("Initializing arms...")
     ral = crtk.ral('dvrk_si_test')
@@ -290,14 +296,16 @@ if __name__ == '__main__':
     left_image_path = './left_frames'
     right_image_path = './right_frames'
     side_image_path = './side_frames'
+    api_cp_path = './api_cp_files'
+    api_jp_path = './api_jp_files'
     os.makedirs(left_image_path, exist_ok=True)
     os.makedirs(right_image_path, exist_ok=True)
     os.makedirs(side_image_path, exist_ok=True)
+    os.makedirs(api_cp_path, exist_ok=True)
+    os.makedirs(api_jp_path, exist_ok=True)
 
     # Move the robot according to the trajectory
-    api_cp_dict = {}
-    api_jp_dict = {}
-    for idx in tqdm(range(total_num)):
+    for idx in range(total_num):
         psm1.jaw.move_jp(np.array(psm1_jaw[idx])).wait()
         psm2.jaw.move_jp(np.array(psm2_jaw[idx])).wait()
 
@@ -308,10 +316,11 @@ if __name__ == '__main__':
         # 2. save images
         left_video_grabber.extract_image(os.path.join(left_image_path, f'frame{idx}.png'))
         right_video_grabber.extract_image(os.path.join(right_image_path, f'frame{idx}.png'))
-        right_video_grabber.extract_image(os.path.join(side_image_path, f'frame{idx}.png'))
+        side_video_grabber.extract_image(os.path.join(side_image_path, f'frame{idx}.png'))
 
         # 3. record api data
         cp_temp_dict = {}
+        jp_temp_dict = {}
 
         psm1_cp, _ = psm1.measured_cp()
         psm1_R = FrameRotation2list(psm1_cp.M)
@@ -331,7 +340,7 @@ if __name__ == '__main__':
         psm2_cp, _ = psm2.measured_cp()
         psm2_R = FrameRotation2list(psm2_cp.M)
         psm2_t = FrameTranslation2list(psm2_cp.p)
-        cp_temp_dict["psm2"] = {"R": psm2_R, "t": psm2_t}
+        cp_temp_dict["PSM2"] = {"R": psm2_R, "t": psm2_t}
 
         psm2_local_cp, _ = psm2.local.measured_cp()
         psm2_local_R = FrameRotation2list(psm2_local_cp.M)
@@ -353,17 +362,10 @@ if __name__ == '__main__':
         ecm_local_t = FrameTranslation2list(ecm_local_cp.p)
         cp_temp_dict["ECM_local"] = {"R": ecm_local_R, "t": ecm_local_t}
 
-        ecm_cv, _ = psm2.measured_cv()
-        ecm_linear = list(ecm_cv[0:3])
-        ecm_angular = list(ecm_cv[3:6])
-        cp_temp_dict["ECM_cv"] = {"linear": ecm_linear, "angular": ecm_angular}
-
-        api_cp_dict[f"{idx}"] = cp_temp_dict
-
         psm1_jp, _ = psm1.measured_jp()
         psm2_jp, _ = psm2.measured_jp()
         ecm_jp, _ = ecm.measured_jp()
-        api_jp_dict[f"{idx}"] = {"PSM1": psm1_jp.tolist(), "psm2": psm2_jp.tolist(), "ECM": ecm_jp.tolist()}
+        jp_temp_dict = {"PSM1": psm1_jp.tolist(), "PSM2": psm2_jp.tolist(), "ECM": ecm_jp.tolist()}
 
         # psm1_cv, _ = psm1.measured_cv() ## 6x1 ndarray, first 3 linear, the other 3 angular
         #
@@ -372,13 +374,15 @@ if __name__ == '__main__':
         # psm1_sjs = psm1.setpoint_js() ### tuple 4 (pos, vel, effort, time); pos/ve/eff 6x1 ndarray
         # print(psm1_sjs)
         # print(type(psm1_sjs))
+        sys.stdout.write('\r-- Progress: frame %s / %s' % (idx+1, total_num))
+        sys.stdout.flush()
+        f_cp = os.path.join(api_cp_path, f'frame{idx}.json')
+        f_jp = os.path.join(api_jp_path, f'frame{idx}.json')
 
+        with open(f_cp, 'w') as fcp:
+            json.dump(cp_temp_dict, fcp)
 
-    # Save API data as YAML files
-    cp_file = open("api_cp_data.yaml", "w")
-    yaml.dump(api_cp_dict, cp_file)
-    cp_file.close()
+        with open(f_jp, 'w') as fjp:
+            json.dump(jp_temp_dict, fjp)
 
-    jp_file = open("api_jp_data.yaml", "w")
-    yaml.dump(api_jp_dict, jp_file)
-    jp_file.close()
+        gc.collect()
