@@ -36,7 +36,9 @@ gaussian_sigma = 1.2  # Gaussian blur sigma
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 base_dir = os.path.join(parent_dir, 'data', *dataset_path)
-output_dir = os.path.join(parent_dir, 'data', f'{dataset_path[0]}_{dataset_path[1]}_{output_suffix}')
+dataset_name = '_'.join(dataset_path)  # Dataset8_normal
+#output_dir = os.path.join(current_dir, 'output', f'{dataset_name}_optical_flow')
+output_dir = os.path.join(current_dir, 'output', dataset_path[0], f"{dataset_path[1]}_{output_suffix}")
 
 print(f"Base directory: {base_dir}")
 print(f"Output directory: {output_dir}")
