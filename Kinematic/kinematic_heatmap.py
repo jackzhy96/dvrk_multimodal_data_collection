@@ -6,11 +6,10 @@ from tqdm import tqdm
 # ---------- Configurable parameters ----------
 # data_file_name: Data subfolder path (starting from Data directory)
 # Full path: {current script directory}/../Data/dataset_updated/2/replay/api_cp_files/
-# Modify this list to point to different data folders, e.g.:
-#   ['new_experiment'] → ../Data/new_experiment/api_cp_files/
-#   ['exp1', 'session2'] → ../Data/exp1/session2/api_cp_files/
+
 
 data_file_name = ['dataset_updated', '2', 'replay']   # sub-folder
+output_suffix  = 'kinematic_heatmap'                  # Output folder suffix
 arm_key        = 'PSM1'                               # PSM1 / PSM2
 img_h, img_w   = 1200, 1920
 sigma_px       = 10
@@ -26,6 +25,11 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir  = os.path.dirname(current_dir)
 single_dir  = os.path.join(parent_dir, 'Data', *data_file_name)
 cp_dir      = os.path.join(single_dir, 'api_cp_files')
+
+# Updated output directory path - now at same level as script folder
+dataset_name = '_'.join(data_file_name)  # dataset_updated_2_replay
+out_dir = os.path.join(parent_dir, 'output', dataset_name, output_suffix)
+
 
 cp_files = sorted(
     [f for f in os.listdir(cp_dir) if f.startswith('frame') and f.endswith('.json')],
@@ -55,7 +59,6 @@ def make_heatmap(u, v, du, dv, s):
 
 # ---------- Main ----------
 dt = 1.0 / fps
-out_dir = os.path.join(current_dir, 'heatmaps')
 os.makedirs(out_dir, exist_ok=True)
 
 for fname in tqdm(cp_files, desc="Processing frames"):
