@@ -1,0 +1,47 @@
+[build-system]
+# Tools needed *to build* the project; versions can be pinned as tightly as you like
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name            = "dvrk_data_processing"            # PyPI style name
+version         = "0.1.0"
+description     = "Python package for dVRK Multi-Modal Post-Collection Processing"
+
+requires-python = ">=3.8"
+
+license         = {file = "LICENSE"}
+readme          = "README.md"
+
+authors = [
+    { name = "Haoying (Jack) Zhou", email = "hzhou62@jh.edu" },
+    { name = "Yimeng Wu"}
+]
+
+#maintainers = [
+#  { name = "Release Team", email = "releases@example.com" }
+#]
+
+
+## Runtime dependencies (add as needed)
+#dependencies = [
+#    "numpy>=1.22.4",
+#]
+
+## Optional dependency groups:  pip install .[dev]
+#[project.optional-dependencies]
+#dev = [
+#]
+
+## Console-script entry points  (optional)
+#[project.scripts]
+#my-example = "dvrk_data_processing.core:main"
+
+# --------------------  setuptool-specific knobs  --------------------
+
+[tool.setuptools]                     # global section
+package-dir = {"" = "src"}            # tell setuptools we use /src
+
+[tool.setuptools.packages.find]
+where = ["src"]                       # implicit include = ["*.py"]
+exclude = ["tests*"]                  # keep tests out of wheels
