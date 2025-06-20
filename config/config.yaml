@@ -1,0 +1,7 @@
+defaults:
+  - paths: local            # pick one file from the paths/ group
+  - hydra: default          # keep Hydra’s own config untouched
+
+# your own application arguments
+model_name: resnet18
+batch_size: 64
