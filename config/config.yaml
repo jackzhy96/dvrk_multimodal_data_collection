@@ -4,7 +4,9 @@ defaults:
   - _self_
 
 workspace: "/home/jackzhy/SurgPoseV1"
-seed: 42
+
+# ### Add random seeds if required
+# seed: 42
 
 # ### Optional, define log output if required
 #hydra:

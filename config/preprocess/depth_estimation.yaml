@@ -1,4 +1,4 @@
 stage: depth_estimation
-keep_empty_file: false
+folder_initialize: false
 
 # custom configurations

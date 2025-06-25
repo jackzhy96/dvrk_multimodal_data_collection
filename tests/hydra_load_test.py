@@ -20,14 +20,13 @@ class PathConfig:
 @dataclass
 class ProcessedConfig:
     stage: str
-    keep_empty_file: bool = False
+    folder_initialize: bool = False
 
 @dataclass
 class AppConfig:
     path_config: PathConfig
     preprocess: ProcessedConfig
     workspace: str
-    seed: int = 0
 
 cs = ConfigStore.instance()
 cs.store(name="hydra_load_test", node=AppConfig)
@@ -47,11 +46,8 @@ def main(cfg: AppConfig):
         if not new_path.exists():
             create_folder(new_path)
         else:
-            if cfg.preprocess.keep_empty_file:
+            if cfg.preprocess.folder_initialize:
                 clear_folder(new_path)
-
-
-
 
 
 if __name__ == '__main__':
