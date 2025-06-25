@@ -1,0 +1,5 @@
+data_dir: "/home/jackzhy/SurgPoseV1/data"
+data_name: "2"
+raw_dir: "${.data_dir}/${.data_name}"
+intermediate_dir: "${.data_dir}/interm"     # use if required
+processed_dir:  "${.data_dir}/processed"

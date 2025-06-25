@@ -1,4 +1,0 @@
-# @package paths
-data_dir:  ${oc.env:HOME}/data
-log_dir:   ${hydra:runtime.output_dir}   # resolves at runtime
-tmp_dir:   /tmp

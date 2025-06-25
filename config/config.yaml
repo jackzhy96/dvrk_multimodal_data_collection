@@ -1,7 +1,14 @@
 defaults:
-  - paths: local            # pick one file from the paths/ group
-  - hydra: default          # keep Hydra’s own config untouched
+  - path_config: jack_local     # pick one file from the data, data load and store paths
+  - preprocess: kinematic_map   # select the preprocess type
+  - _self_
+
+workspace: "/home/jackzhy/SurgPoseV1"
+seed: 42
+
+# ### Optional, define log output if required
+#hydra:
+#  run:
+#    dir: "/home/jackzhy/SurgPoseV1/outputs/logs/${now:%Y%m%d}_${now:%H%M%S}"
 
 # custom configurations
-model_name: resnet18
-batch_size: 64

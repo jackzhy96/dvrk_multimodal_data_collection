@@ -1,0 +1,4 @@
+stage: kinematic_map
+keep_empty_file: false
+
+# custom configurations
