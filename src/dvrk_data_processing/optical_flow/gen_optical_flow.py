@@ -1,9 +1,13 @@
-import cv2
+from dataclasses import dataclass
+from typing import Union, Tuple
+import hydra
+from hydra.core.config_store import ConfigStore
+from pathlib import Path
 import numpy as np
-import os
-import glob
+from dvrk_data_processing.utils.hydra_config import PathConfig, KinematicMapConfig
+from dvrk_data_processing.utils.utility import load_stereo_proj_mtx, create_folder, clear_folder, load_json_cp, glob_sorted_frame
 from tqdm import tqdm
-import re
+import cv2
 
 # ---------- Configurable parameters ----------
 # dataset_path: Dataset subfolder path (starting from data directory)
@@ -32,16 +36,16 @@ bilateral_sigma_space = 75  # Bilateral filter sigma space
 gaussian_kernel_size = (5, 5)  # Gaussian blur kernel size
 gaussian_sigma = 1.2  # Gaussian blur sigma
 
-# ---------- Paths ----------
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-base_dir = os.path.join(parent_dir, 'data', *dataset_path)
+# # ---------- Paths ----------
+# current_dir = os.path.dirname(os.path.abspath(__file__))
+# parent_dir = os.path.dirname(current_dir)
+# base_dir = os.path.join(parent_dir, 'data', *dataset_path)
+#
+# output_dir = os.path.join(parent_dir, 'output', dataset_path[0], f"{dataset_path[1]}_{output_suffix}")
 
-output_dir = os.path.join(parent_dir, 'output', dataset_path[0], f"{dataset_path[1]}_{output_suffix}")
-
-
-print(f"Base directory: {base_dir}")
-print(f"Output directory: {output_dir}")
+#
+# print(f"Base directory: {base_dir}")
+# print(f"Output directory: {output_dir}")
 
 
 def sort_by_frame_number(file_path):
@@ -206,22 +210,27 @@ def process_sequence():
 
 
 if __name__ == "__main__":
-    print("=" * 60)
-    print("OPTICAL FLOW PROCESSING")
-    print("=" * 60)
-    print(f"Dataset: {' -> '.join(dataset_path)}")
-    print(f"Output format: {flow_format}")
-    print(f"Visualization: {'Enabled' if enable_visualization else 'Disabled'}")
-    print(f"Optical flow parameters:")
-    print(f"  - Pyramid scale: {pyramid_scale}")
-    print(f"  - Pyramid levels: {pyramid_levels}")
-    print(f"  - Window size: {window_size}")
-    print(f"  - Iterations: {iterations}")
-    print("=" * 60)
+    # print("=" * 60)
+    # print("OPTICAL FLOW PROCESSING")
+    # print("=" * 60)
+    # print(f"Dataset: {' -> '.join(dataset_path)}")
+    # print(f"Output format: {flow_format}")
+    # print(f"Visualization: {'Enabled' if enable_visualization else 'Disabled'}")
+    # print(f"Optical flow parameters:")
+    # print(f"  - Pyramid scale: {pyramid_scale}")
+    # print(f"  - Pyramid levels: {pyramid_levels}")
+    # print(f"  - Window size: {window_size}")
+    # print(f"  - Iterations: {iterations}")
+    # print("=" * 60)
+    #
+    # try:
+    #     process_sequence()
+    #     print("\n All processing completed successfully!")
+    # except Exception as e:
+    #     print(f"\n Error during processing: {e}")
+    #     raise
 
-    try:
-        process_sequence()
-        print("\n All processing completed successfully!")
-    except Exception as e:
-        print(f"\n Error during processing: {e}")
-        raise
+    from hydra import compose, initialize
+
+    with initialize(version_base=None, config_path='../../../config'):
+        cfg = compose(config_name="config_of")

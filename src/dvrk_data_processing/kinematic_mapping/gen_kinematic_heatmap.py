@@ -2,15 +2,11 @@ from dataclasses import dataclass
 from typing import Union, Tuple
 import hydra
 from hydra.core.config_store import ConfigStore
-from omegaconf import OmegaConf
 from pathlib import Path
 import numpy as np
 from dvrk_data_processing.utils.hydra_config import PathConfig, KinematicMapConfig
-import yaml
 from dvrk_data_processing.utils.utility import load_stereo_proj_mtx, create_folder, clear_folder, load_json_cp, glob_sorted_frame
-import copy
 from tqdm import tqdm
-import json
 import cv2
 
 @dataclass
@@ -88,7 +84,7 @@ p_config = Path.cwd().parents[2] / 'config'
 @hydra.main(
     version_base=None,
     config_path= str(p_config),
-    config_name="config"
+    config_name="config_kp"
 )
 def main(cfg: AppCfg):
     camera_calibration_path = Path(cfg.preprocess.camera_calibration_path)
@@ -176,7 +172,7 @@ if __name__ == '__main__':
     # from hydra import compose, initialize
     #
     # with initialize(version_base=None, config_path='../../../config'):
-    #     cfg = compose(config_name="config")
+    #     cfg = compose(config_name="config_kp")
     main()
     print('Done!')
 
