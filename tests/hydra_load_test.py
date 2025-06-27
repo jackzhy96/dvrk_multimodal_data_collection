@@ -8,12 +8,12 @@ from dataclasses import dataclass
 import hydra
 from hydra.core.config_store import ConfigStore
 from omegaconf import OmegaConf
-import shutil
 from dvrk_data_processing.utils.utility import clear_folder, create_folder
 
 @dataclass
 class PathConfig:
     raw_dir: str
+    data_name: str
     intermediate_dir: str
     processed_dir: str
 
