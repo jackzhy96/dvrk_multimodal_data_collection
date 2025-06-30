@@ -4,6 +4,7 @@ import shutil
 import numpy as np
 import yaml
 import json
+import cv2
 
 
 def convert_pathlib_type(folder:Union[Path,str])->Path:
@@ -46,30 +47,46 @@ def create_folder(folder: Union[Path,str])->None:
     print(f'Created new path: {new_path}')
 
 
-def load_camera_yaml(path: Union[Path, str])->np.ndarray:
+def load_camera_mtx_yaml(path: Union[Path, str])->np.ndarray:
     '''
-    load the camera projection matrix from the yaml file
+    load the 3x3 camera projection matrix from the yaml file
     path: path to the yaml file
-    output: 3x4 camera projection matrix
+    output: 3x3 camera projection matrix
     '''
     file_path = convert_pathlib_type(path)
     with open(file_path, 'r') as f:
         test_data = yaml.safe_load(f)
-        # camera_mtx = test_data['camera_matrix']
-        proj_mtx = test_data['projection_matrix']
-    # K = np.array(camera_mtx['data']).reshape(3, 3)
-    P = np.array(proj_mtx['data']).reshape(3, 4)
-    # K[1, 2] = K[1, 2] - 60  ## comment it when getting new calibration matrix
-    # return K
-    # P[1, 2] = P[1, 2] - 60 ## comment it when getting new calibration matrix
-    return P
+        camera_mtx = test_data['camera_matrix']
+    K = np.array(camera_mtx['data']).reshape(3, 3)
+    return K
+
+
+def load_camera_param_yaml(path: Union[Path, str])->List[dict]:
+    '''
+    load the camera parameters from the yaml file
+    path: path to the yaml file
+    output: 3x3 camera projection matrix
+    '''
+    camera_params = []
+    file_path = convert_pathlib_type(path)
+    with open(file_path, 'r') as f:
+        test_data = yaml.safe_load(f)
+        K = np.array(test_data['camera_matrix']['data']).reshape(3,3)
+        D = np.array(test_data['distortion_coefficients']['data']).reshape(-1,1)
+        R_c = np.array(test_data['R_stereo']['data']).reshape(3,3)
+        rvec, _ = cv2.Rodrigues(R_c)
+        t_c = np.array(test_data['T_stereo']['data']).reshape(-1,1)
+        # dict_cam_param = {'K': K, 'D': D, 'R_c': R_c, 't_c': t_c}
+        dict_cam_param = {'K': K, 'D': D, 'rvec': rvec, 'tvec': t_c,'R_c': R_c, 't_c': t_c}
+        camera_params.append(dict_cam_param)
+    return camera_params
 
 
 def load_stereo_proj_mtx(path: Union[Path,str])->List[np.ndarray]:
     '''
-    Load the camera projection matrix of the stereo camera from the calibration folder
+    Load the 3x3 camera matrix of the stereo camera from the calibration folder
     path: path to camera calibration folder
-    output: camera projection matrix for both left and right cameras
+    output: 3x3 camera projection matrix for both left and right cameras
     '''
     camera_calibration_path = convert_pathlib_type(path)
     num_files = sum(1 for p in camera_calibration_path.iterdir() if p.is_file())
@@ -78,13 +95,13 @@ def load_stereo_proj_mtx(path: Union[Path,str])->List[np.ndarray]:
         file_names = ['left', 'right']
         for file_name in file_names:
             file_path = camera_calibration_path / f'{file_name}.yaml'
-            P_cam = load_camera_yaml(file_path)
+            P_cam = load_camera_mtx_yaml(file_path)
             P_cam = P_cam[0:3, 0:3]
             project_mtx.append(P_cam)
     elif num_files == 1:
         file_name = 'camera'
         file_path = camera_calibration_path / f'{file_name}.yaml'
-        P_cam = load_camera_yaml(file_path)
+        P_cam = load_camera_mtx_yaml(file_path)
         P_cam = P_cam[0:3, 0:3]
         project_mtx.append(P_cam)
     else:
