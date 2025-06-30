@@ -169,50 +169,50 @@ def main(cfg: AppCfg):
             count += 1
 
 if __name__ == '__main__':
-    # main()
-    # print('Done!')
-    from hydra import compose, initialize
-
-    with initialize(version_base=None, config_path='../../../config'):
-        cfg = compose(config_name="config_kp")
-    camera_calibration_path = Path(cfg.preprocess.camera_calibration_path)
-    arm_list = list(cfg.preprocess.arm_name)
-    img_w, img_h = cfg.preprocess.img_size
-    fps = float(cfg.preprocess.fps)
-    sigma_x = float(cfg.preprocess.sigma_x)
-    sigma_y = float(cfg.preprocess.sigma_y)
-    processed_dir = Path(cfg.path_config.processed_dir)
-    raw_dir = Path(cfg.path_config.raw_dir)
-    adv_w = cfg.preprocess.weight_adv
-    # adv_w = True
-    if cfg.preprocess.folder_initialize:
-        clear_folder(processed_dir)
-
-    dt = 1.0 / fps
-
-    P_cameras = load_stereo_proj_mtx(camera_calibration_path)
-    if np.array_equal(P_cameras[0], P_cameras[1]):
-        P_cameras.pop()
-
-    data_folder = raw_dir / cfg.preprocess.input_subfolder
-    if adv_w:
-        save_folder = processed_dir / f'{cfg.preprocess.output_subfolder}_wadv'
-    else:
-        save_folder = processed_dir / cfg.preprocess.output_subfolder
-
-    num_files = sum(1 for p in camera_calibration_path.iterdir() if p.is_file())
-    project_mtx = []
-
-    import yaml
-
-    if num_files == 2:
-        file_names = ['left', 'right']
-        for file_name in file_names:
-            file_path = camera_calibration_path / f'{file_name}.yaml'
-            with open(file_path, 'r') as f:
-                test_data = yaml.safe_load(f)
-                camera_mtx = test_data['camera_matrix']
-                # proj_mtx = test_data['projection_matrix']
+    main()
+    print('Done!')
+    # from hydra import compose, initialize
+    #
+    # with initialize(version_base=None, config_path='../../../config'):
+    #     cfg = compose(config_name="config_kp")
+    # camera_calibration_path = Path(cfg.preprocess.camera_calibration_path)
+    # arm_list = list(cfg.preprocess.arm_name)
+    # img_w, img_h = cfg.preprocess.img_size
+    # fps = float(cfg.preprocess.fps)
+    # sigma_x = float(cfg.preprocess.sigma_x)
+    # sigma_y = float(cfg.preprocess.sigma_y)
+    # processed_dir = Path(cfg.path_config.processed_dir)
+    # raw_dir = Path(cfg.path_config.raw_dir)
+    # adv_w = cfg.preprocess.weight_adv
+    # # adv_w = True
+    # if cfg.preprocess.folder_initialize:
+    #     clear_folder(processed_dir)
+    #
+    # dt = 1.0 / fps
+    #
+    # P_cameras = load_stereo_proj_mtx(camera_calibration_path)
+    # if np.array_equal(P_cameras[0], P_cameras[1]):
+    #     P_cameras.pop()
+    #
+    # data_folder = raw_dir / cfg.preprocess.input_subfolder
+    # if adv_w:
+    #     save_folder = processed_dir / f'{cfg.preprocess.output_subfolder}_wadv'
+    # else:
+    #     save_folder = processed_dir / cfg.preprocess.output_subfolder
+    #
+    # num_files = sum(1 for p in camera_calibration_path.iterdir() if p.is_file())
+    # project_mtx = []
+    #
+    # import yaml
+    #
+    # if num_files == 2:
+    #     file_names = ['left', 'right']
+    #     for file_name in file_names:
+    #         file_path = camera_calibration_path / f'{file_name}.yaml'
+    #         with open(file_path, 'r') as f:
+    #             test_data = yaml.safe_load(f)
+    #             camera_mtx = test_data['camera_matrix']
+    #             # proj_mtx = test_data['projection_matrix']
 
     #
     # for i_pcam in range(len(P_cameras)):
