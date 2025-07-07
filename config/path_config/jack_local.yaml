@@ -1,5 +1,6 @@
 data_dir: "/home/jackzhy/SurgPoseV1/data"
-data_name: "4"
-raw_dir: "${.data_dir}/${.data_name}"
-intermediate_dir: "${.data_dir}/data_output_${.data_name}/interm"     # use if required
-processed_dir:  "${.data_dir}/data_output_${.data_name}/processed"
+data_name: "data_20250701"
+data_index: "1"
+raw_dir: "${.data_dir}/${.data_name}/${.data_index}"
+intermediate_dir: "${.data_dir}/output_${.data_name}/${.data_index}/interm"     # use if required
+processed_dir:  "${.data_dir}/output_${.data_name}/${.data_index}/processed"

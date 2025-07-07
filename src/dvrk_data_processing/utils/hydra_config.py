@@ -7,6 +7,7 @@ from typing import Union, List
 class PathConfig:
     data_dir: Union[Path, str]
     data_name: str
+    data_index: str
     raw_data_dir: Union[Path, str]
     intermediate_dir: Union[Path, str]
     processed_dir: Union[Path, str]
@@ -19,7 +20,8 @@ class KinematicMapConfig:
     arm_name: List[str]
     input_subfolder: str
     output_subfolder: str
-    fps: float
+    fps_img: float
+    fps_kin: float
     sigma_x: float
     sigma_y: float
     camera_calibration_path: Union[Path, str]

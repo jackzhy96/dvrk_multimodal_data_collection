@@ -5,7 +5,9 @@ from hydra.core.config_store import ConfigStore
 from pathlib import Path
 import numpy as np
 from dvrk_data_processing.utils.hydra_config import PathConfig, KinematicMapConfig
-from dvrk_data_processing.utils.utility import load_stereo_proj_mtx, create_folder, clear_folder, load_json_cp, glob_sorted_frame
+from dvrk_data_processing.utils.utility import load_stereo_proj_mtx, create_folder, clear_folder, load_json_cp, \
+    glob_sorted_frame, load_camera_param_yaml
+# from dvrk_data_processing.utils.data_load_config import CameraInfo, KinematicInfo, datacls_from_dict
 from tqdm import tqdm
 import cv2
 
@@ -23,7 +25,7 @@ def cam_project_3d_to_2d(xyz:np.ndarray, P_cam:np.ndarray)->Tuple[Union[None,flo
     P_cam: 3x3 camera projection matrix
     output: 2D pixel coordinates (u,v)
     '''
-    xyz[2] = -xyz[2] # reverse z-axis, incorrect!!! only for test!!!
+    # xyz[2] = -xyz[2] # reverse z-axis, incorrect!!! only for test!!!
     px, py, pz = P_cam @ xyz
     if pz <= 0:
         print('z-coordinate of the camera projection point is non-positive!')
@@ -44,11 +46,12 @@ def d_weight(xyz:np.ndarray, adv_w:bool, tol:float=0.05)->float:
     xyz_norm = np.linalg.norm(xyz)
     s = xyz_norm - tol
     if adv_w:
-        d = np.exp((-s + np.exp(-s))/2.0) / np.sqrt(2.0 * np.pi)
+        # d = np.exp((-s + np.exp(-s))/2.0) / np.sqrt(2.0 * np.pi)
+        d = np.exp((-s + np.exp(-s)) / 2.0)
         return d
     else:
-        if s < 1e-4:
-            s = 1e-4
+        if s < 4e-4:
+            s = 4e-4
         d = 1.0 / (1000.0 * s)
         return d
 
@@ -90,7 +93,8 @@ def main(cfg: AppCfg):
     camera_calibration_path = Path(cfg.preprocess.camera_calibration_path)
     arm_list = list(cfg.preprocess.arm_name)
     img_w, img_h = cfg.preprocess.img_size
-    fps = float(cfg.preprocess.fps)
+    # fps_img = float(cfg.preprocess.fps_img)
+    fps_kin = float(cfg.preprocess.fps_kin)
     sigma_x = float(cfg.preprocess.sigma_x)
     sigma_y = float(cfg.preprocess.sigma_y)
     processed_dir = Path(cfg.path_config.processed_dir)
@@ -100,50 +104,61 @@ def main(cfg: AppCfg):
     if cfg.preprocess.folder_initialize:
         clear_folder(processed_dir)
 
-    dt = 1.0 / fps
+    dt = 1.0 / fps_kin
 
     P_cameras = load_stereo_proj_mtx(camera_calibration_path)
     if np.array_equal(P_cameras[0], P_cameras[1]):
         P_cameras.pop()
 
-    data_folder = raw_dir / cfg.preprocess.input_subfolder
+    data_folder = raw_dir / cfg.preprocess.input_subfolder / 'kinematic'
     if adv_w:
-        save_folder = processed_dir / f'{cfg.preprocess.output_subfolder}_wadv'
+        save_folder = processed_dir / f'{cfg.preprocess.output_subfolder}_advw'
     else:
         save_folder = processed_dir / cfg.preprocess.output_subfolder
 
-    for i_pcam in range(len(P_cameras)):
-        P_cam = P_cameras[i_pcam]
+    # num_files = sum(1 for p in camera_calibration_path.iterdir() if p.is_file())
+    # project_mtx = []
+    #
+    # camera_param_list = []
+    # if num_files == 2:
+    #     file_names = ['left', 'right']
+    #     for file_name in file_names:
+    #         file_path = camera_calibration_path / f'{file_name}.yaml'
+    #         test_data = load_camera_param_yaml(file_path)
+    #         camera_param_list.append(test_data)
+
+    for i_cam in range(len(P_cameras)):
+        P_cam = P_cameras[i_cam]
         if len(P_cameras) == 2:
             camera_names = ['left', 'right']
         else:
             camera_names = None
-        data_path = data_folder / 'api_cp_files'
-        cp_file_list = glob_sorted_frame(data_path)
-        # cp_file_list = [cp_file_list[0]]
-        count = 0
-        for file_name in tqdm(cp_file_list, desc="Kinematic HeatMap Processing Frames"):
-            data_kinematic = load_json_cp(file_name, arm_list)
-            img_file_name = file_name.parts[-1].replace('frame', '').replace('json', 'png')
-            heatmap_file_name = file_name.parts[-1].replace('frame', '').replace('json', 'npy')
-            for i_arm in range(len(arm_list)):
-                arm_name = arm_list[i_arm]
-                if camera_names is not None:
-                    arm_save_folder = save_folder / arm_name / camera_names[i_pcam]
-                else:
-                    arm_save_folder = save_folder / arm_name
+        for i_arm in range(len(arm_list)):
+            arm_name = arm_list[i_arm]
+            data_path = data_folder / arm_name
+            file_list = glob_sorted_frame(data_path)
 
+            if camera_names is not None:
+                arm_save_folder = save_folder / arm_name / camera_names[i_cam]
+                print(f'Working on {camera_names[i_cam].upper()} Camera:')
+            else:
+                arm_save_folder = save_folder / arm_name
+
+            for file_name in tqdm(file_list, desc=f"Kinematic HeatMap Processing Frames of {arm_name}"):
+                data_arm = load_json_cp(file_name, arm_name)
+                img_file_name = file_name.parts[-1].replace('json', 'png')
+                heatmap_file_name = file_name.parts[-1].replace('json', 'npy')
                 img_save_folder = arm_save_folder / 'image'
                 heatmap_save_folder = arm_save_folder / 'heatmap'
                 if not img_save_folder.exists():
                     create_folder(img_save_folder)
                 if not heatmap_save_folder.exists():
                     create_folder(heatmap_save_folder)
-                data_arm = data_kinematic[arm_name]
-                # R = data_arm['R']
-                t = data_arm['t']
-                w = data_arm['w']
-                v = data_arm['v']
+
+                # R = data_arm.R
+                t = data_arm.t
+                w = data_arm.w
+                v = data_arm.v
 
                 ### predict next pos using first-order approximation
                 dx = v + np.cross(w, t)
@@ -151,11 +166,21 @@ def main(cfg: AppCfg):
 
                 u, v = cam_project_3d_to_2d(t, P_cam)
                 u_next, v_next = cam_project_3d_to_2d(t_next, P_cam)
+                ### use open cv, it does not work better
+                # pixel_coord, _ = cv2.projectPoints(t, camera_param_list[i_cam].rvec, camera_param_list[i_cam].tvec,
+                #                                    camera_param_list[i_cam].K, camera_param_list[i_cam].D)
+                # u = pixel_coord[0][0][0]
+                # v = pixel_coord[0][0][1]
+                # pixel_coord_next, _ = cv2.projectPoints(t_next, camera_param_list[i_cam].rvec,
+                #                                         camera_param_list[i_cam].tvec, camera_param_list[i_cam].K,
+                #                                         camera_param_list[i_cam].D)
+                # u_next = pixel_coord_next[0][0][0]
+                # v_next = pixel_coord_next[0][0][1]
 
                 uv_none = any(obj is None for obj in [u, v, u_next, v_next])
 
                 if uv_none:
-                    print(f'For frame {count}, {arm_name} has None in the pixel coordinates!')
+                    print(f'For frame {file_name.stem}, {arm_name} has None in the pixel coordinates!')
                     continue
 
                 kp_heat = gen_heatmap(u, v, u_next, v_next, t, sigma_x, sigma_y, img_w, img_h, adv_w)
@@ -166,7 +191,7 @@ def main(cfg: AppCfg):
                 img_file_path = img_save_folder / img_file_name
                 kp_norm = cv2.normalize(kp_heat, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
                 cv2.imwrite(str(img_file_path), kp_norm)
-            count += 1
+
 
 if __name__ == '__main__':
     main()
@@ -178,7 +203,8 @@ if __name__ == '__main__':
     # camera_calibration_path = Path(cfg.preprocess.camera_calibration_path)
     # arm_list = list(cfg.preprocess.arm_name)
     # img_w, img_h = cfg.preprocess.img_size
-    # fps = float(cfg.preprocess.fps)
+    # fps_img = float(cfg.preprocess.fps_img)
+    # fps_kin = float(cfg.preprocess.fps_kin)
     # sigma_x = float(cfg.preprocess.sigma_x)
     # sigma_y = float(cfg.preprocess.sigma_y)
     # processed_dir = Path(cfg.path_config.processed_dir)
@@ -188,88 +214,92 @@ if __name__ == '__main__':
     # if cfg.preprocess.folder_initialize:
     #     clear_folder(processed_dir)
     #
-    # dt = 1.0 / fps
+    # dt = 1.0 / fps_kin
+    #
+    #
     #
     # P_cameras = load_stereo_proj_mtx(camera_calibration_path)
     # if np.array_equal(P_cameras[0], P_cameras[1]):
     #     P_cameras.pop()
     #
-    # data_folder = raw_dir / cfg.preprocess.input_subfolder
+    # data_folder = raw_dir / cfg.preprocess.input_subfolder / 'kinematic'
     # if adv_w:
-    #     save_folder = processed_dir / f'{cfg.preprocess.output_subfolder}_wadv'
+    #     save_folder = processed_dir / f'{cfg.preprocess.output_subfolder}_advw'
     # else:
     #     save_folder = processed_dir / cfg.preprocess.output_subfolder
     #
     # num_files = sum(1 for p in camera_calibration_path.iterdir() if p.is_file())
     # project_mtx = []
     #
-    # import yaml
-    #
+    # camera_param_list = []
     # if num_files == 2:
     #     file_names = ['left', 'right']
     #     for file_name in file_names:
     #         file_path = camera_calibration_path / f'{file_name}.yaml'
-    #         with open(file_path, 'r') as f:
-    #             test_data = yaml.safe_load(f)
-    #             camera_mtx = test_data['camera_matrix']
-    #             # proj_mtx = test_data['projection_matrix']
-
+    #         test_data = load_camera_param_yaml(file_path)
+    #         camera_param_list.append(test_data)
     #
-    # for i_pcam in range(len(P_cameras)):
-    #     P_cam = P_cameras[i_pcam]
+    # for i_cam in range(len(P_cameras)):
+    #     P_cam = P_cameras[i_cam]
     #     if len(P_cameras) == 2:
     #         camera_names = ['left', 'right']
     #     else:
     #         camera_names = None
-    #     data_path = data_folder / 'api_cp_files'
-    #     cp_file_list = glob_sorted_frame(data_path)
-    #     cp_file_list = [cp_file_list[0]]
-    #     count = 0
-    #     for file_name in tqdm(cp_file_list, desc="Kinematic HeatMap Processing Frames"):
-    #         data_kinematic = load_json_cp(file_name, arm_list)
-    #         img_file_name = file_name.parts[-1].replace('frame', '').replace('json', 'png')
-    #         heatmap_file_name = file_name.parts[-1].replace('frame', '').replace('json', 'npy')
-    #         for i_arm in range(len(arm_list)):
-    #             arm_name = arm_list[i_arm]
-    #             if camera_names is not None:
-    #                 arm_save_folder = save_folder / arm_name / camera_names[i_pcam]
-    #             else:
-    #                 arm_save_folder = save_folder / arm_name
+    #     for i_arm in range(len(arm_list)):
+    #         arm_name = arm_list[i_arm]
+    #         data_path = data_folder / arm_name
+    #         file_list = glob_sorted_frame(data_path)
     #
+    #         if camera_names is not None:
+    #             arm_save_folder = save_folder / arm_name / camera_names[i_cam]
+    #             print(f'Working on {camera_names[i_cam].upper()} Camera: \n')
+    #         else:
+    #             arm_save_folder = save_folder / arm_name
+    #
+    #         for file_name in tqdm(file_list, desc=f"Kinematic HeatMap Processing Frames of {arm_name}"):
+    #             data_arm = load_json_cp(file_name, arm_name)
+    #             img_file_name = file_name.parts[-1].replace('json', 'png')
+    #             heatmap_file_name = file_name.parts[-1].replace('json', 'npy')
     #             img_save_folder = arm_save_folder / 'image'
     #             heatmap_save_folder = arm_save_folder / 'heatmap'
-    #             # if not img_save_folder.exists():
-    #             #     create_folder(img_save_folder)
-    #             # if not heatmap_save_folder.exists():
-    #             #     create_folder(heatmap_save_folder)
-    #             data_arm = data_kinematic[arm_name]
-    #             # R = data_arm['R']
-    #             t = data_arm['t']
-    #             w = data_arm['w']
-    #             v = data_arm['v']
+    #             if not img_save_folder.exists():
+    #                 create_folder(img_save_folder)
+    #             if not heatmap_save_folder.exists():
+    #                 create_folder(heatmap_save_folder)
+    #
+    #             # R = data_arm.R
+    #             t = data_arm.t
+    #             w = data_arm.w
+    #             v = data_arm.v
     #
     #             ### predict next pos using first-order approximation
     #             dx = v + np.cross(w, t)
     #             t_next = t + dx * dt
     #
-    #             u, v = cam_project_3d_to_2d(t, P_cam)
-    #             u_next, v_next = cam_project_3d_to_2d(t_next, P_cam)
+    #             # u, v = cam_project_3d_to_2d(t, P_cam)
+    #             # u_next, v_next = cam_project_3d_to_2d(t_next, P_cam)
+    #             pixel_coord, _ = cv2.projectPoints(t, camera_param_list[i_cam].rvec, camera_param_list[i_cam].tvec, camera_param_list[i_cam].K, camera_param_list[i_cam].D)
+    #             u = pixel_coord[0][0][0]
+    #             v = pixel_coord[0][0][1]
+    #             pixel_coord_next, _ = cv2.projectPoints(t_next, camera_param_list[i_cam].rvec, camera_param_list[i_cam].tvec, camera_param_list[i_cam].K, camera_param_list[i_cam].D)
+    #             u_next = pixel_coord_next[0][0][0]
+    #             v_next = pixel_coord_next[0][0][1]
+    #
     #
     #             uv_none = any(obj is None for obj in [u, v, u_next, v_next])
     #
     #             if uv_none:
-    #                 print(f'For frame {count}, {arm_name} has None in the pixel coordinates!')
+    #                 print(f'For frame {file_name.stem}, {arm_name} has None in the pixel coordinates!')
     #                 continue
     #
     #             kp_heat = gen_heatmap(u, v, u_next, v_next, t, sigma_x, sigma_y, img_w, img_h, adv_w)
     #
     #             heatmap_file_path = heatmap_save_folder / heatmap_file_name
-    #             # np.save(heatmap_file_path, kp_heat)
+    #             np.save(heatmap_file_path, kp_heat)
     #
-    #             # img_file_path = img_save_folder / img_file_name
-    #             # kp_norm = cv2.normalize(kp_heat, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-    #             # cv2.imwrite(str(img_file_path), kp_norm)
-    #         count += 1
+    #             img_file_path = img_save_folder / img_file_name
+    #             kp_norm = cv2.normalize(kp_heat, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    #             cv2.imwrite(str(img_file_path), kp_norm)
 
 
 
