@@ -56,19 +56,17 @@ class ArmMeasuredCpConfig:
     position: List[float]
     orientation: List[float]
     velocity: List[float]
-    effort: List[float]
-    cartesian_velocity: List[float]
 
 @dataclass
 class ArmSetpointCpConfig:
     position: List[float]
     orientation: List[float]
-    velocity: List[float]
-    effort: List[float]
 
 @dataclass
-class ArmJPConfig:
-    pass
+class ArmJsConfig:
+    position: List[float]
+    velocity: List[float]
+    effort: List[float]
 
 @dataclass
 class CPLoadConfig:
@@ -76,8 +74,18 @@ class CPLoadConfig:
     setpoint_data: ArmSetpointCpConfig
 
 @dataclass
+class JsLoadConfig:
+    measured_data: ArmJsConfig
+    setpoint_data: ArmJsConfig
+
+@dataclass
+class ArmLoadConfig:
+    cp: CPLoadConfig
+    js: JsLoadConfig
+
+@dataclass
 class KinematicInfo:
-    arm: CPLoadConfig
+    arm: ArmLoadConfig
     header: HeaderConfig
     jaw: JawLoadConfig
 
