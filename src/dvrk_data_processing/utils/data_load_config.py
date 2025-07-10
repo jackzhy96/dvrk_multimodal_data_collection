@@ -69,19 +69,19 @@ class ArmJsConfig:
     effort: List[float]
 
 @dataclass
-class CPLoadConfig:
-    measured_data: ArmMeasuredCpConfig
-    setpoint_data: ArmSetpointCpConfig
+class MeasuredLoadConfig:
+    cp: ArmMeasuredCpConfig
+    js: ArmJsConfig
 
 @dataclass
-class JsLoadConfig:
-    measured_data: ArmJsConfig
-    setpoint_data: ArmJsConfig
+class DesiredLoadConfig:
+    cp: ArmSetpointCpConfig
+    js: ArmJsConfig
 
 @dataclass
 class ArmLoadConfig:
-    cp: CPLoadConfig
-    js: JsLoadConfig
+    measured_data: MeasuredLoadConfig
+    setpoint_data: DesiredLoadConfig
 
 @dataclass
 class KinematicInfo:

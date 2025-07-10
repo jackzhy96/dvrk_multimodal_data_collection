@@ -119,16 +119,15 @@ def load_json_cp(path: Union[Path, str], arm_name:str)->CPInfo:
     output: dictionary including the positons and velocities of the arms' end-effector
     '''
     file_path = convert_pathlib_type(path)
-    arm_info = dict()
     with open(file_path, 'r') as f:
         data = json.load(f)
     kin_info = datacls_from_dict(KinematicInfo, data)
     arm_info = dict()
-    rot = R.from_quat(kin_info.arm.measured_data.orientation)
+    rot = R.from_quat(kin_info.arm.measured_data.cp.orientation)
     arm_info['R'] = rot.as_matrix()
-    arm_info['t'] = np.array(kin_info.arm.measured_data.position)
-    arm_info['w'] = np.array(kin_info.arm.measured_data.cartesian_velocity)[0:3]
-    arm_info['v'] = np.array(kin_info.arm.measured_data.cartesian_velocity)[3:6]
+    arm_info['t'] = np.array(kin_info.arm.measured_data.cp.position)
+    arm_info['w'] = np.array(kin_info.arm.measured_data.cp.velocity)[0:3]
+    arm_info['v'] = np.array(kin_info.arm.measured_data.cp.velocity)[3:6]
     arm_info['arm_name'] = arm_name
     cp_info = datacls_from_dict(CPInfo, arm_info)
     return cp_info
@@ -143,6 +142,16 @@ def glob_sorted_frame(path: Union[Path, str])->List[Path]:
     data_path = convert_pathlib_type(path)
     cp_file_list = sorted(data_path.glob('*'), key=lambda p: int(p.stem))
     return cp_file_list
+
+def skew(vec: np.ndarray)->np.ndarray:
+    '''
+    vec: The vector to be extended to a 3x3 skew symmetric matrix
+    output: The extended 3x3 skew symmetric matrix
+    '''
+    return np.array([[0, -vec[2], vec[1]],
+                     [vec[2], 0, -vec[0]],
+                     [-vec[1], vec[0], 0]])
+
 
 if __name__ == '__main__':
     pass

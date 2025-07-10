@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 from dvrk_data_processing.utils.hydra_config import PathConfig, KinematicMapConfig
 from dvrk_data_processing.utils.utility import load_stereo_proj_mtx, create_folder, clear_folder, load_json_cp, \
-    glob_sorted_frame, load_camera_param_yaml
+    glob_sorted_frame, load_camera_param_yaml, skew
 # from dvrk_data_processing.utils.data_load_config import CameraInfo, KinematicInfo, datacls_from_dict
 from tqdm import tqdm
 import cv2
@@ -284,7 +284,7 @@ if __name__ == '__main__':
                 if not heatmap_save_folder.exists():
                     create_folder(heatmap_save_folder)
 
-                # R = data_arm.R
+                R = data_arm.R
                 t = data_arm.t
                 w = data_arm.w
                 v = data_arm.v
@@ -292,13 +292,21 @@ if __name__ == '__main__':
                 ### predict next pos using first-order approximation
                 dx = v + np.cross(w, t)
                 t_next = t + dx * dt
+                R_next = (np.eye(3) + skew(w) * dt) @ R
+
+                offset = np.diag([-1,-1,1])
+
+                point = np.zeros((3, 1))
+                rvec, _ = cv2.Rodrigues(offset@R)
+                rvec_next, _ = cv2.Rodrigues(offset@R_next)
 
                 # u, v = cam_project_3d_to_2d(t, P_cam)
                 # u_next, v_next = cam_project_3d_to_2d(t_next, P_cam)
-                pixel_coord, _ = cv2.projectPoints(t, camera_param_list[i_cam].rvec, camera_param_list[i_cam].tvec, camera_param_list[i_cam].K, camera_param_list[i_cam].D)
+                # offset = np.diag([-1,-1,1])
+                pixel_coord, _ = cv2.projectPoints(point, rvec, offset@t, camera_param_list[i_cam].K, camera_param_list[i_cam].D)
                 u = pixel_coord[0][0][0]
                 v = pixel_coord[0][0][1]
-                pixel_coord_next, _ = cv2.projectPoints(t_next, camera_param_list[i_cam].rvec, camera_param_list[i_cam].tvec, camera_param_list[i_cam].K, camera_param_list[i_cam].D)
+                pixel_coord_next, _ = cv2.projectPoints(point, rvec_next, offset@t_next, camera_param_list[i_cam].K, camera_param_list[i_cam].D)
                 u_next = pixel_coord_next[0][0][0]
                 v_next = pixel_coord_next[0][0][1]
 
