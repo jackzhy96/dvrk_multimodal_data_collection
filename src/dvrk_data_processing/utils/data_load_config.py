@@ -2,7 +2,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, fields, is_dataclass, asdict
 from pathlib import Path
-from typing import Union, List, TypeVar, get_type_hints
+from typing import Union, List, TypeVar, get_type_hints, Type
 import yaml
 import numpy as np
 
@@ -24,18 +24,31 @@ class CameraInfo:
     image_height: int
     image_width: int
 
+@dataclass
+class MonoCameraInfo:
+    camera_matrix: CameraParameters
+    distortion_coefficients: CameraParameters
+    camera_name: str
+    distortion_model: str
+    image_height: int
+    image_width: int
 
 @dataclass
 class CameraInfoProcessed:
-    K: np.ndarray # camera intrinsic matrix
-    D: np.ndarray # distortion
-    rvec: np.ndarray  # rotation vector of R_stereo
-    tvec: np.ndarray  # translation vector of T_stereo
+    K: np.ndarray
+    D: np.ndarray
     R_c: np.ndarray
     t_c: np.ndarray
     image_height: int
     image_width: int
 
+
+@dataclass
+class MonoCameraInfoProcessed:
+    K: np.ndarray
+    D: np.ndarray
+    image_height: int
+    image_width: int
 
 @dataclass
 class HeaderConfig:
@@ -99,7 +112,7 @@ class CPInfo:
 
 
 datacls = TypeVar("datacls")
-def datacls_from_dict(data_class: datacls, raw: dict) -> datacls:
+def datacls_from_dict(data_class: Type[datacls], raw: dict) -> datacls:
     '''
     Convert a loaded dict into an instance of the given data class recursively.
     data_class: the data class to convert to

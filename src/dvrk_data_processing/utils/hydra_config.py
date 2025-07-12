@@ -14,18 +14,24 @@ class PathConfig:
 
 
 @dataclass
+class KinmaticMapWeightConfig:
+    sigma_x: float
+    sigma_y: float
+    advance_weight: bool
+    tol_dist: float
+
+
+@dataclass
 class KinematicMapConfig:
     stage: str
     img_size: List[int]
     arm_name: List[str]
     input_subfolder: str
     output_subfolder: str
+    weight_config: KinmaticMapWeightConfig
     fps_img: float
     fps_kin: float
-    sigma_x: float
-    sigma_y: float
-    camera_calibration_path: Union[Path, str]
-    weight_adv: bool
+    enable_overlay: bool
     folder_initialize: bool = False
 
 

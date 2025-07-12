@@ -5,7 +5,8 @@ import numpy as np
 import yaml
 import json
 import cv2
-from dvrk_data_processing.utils.data_load_config import CameraInfo, KinematicInfo, datacls_from_dict, CameraInfoProcessed, CPInfo
+from dvrk_data_processing.utils.data_load_config import (CameraInfo, KinematicInfo, datacls_from_dict,
+                                                         CameraInfoProcessed, CPInfo, MonoCameraInfoProcessed)
 from scipy.spatial.transform import Rotation as R
 
 
@@ -63,29 +64,6 @@ def load_camera_mtx_yaml(path: Union[Path, str])->np.ndarray:
     return camera_mtx
 
 
-def load_camera_param_yaml(path: Union[Path, str])->CameraInfoProcessed:
-    '''
-    load the camera parameters from the yaml file
-    path: path to the yaml file
-    output: loaded data class instance of CameraInfoProcessed
-    '''
-    file_path = convert_pathlib_type(path)
-    with open(file_path, 'r') as f:
-        test_data = yaml.safe_load(f)
-    cam_info = datacls_from_dict(CameraInfo, test_data)
-    K = np.array(cam_info.camera_matrix.data).reshape(3,3)
-    D = np.array(cam_info.distortion_coefficients.data).reshape(-1,1)
-    R_c = np.array(cam_info.R_stereo.data).reshape(3,3)
-    rvec, _ = cv2.Rodrigues(R_c)
-    t_c = np.array(cam_info.T_stereo.data).reshape(-1,1)
-    img_width = cam_info.image_width
-    img_height = cam_info.image_height
-    dict_cam_param = {'K': K, 'D': D, 'rvec': rvec, 'tvec': t_c,'R_c': R_c, 't_c': t_c,
-                      'image_width': img_width, 'image_height': img_height}
-    camera_params = datacls_from_dict(CameraInfoProcessed, dict_cam_param)
-    return camera_params
-
-
 def load_stereo_proj_mtx(path: Union[Path,str])->List[np.ndarray]:
     '''
     Load the 3x3 camera matrix of the stereo camera from the calibration folder
@@ -109,6 +87,46 @@ def load_stereo_proj_mtx(path: Union[Path,str])->List[np.ndarray]:
     else:
         raise ValueError('Camera calibration folder have too many / no calibration files')
     return project_mtx
+
+
+def load_stereo_camera_param_yaml(path: Union[Path, str])->CameraInfoProcessed:
+    '''
+    load the camera parameters from the yaml file (for stereo camera)
+    path: path to the yaml file
+    output: loaded data class instance of CameraInfoProcessed
+    '''
+    file_path = convert_pathlib_type(path)
+    with open(file_path, 'r') as f:
+        test_data = yaml.safe_load(f)
+    cam_info = datacls_from_dict(CameraInfo, test_data)
+    K = np.array(cam_info.camera_matrix.data).reshape(3,3)
+    D = np.array(cam_info.distortion_coefficients.data).reshape(-1,1)
+    R_c = np.array(cam_info.R_stereo.data).reshape(3,3)
+    t_c = np.array(cam_info.T_stereo.data).reshape(-1,1)
+    img_width = cam_info.image_width
+    img_height = cam_info.image_height
+    dict_cam_param = {'K': K, 'D': D,'R_c': R_c, 't_c': t_c, 'image_width': img_width, 'image_height': img_height}
+    camera_params = datacls_from_dict(CameraInfoProcessed, dict_cam_param)
+    return camera_params
+
+
+def load_mono_camera_param_yaml(path: Union[Path, str])->MonoCameraInfoProcessed:
+    '''
+    load the camera parameters from the yaml file (for mono camera)
+    path: path to the yaml file
+    output: loaded data class instance of MonoCameraInfoProcessed
+    '''
+    file_path = convert_pathlib_type(path)
+    with open(file_path, 'r') as f:
+        test_data = yaml.safe_load(f)
+    cam_info = datacls_from_dict(CameraInfo, test_data)
+    K = np.array(cam_info.camera_matrix.data).reshape(3,3)
+    D = np.array(cam_info.distortion_coefficients.data).reshape(-1,1)
+    img_width = cam_info.image_width
+    img_height = cam_info.image_height
+    dict_cam_param = {'K': K, 'D': D,'image_width': img_width, 'image_height': img_height}
+    camera_params = datacls_from_dict(CameraInfoProcessed, dict_cam_param)
+    return camera_params
 
 
 def load_json_cp(path: Union[Path, str], arm_name:str)->CPInfo:
@@ -142,6 +160,7 @@ def glob_sorted_frame(path: Union[Path, str])->List[Path]:
     data_path = convert_pathlib_type(path)
     cp_file_list = sorted(data_path.glob('*'), key=lambda p: int(p.stem))
     return cp_file_list
+
 
 def skew(vec: np.ndarray)->np.ndarray:
     '''
