@@ -1,0 +1,21 @@
+stage: resize_rectify
+folder_initialize: true
+
+# custom configurations
+img_size: [1920, 1080]
+arm_name: ['PSM1', 'PSM2']
+
+input_subfolder: 'regular'
+output_subfolder: "${.stage}"
+
+weight_config:
+  sigma_x: 50
+  sigma_y: 50
+  advanced_weight: true
+  tol_dist: 0.05
+
+fps_img: 30
+fps_kin: 1000
+enable_overlay: true
+
+test: "${path_config.raw_dir}"

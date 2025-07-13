@@ -101,8 +101,12 @@ def load_stereo_camera_param_yaml(path: Union[Path, str])->CameraInfoProcessed:
     cam_info = datacls_from_dict(CameraInfo, test_data)
     K = np.array(cam_info.camera_matrix.data).reshape(3,3)
     D = np.array(cam_info.distortion_coefficients.data).reshape(-1,1)
-    R_c = np.array(cam_info.R_stereo.data).reshape(3,3)
-    t_c = np.array(cam_info.T_stereo.data).reshape(-1,1)
+    if path.stem == 'left':
+        R_c = np.eye(3)
+        t_c = np.zeros((3,1))
+    else:
+        R_c = np.array(cam_info.R_stereo.data).reshape(3,3)
+        t_c = np.array(cam_info.T_stereo.data).reshape(-1,1)
     img_width = cam_info.image_width
     img_height = cam_info.image_height
     dict_cam_param = {'K': K, 'D': D,'R_c': R_c, 't_c': t_c, 'image_width': img_width, 'image_height': img_height}

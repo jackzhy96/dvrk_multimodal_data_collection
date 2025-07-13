@@ -71,9 +71,16 @@ class ArmMeasuredCpConfig:
     velocity: List[float]
 
 @dataclass
+class ArmLocalCpConfig:
+    position: List[float]
+    orientation: List[float]
+
+
+@dataclass
 class ArmSetpointCpConfig:
     position: List[float]
     orientation: List[float]
+
 
 @dataclass
 class ArmJsConfig:
@@ -93,6 +100,7 @@ class DesiredLoadConfig:
 
 @dataclass
 class ArmLoadConfig:
+    local_cp: ArmLocalCpConfig
     measured_data: MeasuredLoadConfig
     setpoint_data: DesiredLoadConfig
 
