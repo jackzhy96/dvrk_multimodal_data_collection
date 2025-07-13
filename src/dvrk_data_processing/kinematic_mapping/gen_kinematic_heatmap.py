@@ -129,13 +129,15 @@ def main(cfg: AppCfg):
     # weight_adv = False ## use this one if you only want to have the heatmap
     enable_overlay = cfg.preprocess.enable_overlay
     # enable_overlay = False ## use this one if you only want to have the heatmap
+    input_folder = Path(cfg.preprocess.input_folder)
+    output_folder = Path(cfg.preprocess.output_folder)
     if cfg.preprocess.folder_initialize:
         clear_folder(processed_dir)
 
     dt = 1.0 / fps_kin
 
-    data_folder = raw_dir / cfg.preprocess.input_subfolder / 'kinematic'
-    save_folder = processed_dir / cfg.preprocess.output_subfolder
+    data_folder = input_folder / 'kinematic'
+    save_folder = output_folder
 
     for i_cam in range(len(camera_names)):
         camera_file_path = camera_calibration_path / f'{camera_names[i_cam]}.yaml'
@@ -206,7 +208,7 @@ def main(cfg: AppCfg):
 
 if __name__ == '__main__':
     main()
-    print('Done!')
+    print('Kinematic Mapping Done!')
     # from hydra import compose, initialize
     #
     # with initialize(version_base=None, config_path='../../../config'):

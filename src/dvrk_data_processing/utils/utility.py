@@ -5,6 +5,7 @@ import numpy as np
 import yaml
 import json
 import cv2
+import shutil
 from dvrk_data_processing.utils.data_load_config import (CameraInfo, KinematicInfo, datacls_from_dict,
                                                          CameraInfoProcessed, CPInfo, MonoCameraInfoProcessed)
 from scipy.spatial.transform import Rotation as R
@@ -89,6 +90,18 @@ def load_stereo_proj_mtx(path: Union[Path,str])->List[np.ndarray]:
     return project_mtx
 
 
+def load_raw_stereo_camera_param_yaml(path: Union[Path, str])->CameraInfo:
+    '''
+    load the camera parameters from the yaml file without any processing (for stereo camera)
+    path: path to the yaml file
+    output: loaded data class instance of CameraInfo
+    '''
+    file_path = convert_pathlib_type(path)
+    with open(file_path, 'r') as f:
+        test_data = yaml.safe_load(f)
+    cam_info = datacls_from_dict(CameraInfo, test_data)
+    return cam_info
+
 def load_stereo_camera_param_yaml(path: Union[Path, str])->CameraInfoProcessed:
     '''
     load the camera parameters from the yaml file (for stereo camera)
@@ -129,7 +142,7 @@ def load_mono_camera_param_yaml(path: Union[Path, str])->MonoCameraInfoProcessed
     img_width = cam_info.image_width
     img_height = cam_info.image_height
     dict_cam_param = {'K': K, 'D': D,'image_width': img_width, 'image_height': img_height}
-    camera_params = datacls_from_dict(CameraInfoProcessed, dict_cam_param)
+    camera_params = datacls_from_dict(MonoCameraInfoProcessed, dict_cam_param)
     return camera_params
 
 
@@ -164,6 +177,30 @@ def glob_sorted_frame(path: Union[Path, str])->List[Path]:
     data_path = convert_pathlib_type(path)
     cp_file_list = sorted(data_path.glob('*'), key=lambda p: int(p.stem))
     return cp_file_list
+
+
+def get_sorted_names(path: Union[Path, str])->List[str]:
+    '''
+    Get the sorted file names in a given folder
+    path: path to the folder containing the files
+    output: list of sorted file names
+    '''
+    data_path = convert_pathlib_type(path)
+    file_path = glob_sorted_frame(data_path)
+    file_names = [p.name for p in file_path]
+    return file_names
+
+
+def copy_folder(src: Union[Path, str], dst: Union[Path, str])->None:
+    '''
+    Copy the folder from src to dst
+    src: source folder path
+    dst: destination folder path
+    '''
+    src_path = convert_pathlib_type(src)
+    dst_path = convert_pathlib_type(dst)
+    shutil.copytree(src_path, dst_path, dirs_exist_ok=True)
+    print(f'Copied folder from {src_path} to {dst_path}')
 
 
 def skew(vec: np.ndarray)->np.ndarray:
