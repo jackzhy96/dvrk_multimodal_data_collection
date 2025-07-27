@@ -2,7 +2,7 @@ stage: kinematic_map
 folder_initialize: false
 
 # custom configurations
-img_size: [640, 480]
+img_size: [1920, 1080]
 arm_name: ['PSM1', 'PSM2']
 
 input_folder: '${path_config.intermediate_dir}/regular'

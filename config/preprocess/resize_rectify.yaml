@@ -4,7 +4,7 @@ folder_initialize: false
 # custom configurations
 resize_config:
   original_size: [1920, 1080]
-  new_size: [640, 480]
+  new_size: [1920, 1080]
   enable_resize: true
 
 input_folder: '${path_config.raw_dir}/regular'

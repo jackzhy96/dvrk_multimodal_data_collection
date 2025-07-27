@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 from dvrk_data_processing.utils.hydra_config import PathConfig, KinematicMapConfig
 from dvrk_data_processing.utils.utility import (create_folder, clear_folder, load_json_cp, glob_sorted_frame,
-                                                load_stereo_camera_param_yaml, skew, load_mono_camera_param_yaml)
+                                                load_stereo_camera_param_yaml, skew, load_mono_camera_param_yaml,load_handeye_dict,load_ecm_mat)
 from dvrk_data_processing.utils.data_load_config import CameraInfoProcessed
 from tqdm import tqdm
 import cv2
@@ -19,6 +19,7 @@ class AppCfg:
     camera_names: List[str]
     camera_calibration_path: Union[Path, str]
     camera_offset: Union[None, List[float]]
+    handeye_calib_path: Union[Path, str]
 
 
 def pixel_coord_check(pixel_coord:np.ndarray, img_w:int, img_h:int)->None:
@@ -114,9 +115,19 @@ def main(cfg: AppCfg):
     camera_calibration_path = Path(cfg.camera_calibration_path)
     camera_names = cfg.camera_names
     camera_offset = cfg.camera_offset
+
+
+    
+
     if camera_offset is not None:
         camera_offset = np.array(cfg.camera_offset).reshape(3, 3)
     arm_list = list(cfg.preprocess.arm_name)
+
+    
+    handeye_path = Path(cfg.handeye_calib_path)
+    he_dict_raw = load_handeye_dict(handeye_path, arm_list)   # {'PSM1':4×4 , 'PSM2':4×4}
+
+    he_dict = he_dict_raw
     img_w, img_h = cfg.preprocess.img_size
     fps_img = float(cfg.preprocess.fps_img)
     fps_kin = float(cfg.preprocess.fps_kin)
@@ -151,6 +162,13 @@ def main(cfg: AppCfg):
         print(f'Working on {camera_names[i_cam].upper()} Camera: \n')
         if enable_overlay:
             img_file_list = glob_sorted_frame(image_folder)
+
+        from copy import deepcopy
+        camera_params_naked = deepcopy(camera_params)
+        camera_params_naked.R_c = np.eye(3)
+        camera_params_naked.t_c = np.zeros((3, 1))
+        ecm_folder = data_folder.parent / 'kinematic' / 'ECM'
+        ecm_files  = glob_sorted_frame(ecm_folder)
         for i_arm in range(len(arm_list)):
             arm_name = arm_list[i_arm]
             data_path = data_folder / arm_name
@@ -163,6 +181,13 @@ def main(cfg: AppCfg):
                 arm_save_folder = save_folder / arm_name
 
             for file_name in tqdm(file_list, desc=f"Kinematic HeatMap Processing Frames of {arm_name}"):
+                # === Camera←World  ===
+                T_W_E = load_ecm_mat(ecm_files[int(file_name.stem)])   # World ← ECM-Tip
+                T_C_W = np.linalg.inv(T_W_E)                           #  Camera≈ECM-Tip → T_C_E=I
+                R_C_W = T_C_W[:3, :3]
+                p_C_W = T_C_W[:3,  3]
+
+
                 data_arm = load_json_cp(file_name, arm_name)
                 if enable_overlay:
                     img_file_path = img_file_list[int(file_name.stem)]
@@ -181,12 +206,16 @@ def main(cfg: AppCfg):
                 w = data_arm.w
                 v = data_arm.v
 
+
+
                 ### predict next pos using first-order approximation
                 dx = v + np.cross(w, t)
                 t_next = t + dx * dt
+                t_local      = data_arm.t_local
+                t_local_next = t_local + dx * dt
 
-                pixel_coord = cam_project_3d_to_2d(t, camera_params, camera_offset)
-                pixel_coord_next = cam_project_3d_to_2d(t_next, camera_params, camera_offset)
+                pixel_coord = cam_project_3d_to_2d(t,  camera_params, camera_offset)
+                pixel_coord_next = cam_project_3d_to_2d(t_next,  camera_params, camera_offset)
 
                 u = pixel_coord[0, 0]
                 v = pixel_coord[0, 1]
@@ -194,6 +223,30 @@ def main(cfg: AppCfg):
                 v_next = pixel_coord_next[0, 1]
 
                 kp_heat = gen_heatmap(u, v, u_next, v_next, t, sigma_x, sigma_y, img_w, img_h, weight_adv, tol_dist)
+               # ---------- Hand-Eye ----------
+                T_W_B = he_dict[arm_name]              # World ← PSM-RCM
+                R_W_B = T_W_B[:3, :3];  p_W_B = T_W_B[:3, 3]
+
+                tip_world      = R_W_B @ t_local      + p_W_B
+                tip_world_next = R_W_B @ t_local_next + p_W_B
+
+                tip_cam_he      = R_C_W @ tip_world      + p_C_W
+                tip_cam_he_next = R_C_W @ tip_world_next + p_C_W
+
+                pixel_coord_he      = cam_project_3d_to_2d(tip_cam_he.reshape(1,3),
+                                                        camera_params_naked, camera_offset)
+                pixel_coord_next_he = cam_project_3d_to_2d(tip_cam_he_next.reshape(1,3),
+                                                        camera_params_naked, camera_offset)
+
+                kp_heat_he = gen_heatmap(
+                    pixel_coord_he[0,0], pixel_coord_he[0,1],
+                    pixel_coord_next_he[0,0], pixel_coord_next_he[0,1],
+                    tip_cam_he, sigma_x, sigma_y, img_w, img_h, weight_adv, tol_dist
+                )
+
+                # ---------- heatmap addup ----------
+                kp_heat = kp_heat + kp_heat_he
+
 
                 if enable_overlay:
                     kp_heat = np.multiply(kp_heat, img_greyscale)
@@ -205,6 +258,34 @@ def main(cfg: AppCfg):
                 kp_norm = cv2.normalize(kp_heat, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
                 cv2.imwrite(str(img_file_path), kp_norm)
 
+                # -----------------------------------------------------------
+                #  DEBUG: print/record 3-D and pixel data  (every 50 frames)
+                # -----------------------------------------------------------
+                if int(file_name.stem) % 50 == 0:          
+                    frame_id = file_name.stem
+                    print(
+                        f"[Frame {frame_id} | {arm_name}]  dVRK 3-D (cam): "
+                        f"{t if 't' in locals() else 'N/A'}"
+                    )
+                    print(
+                        f"[Frame {frame_id} | {arm_name}]  dVRK 2-D (u,v): "
+                        f"{pixel_coord[0,0]:7.1f}, {pixel_coord[0,1]:7.1f}"
+                    )
+                    print(
+                        f"[Frame {frame_id} | {arm_name}]  HE   3-D (cam): "
+                        f"{tip_cam_he.round(4)}"
+                    )
+                    print(
+                        f"[Frame {frame_id} | {arm_name}]  HE   2-D (u,v): "
+                        f"{pixel_coord_he[0,0]:7.1f}, {pixel_coord_he[0,1]:7.1f}"
+                    )
+                    # quick sanity: delta in pixels
+                    du = pixel_coord_he[0,0] - pixel_coord[0,0]
+                    dv = pixel_coord_he[0,1] - pixel_coord[0,1]
+                    print(
+                        f"[Frame {frame_id} | {arm_name}]  Δ(pixel HE-dVRK): "
+                        f"{du:+6.1f}, {dv:+6.1f}\n"
+                    )
 
 if __name__ == '__main__':
     main()
@@ -325,7 +406,6 @@ if __name__ == '__main__':
     #             img_file_path = img_save_folder / img_file_name
     #             kp_norm = cv2.normalize(kp_heat, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
     #             cv2.imwrite(str(img_file_path), kp_norm)
-
 
 
 
