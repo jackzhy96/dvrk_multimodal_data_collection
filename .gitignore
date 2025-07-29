@@ -178,5 +178,5 @@ cython_debug/
 /FoundationStereo/pretrained_models
 data
 outputs
-
+.vscode
 
