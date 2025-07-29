@@ -1,11 +1,12 @@
 defaults:
-  - path_config: jack_local     # pick one file from the data, data load and store paths
+  - path_config: Chang_local     # pick one file from the data, data load and store paths
   - preprocess: kinematic_map   # select the preprocess type
   - _self_
 
-workspace: "/home/jackzhy/SurgPoseV1"
+workspace: "C:/Users/lc/Desktop/JHU_Course/CIS2/SurgPoseV1"
 
 camera_calibration_path: "${path_config.intermediate_dir}/camera_calibration" # use your own path
+handeye_calib_path: "${path_config.intermediate_dir}/camera_calibration"
 camera_names: ['left', 'right']
 #camera_offset:
 camera_offset: [-1.0, 0.0, 0.0,

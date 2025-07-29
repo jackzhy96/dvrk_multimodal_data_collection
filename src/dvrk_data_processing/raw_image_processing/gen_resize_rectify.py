@@ -102,15 +102,15 @@ def copy_stereo_camera_calibration(camera_calibration_path:Path, camera_names:Li
 
 def get_rectify_map(camera_param_left:CameraInfoProcessed, camera_param_right:CameraInfoProcessed,
                     new_size:List[int])->List[list]:
-    R1, R2, P1, P2, Q, _, _ = cv2.stereoRectify(camera_param_left.K, camera_param_left.D, camera_param_right.K,
+    R1, R2, P1, P2, Q, valid1, valid2= cv2.stereoRectify(camera_param_left.K, camera_param_left.D, camera_param_right.K,
                                                 camera_param_right.D, new_size, camera_param_right.R_c,
-                                                camera_param_right.t_c)
+                                                camera_param_right.t_c,alpha=0)
 
     left_map1, left_map2 = cv2.initUndistortRectifyMap(camera_param_left.K, camera_param_left.D, R1, P1,
                                                        new_size, cv2.CV_16SC2)
     right_map1, right_map2 = cv2.initUndistortRectifyMap(camera_param_right.K, camera_param_right.D, R2, P2,
                                                          new_size, cv2.CV_16SC2)
-    return [[left_map1, left_map2], [right_map1, right_map2]]
+    return [[left_map1, left_map2], [right_map1, right_map2]], [valid1, valid2]
 
 
 
@@ -149,7 +149,7 @@ def main(cfg: AppCfg):
     camera_param_left, camera_param_right = get_stereo_camera_calibration(camera_calibration_path, camera_names,
                                                                           original_size, new_size)
 
-    img_map_list = get_rectify_map(camera_param_left, camera_param_right, new_size)
+    img_map_list, roi_list = get_rectify_map(camera_param_left, camera_param_right, new_size)
 
     left_img_folder = input_folder / 'image' / 'left'
 
@@ -169,7 +169,15 @@ def main(cfg: AppCfg):
             else:
                 img_resize = img_raw.copy()
             if enable_rectify:
-                img_rectify = cv2.remap(img_resize, img_map_list[i_cam][0], img_map_list[i_cam][1], cv2.INTER_LINEAR)
+                img_rectify = cv2.remap(img_resize, img_map_list[i_cam][0], img_map_list[i_cam][1], cv2.INTER_LINEAR,borderMode=cv2.BORDER_REPLICATE)
+                x, y, w, h = roi_list[i_cam]
+                img_rectify = img_rectify[y:y+h, x:x+w]
+                pad_bottom = new_size[1] - img_rectify.shape[0]   # 0 或 1
+                if pad_bottom:
+                    img_rectify = cv2.copyMakeBorder(
+                        img_rectify, 0, pad_bottom, 0, 0,
+                        borderType=cv2.BORDER_REPLICATE
+                    )
             else:
                 img_rectify = img_resize.copy()
             cv2.imwrite(str(img_save_folder / file_name), img_rectify)

@@ -117,7 +117,8 @@ class CPInfo:
     t: np.ndarray
     w: np.ndarray
     v: np.ndarray
-
+    R_local: np.ndarray
+    t_local: np.ndarray
 
 datacls = TypeVar("datacls")
 def datacls_from_dict(data_class: Type[datacls], raw: dict) -> datacls:
