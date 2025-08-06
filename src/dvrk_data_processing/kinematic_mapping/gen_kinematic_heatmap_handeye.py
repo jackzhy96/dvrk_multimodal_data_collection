@@ -109,22 +109,16 @@ p_config = Path.cwd().parents[2] / 'config'
 @hydra.main(
     version_base=None,
     config_path= str(p_config),
-    config_name="config_kp"
+    config_name="config_kp_jack"
 )
 def main(cfg: AppCfg):
-
-
     camera_calibration_path = Path(cfg.camera_calibration_path)
     camera_names = cfg.camera_names
     camera_offset = cfg.camera_offset
 
-
-    
-
     if camera_offset is not None:
         camera_offset = np.array(cfg.camera_offset).reshape(3, 3)
     arm_list = list(cfg.preprocess.arm_name)
-
     
     handeye_path = Path(cfg.handeye_calib_path)
     he_dict_raw = load_handeye_dict(handeye_path, arm_list)   # {'PSM1':4×4 , 'PSM2':4×4}
@@ -151,10 +145,6 @@ def main(cfg: AppCfg):
 
     data_folder = input_folder / 'kinematic'
     save_folder = output_folder
-    save_root_dvrk    = output_folder.parent / f"{output_folder.name}_dVRK"
-    save_root_handeye = output_folder.parent / f"{output_folder.name}_handeye"
-    for p in [save_root_dvrk, save_root_handeye]:
-        p.mkdir(parents=True, exist_ok=True)
     for i_cam in range(len(camera_names)):
         camera_file_path = camera_calibration_path / f'{camera_names[i_cam]}.yaml'
         if len(camera_names) == 2:
@@ -180,19 +170,11 @@ def main(cfg: AppCfg):
             file_list = glob_sorted_frame(data_path)
 
             if camera_names is not None:
-                arm_save_dvrk    = save_root_dvrk    / arm_name / camera_names[i_cam]
-                arm_save_he      = save_root_handeye / arm_name / camera_names[i_cam]
-                for p in [arm_save_dvrk, arm_save_he]:
-                    (p / "image").mkdir(parents=True, exist_ok=True)
-                    (p / "heatmap").mkdir(parents=True, exist_ok=True)
+                arm_save_folder = save_folder / arm_name / camera_names[i_cam]
 
                 print(f'Working on {camera_names[i_cam].upper()} Camera: \n')
             else:
-                arm_save_dvrk    = save_root_dvrk    /  camera_names[i_cam]
-                arm_save_he      = save_root_handeye /  camera_names[i_cam]
-                for p in [arm_save_dvrk, arm_save_he]:
-                    (p / "image").mkdir(parents=True, exist_ok=True)
-                    (p / "heatmap").mkdir(parents=True, exist_ok=True)
+                arm_save_folder = save_folder / arm_name
 
 
             for file_name in tqdm(file_list, desc=f"Kinematic HeatMap Processing Frames of {arm_name}"):
@@ -209,12 +191,12 @@ def main(cfg: AppCfg):
                     img_greyscale = cv2.imread(str(img_file_path), cv2.IMREAD_GRAYSCALE).astype(np.float64)
                 img_file_name = file_name.parts[-1].replace('json', 'png')
                 heatmap_file_name = file_name.parts[-1].replace('json', 'npy')
-                # img_save_folder = arm_save_folder / 'image'
-                # heatmap_save_folder = arm_save_folder / 'heatmap'
-                # if not img_save_folder.exists():
-                #     create_folder(img_save_folder)
-                # if not heatmap_save_folder.exists():
-                #     create_folder(heatmap_save_folder)
+                img_save_folder = arm_save_folder / 'image'
+                heatmap_save_folder = arm_save_folder / 'heatmap'
+                if not img_save_folder.exists():
+                    create_folder(img_save_folder)
+                if not heatmap_save_folder.exists():
+                    create_folder(heatmap_save_folder)
 
                 # R = data_arm.R
                 t = data_arm.t
@@ -229,15 +211,6 @@ def main(cfg: AppCfg):
                 t_local      = data_arm.t_local
                 t_local_next = t_local + dx * dt
 
-                pixel_coord = cam_project_3d_to_2d(t,  camera_params, camera_offset)
-                pixel_coord_next = cam_project_3d_to_2d(t_next,  camera_params, camera_offset)
-
-                u = pixel_coord[0, 0]
-                v = pixel_coord[0, 1]
-                u_next = pixel_coord_next[0, 0]
-                v_next = pixel_coord_next[0, 1]
-
-                kp_heat = gen_heatmap(u, v, u_next, v_next, t, sigma_x, sigma_y, img_w, img_h, weight_adv, tol_dist)
                # ---------- Hand-Eye ----------
                 T_W_B = he_dict[arm_name]              # World ← PSM-RCM
                 R_W_B = T_W_B[:3, :3];  p_W_B = T_W_B[:3, 3]
@@ -253,7 +226,7 @@ def main(cfg: AppCfg):
                 pixel_coord_next_he = cam_project_3d_to_2d(tip_cam_he_next.reshape(1,3),
                                                         camera_params_naked, camera_offset)
 
-                kp_heat_he = gen_heatmap(
+                kp_heat = gen_heatmap(
                     pixel_coord_he[0,0], pixel_coord_he[0,1],
                     pixel_coord_next_he[0,0], pixel_coord_next_he[0,1],
                     tip_cam_he, sigma_x, sigma_y, img_w, img_h, weight_adv, tol_dist
@@ -265,25 +238,27 @@ def main(cfg: AppCfg):
 
                 if enable_overlay:
                     kp_heat = np.multiply(kp_heat, img_greyscale)
-                    kp_heat_he = np.multiply(kp_heat_he, img_greyscale)
-                # heatmap_file_path = heatmap_save_folder / heatmap_file_name
-                
-                # -------- dVRK --------
-                np.save(arm_save_dvrk / "heatmap" / heatmap_file_name, kp_heat)
-                kp_norm_dvrk = cv2.normalize(kp_heat, None, 0, 255,
-                                            cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-                cv2.imwrite(str(arm_save_dvrk / "image" / img_file_name), kp_norm_dvrk)
 
-                # -------- Hand-Eye ----
-                np.save(arm_save_he / "heatmap" / heatmap_file_name, kp_heat_he)
-                kp_norm_he = cv2.normalize(kp_heat_he, None, 0, 255,
-                                        cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-                cv2.imwrite(str(arm_save_he / "image" / img_file_name), kp_norm_he)
+                heatmap_file_path = heatmap_save_folder / heatmap_file_name
+                np.save(heatmap_file_path, kp_heat)
+
+                img_file_path = img_save_folder / img_file_name
+                kp_norm = cv2.normalize(kp_heat, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+                cv2.imwrite(str(img_file_path), kp_norm)
 
 
                 # -----------------------------------------------------------
                 #  DEBUG: print/record 3-D and pixel data  (every 50 frames)
                 # -----------------------------------------------------------
+
+                pixel_coord = cam_project_3d_to_2d(t,  camera_params, camera_offset)
+                pixel_coord_next = cam_project_3d_to_2d(t_next,  camera_params, camera_offset)
+
+                u = pixel_coord[0, 0]
+                v = pixel_coord[0, 1]
+                u_next = pixel_coord_next[0, 0]
+                v_next = pixel_coord_next[0, 1]
+
                 if int(file_name.stem) % 50 == 0:          
                     frame_id = file_name.stem
                     print(

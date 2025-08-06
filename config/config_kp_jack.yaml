@@ -1,0 +1,23 @@
+defaults:
+  - path_config: jack_local     # pick one file from the data, data load and store paths
+  - preprocess: kinematic_map   # select the preprocess type
+  - _self_
+
+workspace: "/home/jackzhy/SurgPoseV1"
+
+camera_calibration_path: "${path_config.intermediate_dir}/camera_calibration" # use your own path
+handeye_calib_path: "${path_config.data_dir}/${path_config.data_name}/hand_eye_calibration"
+camera_names: ['left', 'right']
+#camera_offset:
+camera_offset: [-1.0, 0.0, 0.0,
+                0.0, -1.0, 0.0,
+                0.0, 0.0, 1.0]
+# ### Add random seeds if required
+# seed: 42
+
+# ### Optional, define log output if required
+#hydra:
+#  run:
+#    dir: "/home/jackzhy/SurgPoseV1/outputs/logs/${now:%Y%m%d}_${now:%H%M%S}"
+
+# custom configurations

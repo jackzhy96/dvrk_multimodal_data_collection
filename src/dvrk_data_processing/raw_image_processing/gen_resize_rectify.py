@@ -84,6 +84,14 @@ def get_stereo_camera_calibration(camera_calibration_path:Path, camera_names:Lis
 
 def copy_stereo_camera_calibration(camera_calibration_path:Path, camera_names:List[str], output_folder:Path,
                             original_size:List[int], new_size:List[int])->None:
+    '''
+    Copy the camera calibration parameters from the original folder to the new folder and implement scale factors to the intrinsic matrix.
+    camera_calibration_path: path to the camera calibration file
+    camera_names: list of camera names
+    output_folder: path to the output folder
+    original_size: original size of the image
+    new_size: new size of the image
+    '''
     scale_x = new_size[0] / original_size[0]
     scale_y = new_size[1] / original_size[1]
     for camera_name in camera_names:
@@ -101,7 +109,14 @@ def copy_stereo_camera_calibration(camera_calibration_path:Path, camera_names:Li
 
 
 def get_rectify_map(camera_param_left:CameraInfoProcessed, camera_param_right:CameraInfoProcessed,
-                    new_size:List[int])->List[list]:
+                    new_size:List[int])-> Tuple[List[list], list]:
+    '''
+    Get rectify map, also get ROI for later crop so that we can remove the black border.
+    camera_param_left: camera parameters for left camera
+    camera_param_right: camera parameters for right camera
+    new_size: new size of the image
+    output: rectify map for both cameras, and valid pixels for both cameras
+    '''
     R1, R2, P1, P2, Q, valid1, valid2= cv2.stereoRectify(camera_param_left.K, camera_param_left.D, camera_param_right.K,
                                                 camera_param_right.D, new_size, camera_param_right.R_c,
                                                 camera_param_right.t_c,alpha=0)
@@ -113,7 +128,6 @@ def get_rectify_map(camera_param_left:CameraInfoProcessed, camera_param_right:Ca
     return [[left_map1, left_map2], [right_map1, right_map2]], [valid1, valid2]
 
 
-
 cs = ConfigStore.instance()
 cs.store(name="resize_rectify", node=AppCfg)
 # set config path
@@ -122,7 +136,7 @@ p_config = Path.cwd().parents[2] / 'config'
 @hydra.main(
     version_base=None,
     config_path= str(p_config),
-    config_name="config_rr"
+    config_name="config_rr_jack"
 )
 def main(cfg: AppCfg):
     camera_calibration_path = Path(cfg.camera_calibration_path)
@@ -169,10 +183,11 @@ def main(cfg: AppCfg):
             else:
                 img_resize = img_raw.copy()
             if enable_rectify:
-                img_rectify = cv2.remap(img_resize, img_map_list[i_cam][0], img_map_list[i_cam][1], cv2.INTER_LINEAR,borderMode=cv2.BORDER_REPLICATE)
+                img_rectify = cv2.remap(img_resize, img_map_list[i_cam][0], img_map_list[i_cam][1], cv2.INTER_LINEAR,
+                                        borderMode=cv2.BORDER_REPLICATE)
                 x, y, w, h = roi_list[i_cam]
                 img_rectify = img_rectify[y:y+h, x:x+w]
-                pad_bottom = new_size[1] - img_rectify.shape[0]   # 0 或 1
+                pad_bottom = new_size[1] - img_rectify.shape[0]   # usually 0, sometimes it may have one row difference
                 if pad_bottom:
                     img_rectify = cv2.copyMakeBorder(
                         img_rectify, 0, pad_bottom, 0, 0,

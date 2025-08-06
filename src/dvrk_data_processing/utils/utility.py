@@ -1,4 +1,4 @@
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Dict
 from pathlib import Path
 import shutil
 import numpy as np
@@ -240,7 +240,7 @@ def load_handeye_json(path: Union[Path, str]) -> np.ndarray:
 
 
 def load_handeye_dict(calib_folder: Union[Path, str],
-                      arm_names: List[str]) -> dict[str, np.ndarray]:
+                      arm_names: List[str]) -> Dict[str, np.ndarray]:
     """
      {'PSM1':4*4, 'PSM2':4*4, ...}
     file name: <arm>-registration-dVRK.json
