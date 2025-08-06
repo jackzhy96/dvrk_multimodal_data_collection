@@ -6,8 +6,9 @@ import yaml
 import json
 import cv2
 import shutil
-from dvrk_data_processing.utils.data_load_config import (CameraInfo, KinematicInfo, datacls_from_dict,
-                                                         CameraInfoProcessed, CPInfo, MonoCameraInfoProcessed)
+from dvrk_data_processing.utils.data_load_config import (CameraInfo, KinematicInfo, datacls_from_dict, HandEyeInfo,
+                                                         HandEyeLoadConfig, CameraInfoProcessed, MonoCameraInfoProcessed,
+                                                         CPInfo)
 from scipy.spatial.transform import Rotation as R
 
 
@@ -102,6 +103,7 @@ def load_raw_stereo_camera_param_yaml(path: Union[Path, str])->CameraInfo:
     cam_info = datacls_from_dict(CameraInfo, test_data)
     return cam_info
 
+
 def load_stereo_camera_param_yaml(path: Union[Path, str])->CameraInfoProcessed:
     '''
     load the camera parameters from the yaml file (for stereo camera)
@@ -157,26 +159,30 @@ def load_json_cp(path: Union[Path, str], arm_name: str) -> CPInfo:
     file_path = convert_pathlib_type(path)
     with open(file_path, "r") as f:
         data = json.load(f)
-
-    kin_info = datacls_from_dict(KinematicInfo, data)
-    arm_info = {}
-
-    # -------- measured_cp (world coordinates) --------
-    rot_world = R.from_quat(kin_info.arm.measured_data.cp.orientation)
-    arm_info["R"] = rot_world.as_matrix()
-    arm_info["t"] = np.array(kin_info.arm.measured_data.cp.position)
-    arm_info["w"] = np.array(kin_info.arm.measured_data.cp.velocity)[0:3]
-    arm_info["v"] = np.array(kin_info.arm.measured_data.cp.velocity)[3:6]
-
+    arm_info = dict()
+    if arm_name == 'ECM':
+        kin_info = datacls_from_dict(KinematicInfo, data)
+        rot_world = R.from_quat(kin_info.arm.measured_data.cp.orientation)
+        arm_info["R"] = rot_world.as_matrix()
+        arm_info["t"] = np.array(kin_info.arm.measured_data.cp.position)
+    else:
+        kin_info = datacls_from_dict(KinematicInfo, data)
+        # -------- measured_cp (world coordinates) --------
+        rot_world = R.from_quat(kin_info.arm.measured_data.cp.orientation)
+        arm_info["R"] = rot_world.as_matrix()
+        arm_info["t"] = np.array(kin_info.arm.measured_data.cp.position)
+        arm_info["w"] = np.array(kin_info.arm.measured_data.cp.velocity)[0:3]
+        arm_info["v"] = np.array(kin_info.arm.measured_data.cp.velocity)[3:6]
     # -------- local_cp (base coordinates) --------
     rot_local = R.from_quat(kin_info.arm.local_cp.orientation)
     arm_info["R_local"] = rot_local.as_matrix()
     arm_info["t_local"] = np.array(kin_info.arm.local_cp.position)
-
     # -------- meta --------
     arm_info["arm_name"] = arm_name
-
-    cp_info = datacls_from_dict(CPInfo, arm_info)
+    if arm_name == 'ECM':
+        cp_info = datacls_from_dict(CPInfo, arm_info)
+    else:
+        cp_info = datacls_from_dict(CPInfo, arm_info)
     return cp_info
 
 
@@ -226,45 +232,56 @@ def skew(vec: np.ndarray)->np.ndarray:
                      [-vec[1], vec[0], 0]])
 
 
-#hand-eye
-def load_handeye_json(path: Union[Path, str]) -> np.ndarray:
-
+def load_handeye_json(path: Union[Path, str]) -> HandEyeInfo:
+    '''
+    Load the hand-eye calibration matrix from the json file
+    path: path to the json file
+    output: loaded data class instance of HandEyeInfo
+    '''
     file_path = convert_pathlib_type(path)
-    with open(file_path, "r") as f:
+    with open(file_path, 'r') as f:
         data = json.load(f)
-
-    mat = np.array(data.get("measured_cp", data), dtype=float)
-    if mat.shape != (4, 4):
-        raise ValueError(f"{file_path}  not a 4*4 matrix")
-    return mat
+    handeye_json = datacls_from_dict(HandEyeLoadConfig, data)
+    handeye_dict = dict()
+    tranform_matrix = np.array(handeye_json.measured_cp)
+    if tranform_matrix.shape != (4, 4):
+        raise ValueError(f"Incorrect Hand-Eye Calibration File {file_path}, the transformation matrix is not a 4*4 matrix")
+    handeye_dict['name'] = handeye_json.name
+    handeye_dict['transformation_matrix'] = tranform_matrix
+    handeye_info = datacls_from_dict(HandEyeInfo, handeye_dict)
+    return handeye_info
 
 
 def load_handeye_dict(calib_folder: Union[Path, str],
                       arm_names: List[str]) -> Dict[str, np.ndarray]:
-    """
-     {'PSM1':4*4, 'PSM2':4*4, ...}
-    file name: <arm>-registration-dVRK.json
-    """
+    '''
+    Load the hand-eye calibration matrix from the json files
+    calib_folder: path to the folder containing the json files
+    arm_names: list of arm names
+    output: dictionary of hand-eye calibration matrices, key: arm name, value: 4*4 transformation matrix
+    file name example: <arm name>-registration-dVRK.json
+    '''
     calib_path = convert_pathlib_type(calib_folder)
-    he_dict = {}
+    calibration_dict = dict()
     for arm in arm_names:
         he_file = calib_path / f"{arm}-registration-dVRK.json"
         if not he_file.exists():
-            raise FileNotFoundError(f"Lack Hand-Eye file: {he_file}")
-        he_dict[arm] = load_handeye_json(he_file)
-    return he_dict
+            raise FileNotFoundError(f"Cannot find Hand-Eye file: {he_file}")
+        handeye_info = load_handeye_json(he_file)
+        calibration_dict[handeye_info.name] = handeye_info.transformation_matrix
+    return calibration_dict
 
-# =========  ECM measured_cp   =========
+
 def load_ecm_mat(path: Union[Path, str]) -> np.ndarray:
     """ ECM local measured_cp, 4*4 (World ← ECM-Tip)"""
-    with open(convert_pathlib_type(path), "r") as f:
-        obj = json.load(f)
-    p = np.array(obj["arm"]["local_cp" ]["position"], dtype=float)
-    q = np.array(obj["arm"]["local_cp" ]["orientation"], dtype=float)
-    R_we = R.from_quat(q).as_matrix()
+    file_path = convert_pathlib_type(path)
+    ecm_info = load_json_cp(file_path, "ECM")
+    t_ecm = ecm_info.t_local
+    R_ecm = ecm_info.R_local
     T_we = np.eye(4)
-    T_we[:3, :3] = R_we
-    T_we[:3,  3] = p
+    T_we[:3, :3] = R_ecm
+    T_we[:3,  3] = t_ecm
+    a = 1
     return T_we
 
 

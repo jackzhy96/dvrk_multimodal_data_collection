@@ -120,6 +120,19 @@ class CPInfo:
     R_local: np.ndarray
     t_local: np.ndarray
 
+
+@dataclass
+class HandEyeLoadConfig:
+    name: str
+    measured_cp: List[list]
+
+
+@dataclass
+class HandEyeInfo:
+    name: str
+    transformation_matrix: np.ndarray
+
+
 datacls = TypeVar("datacls")
 def datacls_from_dict(data_class: Type[datacls], raw: dict) -> datacls:
     '''

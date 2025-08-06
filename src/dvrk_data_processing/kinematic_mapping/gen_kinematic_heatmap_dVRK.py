@@ -187,8 +187,6 @@ def main(cfg: AppCfg):
                 w = data_arm.w
                 v = data_arm.v
 
-
-
                 ### predict next pos using first-order approximation
                 dx = v + np.cross(w, t)
                 t_next = t + dx * dt
