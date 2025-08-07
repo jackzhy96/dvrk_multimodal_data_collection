@@ -158,7 +158,10 @@ def main(cfg: AppCfg):
         new_size = original_size
 
     if cfg.preprocess.folder_initialize:
-        clear_folder(intermediate_dir)
+        if processed_dir.exists():
+            clear_folder(output_folder)
+        else:
+            print(f"Output folder does not exist - {processed_dir}")
 
     camera_param_left, camera_param_right = get_stereo_camera_calibration(camera_calibration_path, camera_names,
                                                                           original_size, new_size)

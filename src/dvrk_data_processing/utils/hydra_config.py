@@ -54,15 +54,54 @@ class ResizeRectifyConfig:
 
 
 @dataclass
-class OpticalFlowConfig:
+class DepthEstimationConfig:
     stage: str
+    input_folder: str
+    output_folder: str
+    pretrained_model_path: str
+    scale: float
+    hierarchical_inference: bool
+    valid_iters: int
+    save_depth: bool
+    save_visualization: bool
+    start_frame: int
+    end_frame: int
     folder_initialize: bool = False
 
 
 @dataclass
-class DepthEstimationConfig:
+class OpticalFlowFilterConfig:
+    bilateral_d: int
+    bilateral_sigma_color: float
+    bilateral_sigma_space: float
+    gaussian_kernel_size: List[int]
+    gaussian_sigma: float
+
+
+@dataclass
+class OpticalFlowAlgorithmConfig:
+    pyramid_scale: float
+    pyramid_levels: int
+    window_size: int
+    iterations: int
+    poly_n: int
+    poly_sigma: float
+    flags: int
+
+
+@dataclass
+class OpticalFlowConfig:
     stage: str
+    input_folder: str
+    output_folder: str
+    camera_names: List[str]
+    flow_format: str
+    enable_visualization: bool
+    enable_preprocessing: bool
+    filter_config: OpticalFlowFilterConfig
+    algorithm_config: OpticalFlowAlgorithmConfig
     folder_initialize: bool = False
+
 
 if __name__ == "__main__":
     pass

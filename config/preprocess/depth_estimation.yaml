@@ -1,4 +1,15 @@
 stage: depth_estimation
 folder_initialize: false
 
+input_folder: "${path_config.intermediate_dir}/regular"
+output_folder: "${path_config.processed_dir}/${.stage}"
+pretrained_model_path: "${workspace}/FoundationStereo/pretrained_models/23-51-11/model_best_bp2.pth"
+scale: 1.0
+hierarchical_inference: true
+valid_iters: 32
+save_depth: true
+save_visualization: true
+start_frame: -1 # -1 means all frames
+end_frame: -1 # -1 means all frames
+
 # custom configurations

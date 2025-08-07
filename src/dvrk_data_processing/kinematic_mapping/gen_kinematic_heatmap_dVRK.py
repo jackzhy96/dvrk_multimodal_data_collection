@@ -136,8 +136,12 @@ def main(cfg: AppCfg):
     # enable_overlay = False ## use this one if you only want to have the heatmap
     input_folder = Path(cfg.preprocess.input_folder)
     output_folder = Path(cfg.preprocess.output_folder)
+
     if cfg.preprocess.folder_initialize:
-        clear_folder(processed_dir)
+        if processed_dir.exists():
+            clear_folder(output_folder)
+        else:
+            print(f"Output folder does not exist - {processed_dir}")
 
     dt = 1.0 / fps_kin
 
