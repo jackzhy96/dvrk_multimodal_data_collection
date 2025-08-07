@@ -70,6 +70,20 @@ class ArmMeasuredCpConfig:
     orientation: List[float]
     velocity: List[float]
 
+
+@dataclass
+class PSMMeasuredCpConfig:
+    position: List[float]
+    orientation: List[float]
+    velocity: List[float]
+
+
+@dataclass
+class ECMMeasuredCpConfig:
+    position: List[float]
+    orientation: List[float]
+
+
 @dataclass
 class ArmLocalCpConfig:
     position: List[float]
@@ -93,6 +107,18 @@ class MeasuredLoadConfig:
     cp: ArmMeasuredCpConfig
     js: ArmJsConfig
 
+
+@dataclass
+class PSMMeasuredLoadConfig:
+    cp: PSMMeasuredCpConfig
+    js: ArmJsConfig
+
+
+@dataclass
+class ECMMeasuredLoadConfig:
+    cp: ECMMeasuredCpConfig
+    js: ArmJsConfig
+
 @dataclass
 class DesiredLoadConfig:
     cp: ArmSetpointCpConfig
@@ -104,11 +130,40 @@ class ArmLoadConfig:
     measured_data: MeasuredLoadConfig
     setpoint_data: DesiredLoadConfig
 
+
+@dataclass
+class PSMLoadConfig:
+    local_cp: ArmLocalCpConfig
+    measured_data: PSMMeasuredLoadConfig
+    setpoint_data: DesiredLoadConfig
+
+
+@dataclass
+class ECMLoadConfig:
+    local_cp: ArmLocalCpConfig
+    measured_data: ECMMeasuredLoadConfig
+    setpoint_data: DesiredLoadConfig
+
+
 @dataclass
 class KinematicInfo:
     arm: ArmLoadConfig
     header: HeaderConfig
     jaw: JawLoadConfig
+
+
+@dataclass
+class PSMInfo:
+    arm: PSMLoadConfig
+    header: HeaderConfig
+    jaw: JawLoadConfig
+
+
+@dataclass
+class ECMInfo:
+    arm: ECMLoadConfig
+    header: HeaderConfig
+
 
 @dataclass
 class CPInfo:
@@ -117,6 +172,26 @@ class CPInfo:
     t: np.ndarray
     w: np.ndarray
     v: np.ndarray
+    R_local: np.ndarray
+    t_local: np.ndarray
+
+
+@dataclass
+class PSMCPInfo:
+    arm_name: str
+    R: np.ndarray
+    t: np.ndarray
+    w: np.ndarray
+    v: np.ndarray
+    R_local: np.ndarray
+    t_local: np.ndarray
+
+
+@dataclass
+class ECMCPInfo:
+    arm_name: str
+    R: np.ndarray
+    t: np.ndarray
     R_local: np.ndarray
     t_local: np.ndarray
 

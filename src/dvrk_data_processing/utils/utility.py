@@ -1,14 +1,13 @@
 from typing import Union, List, Tuple, Dict
 from pathlib import Path
-import shutil
 import numpy as np
 import yaml
 import json
 import cv2
 import shutil
-from dvrk_data_processing.utils.data_load_config import (CameraInfo, KinematicInfo, datacls_from_dict, HandEyeInfo,
+from dvrk_data_processing.utils.data_load_config import (CameraInfo, PSMInfo, ECMInfo, datacls_from_dict, HandEyeInfo,
                                                          HandEyeLoadConfig, CameraInfoProcessed, MonoCameraInfoProcessed,
-                                                         CPInfo)
+                                                         PSMCPInfo, ECMCPInfo)
 from scipy.spatial.transform import Rotation as R
 
 
@@ -41,6 +40,7 @@ def clear_folder(folder: Union[Path,str])->None:
         else:
             item_obj.unlink(missing_ok=True)
             print(f'Removing file: {item_obj}')
+
 
 def create_folder(folder: Union[Path,str])->None:
     '''
@@ -148,43 +148,45 @@ def load_mono_camera_param_yaml(path: Union[Path, str])->MonoCameraInfoProcessed
     return camera_params
 
 
-def load_json_cp(path: Union[Path, str], arm_name: str) -> CPInfo:
-    """
-    Load the json file including both measured_cp (world) and local_cp (base) data.
-    The original return fields R, t, w, v, arm_name are kept unchanged.
-    New fields added:
-        • R_local : 3×3 rotation matrix of local_cp
-        • t_local : 3×1 translation vector of local_cp
-    """
+def load_json_cp(path: Union[Path, str], arm_name: str) -> Union[PSMCPInfo, ECMCPInfo, None]:
+    '''
+    Load the json file including both measured_cp, measured_cv (only for PSM), local_cp and measured_js data.
+    path: path to the json file
+    arm_name: name of the arm
+    output: loaded data class instance of PSMCPInfo or ECMCPInfo
+    '''
     file_path = convert_pathlib_type(path)
     with open(file_path, "r") as f:
         data = json.load(f)
     arm_info = dict()
-    if arm_name == 'ECM':
-        kin_info = datacls_from_dict(KinematicInfo, data)
+    if arm_name.upper() == 'ECM':
+        kin_info = datacls_from_dict(ECMInfo, data)
         rot_world = R.from_quat(kin_info.arm.measured_data.cp.orientation)
         arm_info["R"] = rot_world.as_matrix()
         arm_info["t"] = np.array(kin_info.arm.measured_data.cp.position)
-    else:
-        kin_info = datacls_from_dict(KinematicInfo, data)
+    elif 'PSM' in arm_name.upper():
+        kin_info = datacls_from_dict(PSMInfo, data)
         # -------- measured_cp (world coordinates) --------
         rot_world = R.from_quat(kin_info.arm.measured_data.cp.orientation)
         arm_info["R"] = rot_world.as_matrix()
         arm_info["t"] = np.array(kin_info.arm.measured_data.cp.position)
         arm_info["w"] = np.array(kin_info.arm.measured_data.cp.velocity)[0:3]
         arm_info["v"] = np.array(kin_info.arm.measured_data.cp.velocity)[3:6]
+    else:
+        raise ValueError(f"Unknown arm name: {arm_name}")
     # -------- local_cp (base coordinates) --------
     rot_local = R.from_quat(kin_info.arm.local_cp.orientation)
     arm_info["R_local"] = rot_local.as_matrix()
     arm_info["t_local"] = np.array(kin_info.arm.local_cp.position)
     # -------- meta --------
     arm_info["arm_name"] = arm_name
-    if arm_name == 'ECM':
-        cp_info = datacls_from_dict(CPInfo, arm_info)
+    if arm_name.upper() == 'ECM':
+        cp_info = datacls_from_dict(ECMCPInfo, arm_info)
+    elif 'PSM' in arm_name.upper():
+        cp_info = datacls_from_dict(PSMCPInfo, arm_info)
     else:
-        cp_info = datacls_from_dict(CPInfo, arm_info)
+        raise ValueError(f"Unknown arm name: {arm_name}")
     return cp_info
-
 
 
 def glob_sorted_frame(path: Union[Path, str])->List[Path]:
@@ -272,8 +274,12 @@ def load_handeye_dict(calib_folder: Union[Path, str],
     return calibration_dict
 
 
-def load_ecm_mat(path: Union[Path, str]) -> np.ndarray:
-    """ ECM local measured_cp, 4*4 (World ← ECM-Tip)"""
+def load_ecm_transformation_matrix(path: Union[Path, str]) -> np.ndarray:
+    '''
+    Load the ECM transformation matrix from local_cp topic in the given json file
+    path: path to the json file
+    output: 4*4 transformation matrix
+    '''
     file_path = convert_pathlib_type(path)
     ecm_info = load_json_cp(file_path, "ECM")
     t_ecm = ecm_info.t_local
@@ -281,7 +287,6 @@ def load_ecm_mat(path: Union[Path, str]) -> np.ndarray:
     T_we = np.eye(4)
     T_we[:3, :3] = R_ecm
     T_we[:3,  3] = t_ecm
-    a = 1
     return T_we
 
 
