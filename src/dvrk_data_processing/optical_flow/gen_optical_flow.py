@@ -199,8 +199,11 @@ def save_optical_flow_results(flow: np.ndarray, visualization: np.ndarray,
 
     # Save raw optical flow data
     save_start = time.time()
-    flow_filename = f"{camera_name}_{frame_name}.{flow_format}"
-    flow_filepath = output_dir / flow_filename
+    flow_filename = f"{frame_name}.{flow_format}"
+    flow_folder = output_dir / camera_name / 'optical_flow'
+    flow_filepath = flow_folder / flow_filename
+    if not flow_folder.exists():
+        create_folder(flow_folder)
 
     if flow_format.lower() == "npy":
         # Save as NumPy binary format - efficient and preserves full precision
@@ -222,10 +225,11 @@ def save_optical_flow_results(flow: np.ndarray, visualization: np.ndarray,
     # Save visualization if requested
     if enable_visualization:
         vis_start = time.time()
-        vis_dir = output_dir / "visualization"
-        create_folder(vis_dir)
+        vis_dir = output_dir / camera_name / 'image'
+        if not vis_dir.exists():
+            create_folder(vis_dir)
 
-        vis_filename = f"{camera_name}_{frame_name}.png"
+        vis_filename = f"{frame_name}.png"
         vis_filepath = vis_dir / vis_filename
         cv2.imwrite(str(vis_filepath), visualization)
 
@@ -329,7 +333,7 @@ def process_camera_optical_flow(camera_name: str, image_sequence: List[Path],
             continue
 
         # Generate descriptive output name indicating the frame pair
-        frame_pair_name = f"flow_{frame1_num:03d}_{frame2_num:03d}"
+        frame_name = f'{frame1_num}'
 
         try:
             # Calculate optical flow between consecutive frames
@@ -355,7 +359,7 @@ def process_camera_optical_flow(camera_name: str, image_sequence: List[Path],
 
             # Save results to disk
             save_timing = save_optical_flow_results(
-                flow, visualization, output_dir, frame_pair_name, camera_name,
+                flow, visualization, output_dir, frame_name, camera_name,
                 optical_flow_config.flow_format, optical_flow_config.enable_visualization
             )
 
