@@ -9,8 +9,8 @@ input_folder: '${path_config.intermediate_dir}/regular'
 output_folder: "${path_config.processed_dir}/${.stage}"
 
 weight_config:
-  sigma_x: 40
-  sigma_y: 40
+  sigma_x: 50
+  sigma_y: 50
   advanced_weight: true
   tol_dist: 0.05
 
