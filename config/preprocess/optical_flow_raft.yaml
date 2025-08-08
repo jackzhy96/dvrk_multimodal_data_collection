@@ -1,0 +1,27 @@
+stage: optical_flow
+folder_initialize: false
+
+
+input_folder: "${path_config.intermediate_dir}/regular"
+output_folder: "${path_config.processed_dir}/${.stage}"
+flow_format: "npy"
+enable_visualization: true
+save_confidence: false
+
+# RAFT model configuration
+model_config:
+  model_variant: "large"      # "large" or "small" - large is more accurate, small is faster
+  use_pretrained: true        # Use pretrained weights (highly recommended)
+  device: "auto"              # "auto", "cuda", "cpu" - auto will use GPU if available
+  batch_size: 1               # Number of frame pairs to process simultaneously
+  mixed_precision: true       # Use mixed precision for faster inference and lower memory usage
+  num_flow_updates: -1        # Number of RAFT iterations (-1 uses all iterations)
+
+# Image preprocessing configuration for RAFT
+preprocess_config:
+  resize_mode: "pad"          # "pad", "resize", "crop" - how to handle size requirements
+  target_size: None           # Target size for resizing (null = use original size)
+  normalize: true             # Apply ImageNet normalization (required for pretrained models)
+  ensure_divisible: 8         # Ensure dimensions are divisible by this value (RAFT requirement)
+
+# custom configurations

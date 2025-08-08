@@ -103,5 +103,38 @@ class OpticalFlowConfig:
     folder_initialize: bool = False
 
 
+@dataclass
+class RaftModelConfig:
+    model_variant: str = "large"  # "large" or "small" - large is more accurate, small is faster
+    use_pretrained: bool = True  # Use pretrained weights (highly recommended)
+    device: str = "auto"  # "auto", "cuda", "cpu" - auto will use GPU if available
+    batch_size: int = 1  # Number of frame pairs to process simultaneously
+    mixed_precision: bool = True  # Use mixed precision for faster inference and lower memory usage
+    num_flow_updates: int = -1  # Number of RAFT iterations (-1 uses all iterations)
+
+
+@dataclass
+class RaftPreprocessConfig:
+    resize_mode: str = "pad"  # "pad", "resize", "crop" - how to handle size requirements
+    target_size: Union[List[int], None] = None  # Target size for resizing (None = use original size)
+    normalize: bool = True  # Apply ImageNet normalization (required for pretrained models)
+    ensure_divisible: int = 8  # Ensure dimensions are divisible by this value (RAFT requirement)
+
+
+@dataclass
+class RaftOpticalFlowConfig:
+    stage: str
+    input_folder: str
+    output_folder: str
+    camera_names: List[str]
+    model_config: RaftModelConfig
+    preprocess_config: RaftPreprocessConfig
+    flow_format: str = "npy"  # "npy" or "flo" - output format for optical flow
+    enable_visualization: bool = True  # Generate color-coded flow visualizations
+    save_confidence: bool = False  # Save confidence/uncertainty maps (if supported)
+    folder_initialize: bool = False
+
+
+
 if __name__ == "__main__":
     pass
