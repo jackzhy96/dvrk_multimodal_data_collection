@@ -1,27 +1,3 @@
-"""
-Deep Learning Optical Flow Generation Script using RAFT
-
-This script implements optical flow calculation using the state-of-the-art RAFT (Recurrent All-Pairs Field Transforms) model.
-RAFT is currently the top-performing optical flow method on benchmarks like SINTEL and KITTI.
-
-Key improvements over traditional methods:
-- Uses deep learning for more accurate flow estimation, especially in challenging scenarios
-- Better handles occlusions, motion blur, and complex motions
-- Provides more robust optical flow for surgical scenes with fine instruments and tissue deformation
-- Follows the established patterns in the codebase with Hydra configuration and pathlib
-- Integrates seamlessly with the existing data processing pipeline
-- Supports both left and right camera optical flows simultaneously
-- Configurable and scalable through YAML config files
-- Auto-adjusts file paths based on data organization structure
-
-Technical Details:
-- Uses PyTorch's torchvision implementation of RAFT
-- Supports both RAFT Large (more accurate) and RAFT Small (faster) models
-- Implements proper preprocessing and postprocessing for surgical image data
-- Comprehensive error handling and progress tracking
-- Efficient batch processing for better GPU utilization
-"""
-
 from dataclasses import dataclass
 from typing import Union, List, Tuple, Optional
 import hydra
@@ -50,6 +26,29 @@ class AppCfg:
     preprocess: RaftOpticalFlowConfig
     workspace: str
     camera_names: List[str]
+
+
+class InputPadder:
+    """
+    Input padding class for RAFT.
+    """
+    def __init__(self, dims, mode='sintel'):
+        self.ht, self.wd = dims[-2:]
+        pad_ht = (((self.ht // 8) + 1) * 8 - self.ht) % 8
+        pad_wd = (((self.wd // 8) + 1) * 8 - self.wd) % 8
+
+        if mode == 'sintel':
+            self._pad = [pad_wd // 2, pad_wd - pad_wd // 2, pad_ht // 2, pad_ht - pad_ht // 2]
+        else:
+            self._pad = [pad_wd // 2, pad_wd - pad_wd // 2, 0, pad_ht]
+
+    def pad(self, *inputs):
+        return [F.pad(x, self._pad, mode='replicate') for x in inputs]
+
+    def unpad(self,x):
+        ht, wd = x.shape[-2:]
+        c = [self._pad[2], ht-self._pad[3], self._pad[0], wd-self._pad[1]]
+        return x[..., c[0]:c[1], c[2]:c[3]]
 
 
 class RaftOpticalFlowProcessor:
@@ -175,6 +174,9 @@ class RaftOpticalFlowProcessor:
         """
         # Convert BGR to RGB (cv2 uses BGR, PyTorch models expect RGB)
         img_rgb = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2RGB)
+
+        # # No normalization
+        # img_tensor = torch.from_numpy(img_rgb.transpose(2, 0, 1).copy()).float()
 
         # Convert to float32 and normalize to [0,1] range
         img_float = img_rgb.astype(np.float32) / 255.0
@@ -320,6 +322,7 @@ class RaftOpticalFlowProcessor:
             # Generate color-coded visualization using torchvision
             # This function uses the standard optical flow color wheel encoding
             flow_img_tensor = flow_to_image(flow_tensor)
+            ##### this needs to be fixed, add a filter to prevent rainbow images
 
             # Convert back to numpy and change from RGB to BGR for OpenCV
             flow_img_rgb = flow_img_tensor[0].permute(1, 2, 0).numpy().astype(np.uint8)
@@ -570,7 +573,8 @@ def main(cfg: AppCfg):
         if output_folder.exists():
             clear_folder(output_folder)
 
-    create_folder(output_folder)
+    if not output_folder.exists():
+        create_folder(output_folder)
 
     # Log configuration information for debugging and reproducibility
     logging.info("=" * 60)

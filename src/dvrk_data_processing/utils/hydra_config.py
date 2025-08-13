@@ -113,12 +113,12 @@ class RaftModelConfig:
     num_flow_updates: int = -1  # Number of RAFT iterations (-1 uses all iterations)
 
 
-@dataclass
-class RaftPreprocessConfig:
-    resize_mode: str = "pad"  # "pad", "resize", "crop" - how to handle size requirements
-    target_size: Union[List[int], None] = None  # Target size for resizing (None = use original size)
-    normalize: bool = True  # Apply ImageNet normalization (required for pretrained models)
-    ensure_divisible: int = 8  # Ensure dimensions are divisible by this value (RAFT requirement)
+# @dataclass
+# class RaftPreprocessConfig:
+#     resize_mode: str = "pad"  # "pad", "resize", "crop" - how to handle size requirements
+#     target_size: Union[List[int], None] = None  # Target size for resizing (None = use original size)
+#     normalize: bool = True  # Apply ImageNet normalization (required for pretrained models)
+#     ensure_divisible: int = 8  # Ensure dimensions are divisible by this value (RAFT requirement)
 
 
 @dataclass
@@ -128,7 +128,7 @@ class RaftOpticalFlowConfig:
     output_folder: str
     camera_names: List[str]
     model_config: RaftModelConfig
-    preprocess_config: RaftPreprocessConfig
+    # preprocess_config: RaftPreprocessConfig
     flow_format: str = "npy"  # "npy" or "flo" - output format for optical flow
     enable_visualization: bool = True  # Generate color-coded flow visualizations
     save_confidence: bool = False  # Save confidence/uncertainty maps (if supported)
