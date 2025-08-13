@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='us-ascii'?>
+<Config Version="5">
+  <DigitalIn BitID="2" BoardID="0" Debounce="0.001" Name="PSM1_contact" Pressed="0" Trigger="all" />
+  <DigitalIn BitID="6" BoardID="0" Debounce="0.001" Name="PSM2_contact" Pressed="0" Trigger="all" />
+  <DigitalIn BitID="10" BoardID="0" Debounce="0.001" Name="PSM3_contact" Pressed="0" Trigger="all" />
+</Config>
+
