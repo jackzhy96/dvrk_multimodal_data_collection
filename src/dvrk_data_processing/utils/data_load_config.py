@@ -13,6 +13,7 @@ class CameraParameters:
     cols: int
     rows: int
 
+
 @dataclass
 class CameraInfo:
     R_stereo: CameraParameters
@@ -24,6 +25,7 @@ class CameraInfo:
     image_height: int
     image_width: int
 
+
 @dataclass
 class MonoCameraInfo:
     camera_matrix: CameraParameters
@@ -32,6 +34,7 @@ class MonoCameraInfo:
     distortion_model: str
     image_height: int
     image_width: int
+
 
 @dataclass
 class CameraInfoProcessed:
@@ -50,19 +53,23 @@ class MonoCameraInfoProcessed:
     image_height: int
     image_width: int
 
+
 @dataclass
 class HeaderConfig:
     sec: int
     nsec: int
 
+
 @dataclass
 class JawConfig:
     position: List[float]
+
 
 @dataclass
 class JawLoadConfig:
     measured_data: JawConfig
     setpoint_data: JawConfig
+
 
 @dataclass
 class ArmMeasuredCpConfig:
@@ -157,6 +164,7 @@ class PSMInfo:
     arm: PSMLoadConfig
     header: HeaderConfig
     jaw: JawLoadConfig
+    measured_frequency: float
 
 
 @dataclass
@@ -185,6 +193,7 @@ class PSMCPInfo:
     v: np.ndarray
     R_local: np.ndarray
     t_local: np.ndarray
+    measured_frequency: float
 
 
 @dataclass

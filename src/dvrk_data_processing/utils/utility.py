@@ -172,6 +172,7 @@ def load_json_cp(path: Union[Path, str], arm_name: str) -> Union[PSMCPInfo, ECMC
         arm_info["t"] = np.array(kin_info.arm.measured_data.cp.position)
         arm_info["w"] = np.array(kin_info.arm.measured_data.cp.velocity)[0:3]
         arm_info["v"] = np.array(kin_info.arm.measured_data.cp.velocity)[3:6]
+        arm_info['measured_frequency'] = kin_info.measured_frequency
     else:
         raise ValueError(f"Unknown arm name: {arm_name}")
     # -------- local_cp (base coordinates) --------

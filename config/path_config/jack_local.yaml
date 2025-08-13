@@ -1,4 +1,4 @@
-data_dir: "/home/jackzhy/SurgPoseV1/data"
+data_dir: "/home/jackzhy/dvrk_multimodal_data_collection/data"
 data_name: "data_20250808"
 data_index: "1"
 raw_dir: "${.data_dir}/${.data_name}/${.data_index}"

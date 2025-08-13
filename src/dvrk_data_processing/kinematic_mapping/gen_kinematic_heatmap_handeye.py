@@ -126,7 +126,6 @@ def main(cfg: AppCfg):
 
     img_w, img_h = cfg.preprocess.img_size
     fps_img = float(cfg.preprocess.fps_img)
-    fps_kin = float(cfg.preprocess.fps_kin)
     sigma_x = float(cfg.preprocess.weight_config.sigma_x)
     sigma_y = float(cfg.preprocess.weight_config.sigma_y)
     tol_dist = float(cfg.preprocess.weight_config.tol_dist)
@@ -144,8 +143,6 @@ def main(cfg: AppCfg):
             clear_folder(output_folder)
         else:
             print(f"Output folder does not exist - {processed_dir}")
-
-    dt = 1.0 / fps_kin
 
     data_folder = input_folder / 'kinematic'
     save_folder = output_folder
@@ -205,6 +202,8 @@ def main(cfg: AppCfg):
                 t = data_arm.t
                 w = data_arm.w
                 v = data_arm.v
+
+                dt = 1.0 / data_arm.measured_frequency
 
                 ### predict next pos using first-order approximation
                 dx = v + np.cross(w, t)
