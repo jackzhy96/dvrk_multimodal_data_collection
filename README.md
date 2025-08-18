@@ -16,7 +16,7 @@ The input modalities are:
 
 (will be updated later)
 
-```bash
+```
 .
 ├── src/
 │   ├── dvrk_data_processing
@@ -34,7 +34,7 @@ The input modalities are:
 
 Local path configration is required. You may create your own configration file. The file should be named `<your name>_local.yaml` and should be located in the `config/path_config` folder
 
-```bash
+```
 data_dir: <your data save folder>, e.g. "/home/jackzhy/dvrk_multimodal_data_collection/data"
 data_name: <your data name, ususally named as the experiment date>, e.g. "data_20250808"
 data_index: <your selected subset of the data, usually int, 0-n>, e.g. "1"
