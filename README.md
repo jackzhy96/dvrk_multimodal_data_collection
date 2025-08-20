@@ -98,14 +98,14 @@ Local path configration is required. You may create your own configration file. 
 
 I'll take `config/path_config/jackzhy_local.yaml` as an example.
 
-|        Name        |                              Meaning                              |            Default / Given Values            |                     Notes                     |
-|:------------------:|:-----------------------------------------------------------------:|:--------------------------------------------:|:---------------------------------------------:|
-|     `data_dir`     |                    the downloaded data folder                     |  /home/jack/dvrk_multimodal_data_collection  | You may need to change it for your own config |
-|    `data_name`     |                   name of your selected dataset                   |                data_202050808                | You may need to change it for your own config |
-|    `data_index`    |                index of your selected sub-dataset                 |                      1                       | You may need to change it for your own config |
-|     `raw_dir`      |                          raw data folder                          | \${.data_dir}/\$.{data_name}/\$.{data_index} |                       -                       |
-| `intermediate_dir` | intermediate output folder, usually for resize and rectify output |     \${.data_dir}/interm/\$.{data_index}     |                       -                       |
-|  `processed_dir`   |    processed data output folder, for all the other operations     |     \${.data_dir}/output/\$.{data_index}     |                       -                       |
+|        Name        |                              Meaning                              |            Default / Given Values             |                     Notes                     |
+|:------------------:|:-----------------------------------------------------------------:|:---------------------------------------------:|:---------------------------------------------:|
+|     `data_dir`     |                    the downloaded data folder                     |  /home/jack/dvrk_multimodal_data_collection   | You may need to change it for your own config |
+|    `data_name`     |                   name of your selected dataset                   |                data_202050808                 | You may need to change it for your own config |
+|    `data_index`    |                index of your selected sub-dataset                 |                       1                       | You may need to change it for your own config |
+|     `raw_dir`      |                          raw data folder                          | \${.data\_dir}/\$.{data_name}/\$.{data_index} |                       -                       |
+| `intermediate_dir` | intermediate output folder, usually for resize and rectify output |     \${.data\_dir}/interm/\$.{data_index}     |                       -                       |
+|  `processed_dir`   |    processed data output folder, for all the other operations     |     \${.data\_dir}/output/\$.{data_index}     |                       -                       |
 
 
 # Post-collection data processing
