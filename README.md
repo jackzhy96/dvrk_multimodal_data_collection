@@ -5,6 +5,7 @@ Table of contents:
 - [Clone the repository](#clone-the-repository)
 - [Install the local package, Required both for local and virtual environment](#install-the-local-package-required-both-for-local-and-virtual-environment)
 - [Folder Structure](#folder-structure)
+  - [Configration, local path](#configration-local-path)
 - [Post-collection data processing](#post-collection-data-processing)
   - [Running Configuration file](#running-configuration-file)
   - [Required: Resize and Rectify](#required-resize-and-rectify)
