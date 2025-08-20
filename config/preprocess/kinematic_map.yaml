@@ -4,6 +4,7 @@ folder_initialize: false
 # custom configurations
 img_size: [640, 480]
 arm_name: ['PSM1', 'PSM2']
+#arm_name: ['PSM1', 'PSM3']
 
 input_folder: '${path_config.intermediate_dir}/regular'
 output_folder: "${path_config.processed_dir}/${.stage}"

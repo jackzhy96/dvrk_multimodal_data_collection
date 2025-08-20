@@ -41,7 +41,7 @@ git clone --recursive https://github.com/jackzhy96/dvrk_multimodal_data_collecti
 
 ## SSH
 
-**Note: This approach will be deprecated after converting to be a public repository.**
+**Note: This approach could be deprecated after converting to be a public repository.**
 
 Run the following command:
 
@@ -80,7 +80,7 @@ pip install -e .
 
 Local path configration is required. You may create your own configration file. The file should be named `<your name>_local.yaml` and should be located in the `config/path_config` folder.
 
-I'll take `jackzhy_local.yaml` as an example.
+I'll take `config/path_config/jackzhy_local.yaml` as an example.
 
 |        Name        |                              Meaning                              |            Default / Given Values            |                     Notes                     |
 |:------------------:|:-----------------------------------------------------------------:|:--------------------------------------------:|:---------------------------------------------:|
@@ -100,16 +100,16 @@ The running configuration file is located in `config/config_<operation>_<your na
 
 I'll take `config_kp_jack.yaml` as an example.
 
-|           Name            |                                  Meaning                                  | Default / Given Values |                                                           Notes                                                            |
-|:-------------------------:|:-------------------------------------------------------------------------:|:----------------------:|:--------------------------------------------------------------------------------------------------------------------------:|
-|        `workspace`        |                          your selected workspace                          |                        |                                                                                                                            |
-|      `camera_names`       |                     the name of the selected cameras                      |                        |                                                                                                                            |
-| `camera_calibration_path` |                         camera calibration files                          |                        |                                                                                                                            |
-|  `defaults/path_config`   |                 the name of your local path configuration                 |                        |                                                                                                                            |
-|   `defaults/preprocess`   |                       selected processing operation                       |                        |                                                                                                                            |
-|     `default/_self_`      |           enable the inheritance among the configuration files            |           -            |                                        just included the term in the running config                                        |
-|      `camera_offset`      | manual camera offset to compensate different camera base frame definition |                        |                            Optional, only used for kinematic mapping, only for the dVRK system                             |
-|   `handeye_calib_path`    |                      hand-eye calibration file path                       |                        | Optional, only used for kinematic mapping, only for the dVRK system, can change if you put the files in a different folder |
+|           Name            |                                  Meaning                                  |                         Default / Given Values                          |                                                            Notes                                                            |
+|:-------------------------:|:-------------------------------------------------------------------------:|:-----------------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------------------------------:|
+|        `workspace`        |                          your selected workspace                          |            /home/jackzhy/dvrk\_multimodal\_data\_collection             |                            The place where you clone the repository, you may need to change it.                             |
+|      `camera_names`       |                     the name of the selected cameras                      |                            ['left', 'right']                            |   name of your cameras, for stereo camera, use the one I am showing. Mono camera could be supported but not validated yet   |
+| `camera_calibration_path` |                         camera calibration files                          |           \${path_config.intermediate_dir}/camera_calibration           |                            the path of your camera calibration files, you may need to change it                             |
+|  `defaults/path_config`   |                 the name of your local path configuration                 |                               jack_local                                |                                                 your path config file name                                                  |
+|   `defaults/preprocess`   |                       selected processing operation                       |                              kinematic_map                              | processing operation name, currently support: kinematic\_mapping, optical\_flow(\_raft), resize\_rectify, depth\_estimation |
+|     `default/_self_`      |           enable the inheritance among the configuration files            |                                    -                                    |                                        just included the term in the running config                                         |
+|      `camera_offset`      | manual camera offset to compensate different camera base frame definition |           [-1.0, 0.0, 0.0;   0.0, -1.0, 0.0;   0.0, 0.0, 1.0]           |                             Optional, only used for kinematic mapping, only for the dVRK system                             |
+|   `handeye_calib_path`    |                      hand-eye calibration file path                       | \${path_config.data_dir}/\${path_config.data_name}/hand_eye_calibration | Optional, only used for kinematic mapping, only for the dVRK system, can change if you put the files in a different folder  |
 
 
 ## Required: Resize and Rectify

@@ -6,6 +6,9 @@ defaults:
 workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
 
 camera_calibration_path: "${path_config.intermediate_dir}/camera_calibration" # use your own path
+
+#camera_calibration_path: "${path_config.intermediate_dir}/camera_calibration_ubc" # use your own path
+
 camera_names: ['left', 'right']
 #camera_offset:
 #camera_offset: [-1.0, 0.0, 0.0,

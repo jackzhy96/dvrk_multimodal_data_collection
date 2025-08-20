@@ -6,11 +6,14 @@ defaults:
 workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
 
 camera_calibration_path: "${workspace}/data/camera_calibration" # use your own path
+
+#camera_calibration_path: "${workspace}/data/camera_calibration_ubc" # use your own path
+
 camera_names: ['left', 'right']
-#camera_offset:
-camera_offset: [-1.0, 0.0, 0.0,
-                0.0, -1.0, 0.0,
-                0.0, 0.0, 1.0]
+camera_offset:
+#camera_offset: [-1.0, 0.0, 0.0,
+#                0.0, -1.0, 0.0,
+#                0.0, 0.0, 1.0]
 # ### Add random seeds if required
 # seed: 42
 
