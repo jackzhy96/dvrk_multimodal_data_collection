@@ -1,4 +1,19 @@
 # dVRK Multi-Modal Data Collection
+
+Table of contents:
+- [Introduction](#introduction)
+- [Clone the repository](#clone-the-repository)
+- [Install the local package, Required both for local and virtual environment](#install-the-local-package-required-both-for-local-and-virtual-environment)
+- [Folder Structure](#folder-structure)
+- [Post-collection data processing](#post-collection-data-processing)
+  - [Running Configuration file](#running-configuration-file)
+  - [Required: Resize and Rectify](#required-resize-and-rectify)
+  - [Kinematic Mapping](#kinematic-mapping)
+  - [Depth Estimation](#depth-estimation)
+  - [Optical Flow](#optical-flow)
+
+# Introduction
+
 This repository contains scripts for post-collection data processing for multi-modal data collected by dVRK.
 
 The **input modalities** are:
@@ -137,4 +152,41 @@ After settling the hyper-parameters, you can create your own running configurati
 
 ### How to Run
 
+(will be updated later)
+
+## Kinematic Mapping
+
+(will be updated later)
+
+### Configuration file
+
+(will be updated later)
+
+### How to Run
+
+(will be updated later)
+
+## Depth Estimation
+
+(will be updated later)
+
+### Configuration file
+
+(will be updated later)
+
+### How to Run
+
+(will be updated later)
+
+## Optical Flow
+
+(will be updated later)
+
+### Configuration file
+
+(will be updated later)
+
+### How to Run
+
+(will be updated later)
 
