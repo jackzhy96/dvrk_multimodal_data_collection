@@ -3,8 +3,8 @@ folder_initialize: false
 
 # custom configurations
 resize_config:
-#  original_size: [1920, 1080]
-  original_size: [1400, 986]
+  original_size: [1920, 1080]
+#  original_size: [1400, 986]
   new_size: [640, 480]
   enable_resize: true
 
