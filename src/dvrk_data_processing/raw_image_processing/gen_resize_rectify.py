@@ -146,6 +146,7 @@ def main(cfg: AppCfg):
         camera_offset = np.array(cfg.camera_offset).reshape(3, 3)
     intermediate_dir = Path(cfg.path_config.intermediate_dir)
     raw_dir = Path(cfg.path_config.raw_dir)
+    processed_dir = Path(cfg.path_config.processed_dir)
 
     enable_resize = cfg.preprocess.resize_config.enable_resize
     enable_rectify = cfg.preprocess.enable_rectify
