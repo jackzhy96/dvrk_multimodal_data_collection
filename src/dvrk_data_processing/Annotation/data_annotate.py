@@ -528,7 +528,7 @@ class ImageProcessor(QThread):
         if top_row.shape[1] != bottom_row.shape[1]:
             target_width = max(top_row.shape[1], bottom_row.shape[1])
             
-            # Use cv2.resize to match widths (as requested, avoiding padding)
+            # Use cv2.resize to match widths ( avoiding padding)
             if top_row.shape[1] < target_width:
                 top_row = cv2.resize(top_row, (target_width, top_row.shape[0]), interpolation=cv2.INTER_AREA)
             if bottom_row.shape[1] < target_width:
@@ -917,7 +917,7 @@ class DataAnnotationGUI(QMainWindow):
         # Auto-play controls with speed configuration
         playback_layout = QHBoxLayout()
         
-        # Jump to start/end - start and end buttons together (end button moved to right of start as requested)
+        # Jump to start/end - start and end buttons together (end button moved to right of start )
         jump_start_btn = QPushButton("⏮ Start")
         jump_start_btn.clicked.connect(lambda: self.jump_to_frame(0))
         playback_layout.addWidget(jump_start_btn)
@@ -1744,6 +1744,64 @@ class DataAnnotationGUI(QMainWindow):
         else:
             self.range_display_label.setText("Range: Not set")
     
+    def _validate_multi_frame_range(self) -> bool:
+        """
+        Validate multi-frame range for correctness.
+        
+        This prevents crashes when start frame is behind end frame or range is invalid.
+        Shows warnings for incorrect usage instead of letting the GUI crash.
+        
+        Returns:
+            bool: True if range is valid, False otherwise
+        """
+        if not self.multi_frame_mode:
+            return True
+        
+        # Check if both start and end are set
+        if self.frame_range_start is None or self.frame_range_end is None:
+            QMessageBox.warning(
+                self, 
+                "Incomplete Range", 
+                "Multi-frame mode is enabled but range is not complete.\n"
+                "Please set both start and end frames before proceeding."
+            )
+            return False
+        
+        # Check if start frame is behind end frame (incorrect usage)
+        if self.frame_range_start > self.frame_range_end:
+            QMessageBox.warning(
+                self,
+                "Invalid Frame Range", 
+                f"Start frame ({self.frame_range_start + 1}) cannot be after end frame ({self.frame_range_end + 1}).\n"
+                "Please set the start frame before the end frame."
+            )
+            return False
+        
+        # Check if range is within valid bounds
+        max_frame = len(self.frame_files) - 1 if self.frame_files else 0
+        if self.frame_range_start < 0 or self.frame_range_end > max_frame:
+            QMessageBox.warning(
+                self,
+                "Range Out of Bounds",
+                f"Frame range ({self.frame_range_start + 1}-{self.frame_range_end + 1}) is outside valid bounds (1-{max_frame + 1})."
+            )
+            return False
+        
+        # Additional validation: warn for very large ranges
+        range_size = self.frame_range_end - self.frame_range_start + 1
+        if range_size > 1000:  # Configurable threshold
+            reply = QMessageBox.question(
+                self,
+                "Large Range Warning",
+                f"You are about to apply annotation to {range_size} frames.\n"
+                "This is a large range and may take some time.\n\n"
+                "Do you want to continue?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            return reply == QMessageBox.Yes
+        
+        return True
+    
     def _add_event_annotation(self):
         """Add event annotation to current frame(s)."""
         event_name = self.event_input.text().strip()
@@ -1786,6 +1844,10 @@ class DataAnnotationGUI(QMainWindow):
     
     def _remove_phase_labels(self):
         """Remove all existing phase labels for the current frame(s)."""
+        # Validate multi-frame range before proceeding to prevent crashes
+        if not self._validate_multi_frame_range():
+            return  # Validation failed, show warning and abort operation
+        
         if self.multi_frame_mode and self.frame_range_start is not None and self.frame_range_end is not None:
             frames_to_process = list(range(self.frame_range_start, self.frame_range_end + 1))
         else:
@@ -1846,6 +1908,10 @@ class DataAnnotationGUI(QMainWindow):
     
     def _remove_contact_labels(self):
         """Remove all existing contact labels for the current frame(s)."""
+        # Validate multi-frame range before proceeding to prevent crashes
+        if not self._validate_multi_frame_range():
+            return  # Validation failed, show warning and abort operation
+        
         if self.multi_frame_mode and self.frame_range_start is not None and self.frame_range_end is not None:
             frames_to_process = list(range(self.frame_range_start, self.frame_range_end + 1))
         else:
@@ -1886,6 +1952,10 @@ class DataAnnotationGUI(QMainWindow):
             category: Annotation category (event, phase, contact_detection)
             annotation_data: The annotation data
         """
+        # Validate multi-frame range before proceeding to prevent crashes
+        if not self._validate_multi_frame_range():
+            return  # Validation failed, show warning and abort operation
+        
         if self.multi_frame_mode and self.frame_range_start is not None and self.frame_range_end is not None:
             # Multi-frame annotation
             frames_to_annotate = list(range(self.frame_range_start, self.frame_range_end + 1))
@@ -2494,6 +2564,10 @@ By Category:"""
             QMessageBox.information(self, "No Selection", "Please select an annotation to remove.")
             return
         
+        # Validate multi-frame range before proceeding to prevent crashes
+        if not self._validate_multi_frame_range():
+            return  # Validation failed, show warning and abort operation
+        
         if self.multi_frame_mode and self.frame_range_start is not None and self.frame_range_end is not None:
             # Multi-frame removal mode
             item_index = self.annotation_list.currentRow()
@@ -2559,6 +2633,10 @@ By Category:"""
     
     def _clear_frame_annotations(self):
         """Clear all annotations for current frame or frame range if multi-frame mode is enabled."""
+        # Validate multi-frame range before proceeding to prevent crashes
+        if not self._validate_multi_frame_range():
+            return  # Validation failed, show warning and abort operation
+        
         if self.multi_frame_mode and self.frame_range_start is not None and self.frame_range_end is not None:
             # Multi-frame clearing mode
             num_frames = self.frame_range_end - self.frame_range_start + 1
