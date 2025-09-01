@@ -15,7 +15,6 @@ in dVRK multi-modal data. This tool provides an intuitive interface for:
 
 import json
 import sys
-import os
 import re
 import datetime
 from pathlib import Path
@@ -194,6 +193,67 @@ class ConfigLoader:
             'PSM2': getattr(self.config, 'enable_PSM2', True),
             'PSM3': getattr(self.config, 'enable_PSM3', False)
         }
+    
+    def get_gui_config(self) -> Dict[str, Any]:
+        """Get GUI configuration parameters for better scalability."""
+        if not self.config or not hasattr(self.config, 'gui_config'):
+            # Return default GUI configuration
+            return {
+                'window_width': 1900,
+                'window_height': 1000,
+                'default_playback_speed_ms': 33,
+                'min_playback_speed_ms': 10,
+                'max_playback_speed_ms': 1000,
+                'image_loader_refresh_ms': 50,
+                'auto_save_enabled': True,
+                'auto_save_interval_seconds': 300,
+                'max_backup_files': 10,
+                'max_side_cameras': 2,
+                'annotation_list_height': 150
+            }
+        
+        gui_config = self.config.gui_config
+        return {
+            'window_width': getattr(gui_config, 'window_width', 1900),
+            'window_height': getattr(gui_config, 'window_height', 1000),
+            'default_playback_speed_ms': getattr(gui_config, 'default_playback_speed_ms', 33),
+            'min_playback_speed_ms': getattr(gui_config, 'min_playback_speed_ms', 10),
+            'max_playback_speed_ms': getattr(gui_config, 'max_playback_speed_ms', 1000),
+            'image_loader_refresh_ms': getattr(gui_config, 'image_loader_refresh_ms', 50),
+            'auto_save_enabled': getattr(gui_config, 'auto_save_enabled', True),
+            'auto_save_interval_seconds': getattr(gui_config, 'auto_save_interval_seconds', 300),
+            'max_backup_files': getattr(gui_config, 'max_backup_files', 10),
+            'max_side_cameras': getattr(gui_config, 'max_side_cameras', 2),
+            'annotation_list_height': getattr(gui_config, 'annotation_list_height', 150)
+        }
+    
+    def get_annotation_categories(self) -> List[str]:
+        """Get configurable annotation categories."""
+        if not self.config or not hasattr(self.config, 'annotation_categories'):
+            return ["event", "phase", "contact"]  # Default categories
+        
+        # Convert OmegaConf ListConfig to regular Python list
+        categories = self.config.annotation_categories
+        if hasattr(categories, '_content'):  # OmegaConf ListConfig
+            return OmegaConf.to_container(categories)
+        elif isinstance(categories, (list, tuple)):
+            return list(categories)
+        else:
+            return ["event", "phase", "contact"]  # Fallback to defaults
+    
+    def get_quick_action_labels(self) -> List[str]:
+        """Get configurable quick action labels."""
+        if not self.config or not hasattr(self.config, 'quick_action_labels'):
+            return ["Phase Start", "Phase End", "Event Marker", "Contact Detected", "Contact Lost"]  # Default
+        
+        # Convert OmegaConf ListConfig to regular Python list
+        labels = self.config.quick_action_labels
+        if hasattr(labels, '_content'):  # OmegaConf ListConfig
+            return OmegaConf.to_container(labels)
+        elif isinstance(labels, (list, tuple)):
+            return list(labels)
+        else:
+            return ["Phase Start", "Phase End", "Event Marker", "Contact Detected", "Contact Lost"]  # Fallback
 
 
 class ImageProcessor(QThread):
@@ -209,11 +269,12 @@ class ImageProcessor(QThread):
     images_loaded = pyqtSignal(np.ndarray, str)  # combined_image, frame_info
     loading_error = pyqtSignal(str)  # error_message
     
-    def __init__(self, image_paths: Dict[str, Path], frame_files: List[Path], size_config: Dict[str, Any]):
+    def __init__(self, image_paths: Dict[str, Path], frame_files: List[Path], size_config: Dict[str, Any], gui_config: Optional[Dict[str, Any]] = None):
         super().__init__()
         self.image_paths = image_paths
         self.frame_files = frame_files
         self.size_config = size_config
+        self.gui_config = gui_config if gui_config else {'image_loader_refresh_ms': 50}
         self.current_frame_index = 0
         self.target_frame_index = 0
         self.running = True
@@ -261,7 +322,9 @@ class ImageProcessor(QThread):
                 except Exception as e:
                     self.loading_error.emit(f"Error loading frame {self.target_frame_index}: {str(e)}")
             
-            self.msleep(50)  # Check for new requests every 50ms
+            # Use configurable refresh rate for better scalability
+            refresh_ms = self.gui_config.get('image_loader_refresh_ms', 50)
+            self.msleep(refresh_ms)  # Check for new requests at configured interval
     
     def load_frame(self, frame_index: int):
         """
@@ -494,9 +557,13 @@ class ImageProcessor(QThread):
         scale_h = target_height / h
         scale = min(scale_w, scale_h, 1.0)  # Don't upscale
         
-        # Calculate new dimensions
-        new_w = int(w * scale)
-        new_h = int(h * scale)
+        # Calculate new dimensions using precise rounding to avoid edge cutting
+        new_w = round(w * scale)
+        new_h = round(h * scale)
+        
+        # Ensure minimum dimensions
+        new_w = max(new_w, 1)
+        new_h = max(new_h, 1)
         
         # Resize image
         if scale < 1.0:
@@ -659,8 +726,14 @@ class DataAnnotationGUI(QMainWindow):
     def init_ui(self):
         """Initialize the user interface components."""
         self.setWindowTitle("dVRK Data Annotation Tool")
-        # Optimized for 1920x1080 resolution - leave space for taskbar and window decorations
-        self.setGeometry(50, 50, 1820, 980)
+        
+        # Get GUI configuration parameters - using configurable values for better scalability
+        gui_config = self.config_loader.get_gui_config() if hasattr(self, 'config_loader') else {
+            'window_width': 1820, 'window_height': 980
+        }
+        
+        # Set window geometry using configurable parameters
+        self.setGeometry(50, 50, gui_config['window_width'], gui_config['window_height'])
         
         # Set application style
         self.setStyleSheet(self._get_app_stylesheet())
@@ -1120,7 +1193,9 @@ class DataAnnotationGUI(QMainWindow):
         current_layout = QVBoxLayout(current_group)
         
         self.annotation_list = QListWidget()
-        self.annotation_list.setMaximumHeight(150)
+        # Use configurable annotation list height for better scalability
+        gui_config = self.config_loader.get_gui_config() if hasattr(self, 'config_loader') else {'annotation_list_height': 150}
+        self.annotation_list.setMaximumHeight(gui_config['annotation_list_height'])
         self.annotation_list.itemDoubleClicked.connect(self._edit_annotation)
         current_layout.addWidget(self.annotation_list)
         
@@ -1305,7 +1380,8 @@ class DataAnnotationGUI(QMainWindow):
                 self.image_processor.wait()
             
             size_config = self.config_loader.get_image_size_config()
-            self.image_processor = ImageProcessor(self.image_paths, self.frame_files, size_config)
+            gui_config = self.config_loader.get_gui_config()
+            self.image_processor = ImageProcessor(self.image_paths, self.frame_files, size_config, gui_config)
             self.image_processor.images_loaded.connect(self._on_images_loaded)
             self.image_processor.loading_error.connect(self._on_loading_error)
             self.image_processor.start()
@@ -1466,7 +1542,7 @@ class DataAnnotationGUI(QMainWindow):
         # Set reasonable initial window size but allow full resizing
         height, width, channel = image.shape
         initial_width = min(width + 50, 1200)
-        initial_height = min(height + 150, 900)  # Extra space for info bar
+        initial_height = min(height + 150, 960)  # Extra space for info bar
         window.resize(initial_width, initial_height)
         
         # Create central widget and layout
@@ -1974,25 +2050,56 @@ class DataAnnotationGUI(QMainWindow):
                         
                         else:
                             # Handle other categories (like event) normally
-                            annotation_entry = {
-                                'category': category,
-                                'data': annotation_data,
-                                'timestamp': datetime.datetime.now().isoformat()
-                            }
-                            
-                            # Check if annotation already exists for this frame/category
-                            existing_entry = None
-                            for i, entry in enumerate(self.annotations[frame_index]):
-                                if entry['category'] == category:
-                                    existing_entry = i
-                                    break
-                            
-                            if existing_entry is not None:
-                                # Replace existing annotation
-                                self.annotations[frame_index][existing_entry] = annotation_entry
+                            if category == 'event':
+                                # Handle both old and new event JSON formats
+                                if isinstance(annotation_data, dict) and "events" in annotation_data:
+                                    # New format: {"events": ["test1", "test2"]} - multiple events
+                                    for event_label in annotation_data["events"]:
+                                        annotation_entry = {
+                                            'category': category,
+                                            'data': {'event': event_label},
+                                            'timestamp': datetime.datetime.now().isoformat()
+                                        }
+                                        # Always add new event annotations - enable multiple event labels per frame
+                                        self.annotations[frame_index].append(annotation_entry)
+                                elif isinstance(annotation_data, dict) and "event" in annotation_data:
+                                    # Old format: {"event": "test1"} - single event
+                                    annotation_entry = {
+                                        'category': category,
+                                        'data': annotation_data,
+                                        'timestamp': datetime.datetime.now().isoformat()
+                                    }
+                                    # Always add new event annotations - enable multiple event labels per frame
+                                    self.annotations[frame_index].append(annotation_entry)
+                                else:
+                                    # Fallback for any other event format
+                                    annotation_entry = {
+                                        'category': category,
+                                        'data': {'event': str(annotation_data)},
+                                        'timestamp': datetime.datetime.now().isoformat()
+                                    }
+                                    self.annotations[frame_index].append(annotation_entry)
                             else:
-                                # Add new annotation
-                                self.annotations[frame_index].append(annotation_entry)
+                                # For non-event categories, use original logic
+                                annotation_entry = {
+                                    'category': category,
+                                    'data': annotation_data,
+                                    'timestamp': datetime.datetime.now().isoformat()
+                                }
+                                
+                                # For non-event categories, check if annotation already exists
+                                existing_entry = None
+                                for i, entry in enumerate(self.annotations[frame_index]):
+                                    if entry['category'] == category:
+                                        existing_entry = i
+                                        break
+                                
+                                if existing_entry is not None:
+                                    # Replace existing annotation for non-event categories
+                                    self.annotations[frame_index][existing_entry] = annotation_entry
+                                else:
+                                    # Add new annotation
+                                    self.annotations[frame_index].append(annotation_entry)
                         
                         loaded_counts[category] += 1
                         
@@ -2186,25 +2293,56 @@ class DataAnnotationGUI(QMainWindow):
                         
                         else:
                             # Handle other categories (like event) normally
-                            annotation_entry = {
-                                'category': category,
-                                'data': annotation_data,
-                                'timestamp': datetime.datetime.now().isoformat()
-                            }
-                            
-                            # Check if annotation already exists for this frame/category
-                            existing_entry = None
-                            for i, entry in enumerate(self.annotations[frame_index]):
-                                if entry['category'] == category:
-                                    existing_entry = i
-                                    break
-                            
-                            if existing_entry is not None:
-                                # Replace existing annotation
-                                self.annotations[frame_index][existing_entry] = annotation_entry
+                            if category == 'event':
+                                # Handle both old and new event JSON formats
+                                if isinstance(annotation_data, dict) and "events" in annotation_data:
+                                    # New format: {"events": ["test1", "test2"]} - multiple events
+                                    for event_label in annotation_data["events"]:
+                                        annotation_entry = {
+                                            'category': category,
+                                            'data': {'event': event_label},
+                                            'timestamp': datetime.datetime.now().isoformat()
+                                        }
+                                        # Always add new event annotations - enable multiple event labels per frame
+                                        self.annotations[frame_index].append(annotation_entry)
+                                elif isinstance(annotation_data, dict) and "event" in annotation_data:
+                                    # Old format: {"event": "test1"} - single event
+                                    annotation_entry = {
+                                        'category': category,
+                                        'data': annotation_data,
+                                        'timestamp': datetime.datetime.now().isoformat()
+                                    }
+                                    # Always add new event annotations - enable multiple event labels per frame
+                                    self.annotations[frame_index].append(annotation_entry)
+                                else:
+                                    # Fallback for any other event format
+                                    annotation_entry = {
+                                        'category': category,
+                                        'data': {'event': str(annotation_data)},
+                                        'timestamp': datetime.datetime.now().isoformat()
+                                    }
+                                    self.annotations[frame_index].append(annotation_entry)
                             else:
-                                # Add new annotation
-                                self.annotations[frame_index].append(annotation_entry)
+                                # For non-event categories, use original logic
+                                annotation_entry = {
+                                    'category': category,
+                                    'data': annotation_data,
+                                    'timestamp': datetime.datetime.now().isoformat()
+                                }
+                                
+                                # For non-event categories, check if annotation already exists
+                                existing_entry = None
+                                for i, entry in enumerate(self.annotations[frame_index]):
+                                    if entry['category'] == category:
+                                        existing_entry = i
+                                        break
+                                
+                                if existing_entry is not None:
+                                    # Replace existing annotation for non-event categories
+                                    self.annotations[frame_index][existing_entry] = annotation_entry
+                                else:
+                                    # Add new annotation
+                                    self.annotations[frame_index].append(annotation_entry)
                         
                         loaded_counts[category] += 1
                         
@@ -2660,7 +2798,8 @@ By Category:"""
                     
                     categories_saved.add("phase")
                 
-                # Save other annotations normally (exclude individual PSM categories)
+                # Group other annotations by category to handle multiple events properly
+                category_annotations = {}
                 for annotation in other_annotations:
                     category = annotation["category"]
                     data = annotation["data"]
@@ -2669,14 +2808,42 @@ By Category:"""
                     if category.startswith("contact_") or category.startswith("phase_"):
                         continue
                     
-                    # Save to appropriate category folder
+                    if category not in category_annotations:
+                        category_annotations[category] = []
+                    category_annotations[category].append(data)
+                
+                # Save annotations by category, handling multiple events properly
+                for category, annotation_data_list in category_annotations.items():
                     annotation_folder = base_folder / "annotation" / category
                     if not annotation_folder.exists():
                         create_folder(annotation_folder)
                     
                     frame_file = annotation_folder / f"{frame_idx}.json"
-                    with open(frame_file, 'w', encoding='utf-8') as f:
-                        json.dump(data, f, indent=2, ensure_ascii=False)
+                    
+                    # For event category, save multiple annotations as an array or object with events array
+                    if category == "event":
+                        # Create a structure that includes all event labels for this frame
+                        if len(annotation_data_list) == 1:
+                            # Single event - maintain backward compatibility with simple structure
+                            event_data = annotation_data_list[0]
+                        else:
+                            # Multiple events - create an array structure to include all events
+                            event_labels = []
+                            for event_data in annotation_data_list:
+                                if isinstance(event_data, dict) and "event" in event_data:
+                                    event_labels.append(event_data["event"])
+                                elif isinstance(event_data, str):
+                                    event_labels.append(event_data)
+                            
+                            # Save as an object with events array to include all multiple event labels
+                            event_data = {"events": event_labels}
+                        
+                        with open(frame_file, 'w', encoding='utf-8') as f:
+                            json.dump(event_data, f, indent=2, ensure_ascii=False)
+                    else:
+                        # For non-event categories, save the last annotation (original behavior)
+                        with open(frame_file, 'w', encoding='utf-8') as f:
+                            json.dump(annotation_data_list[-1], f, indent=2, ensure_ascii=False)
                     
                     categories_saved.add(category)
             
