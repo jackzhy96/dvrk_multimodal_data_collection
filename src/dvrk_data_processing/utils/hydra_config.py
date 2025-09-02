@@ -120,6 +120,12 @@ class RaftModelConfig:
 #     normalize: bool = True  # Apply ImageNet normalization (required for pretrained models)
 #     ensure_divisible: int = 8  # Ensure dimensions are divisible by this value (RAFT requirement)
 
+@dataclass
+class RaftFlowToImageConfig:
+    clip: float
+    eps: float
+    eps_frame: float
+    enable_denoise: bool=True
 
 @dataclass
 class RaftOpticalFlowConfig:
@@ -129,6 +135,7 @@ class RaftOpticalFlowConfig:
     camera_names: List[str]
     model_config: RaftModelConfig
     # preprocess_config: RaftPreprocessConfig
+    flow_to_image_config: RaftFlowToImageConfig
     flow_format: str = "npy"  # "npy" or "flo" - output format for optical flow
     enable_visualization: bool = True  # Generate color-coded flow visualizations
     save_confidence: bool = False  # Save confidence/uncertainty maps (if supported)

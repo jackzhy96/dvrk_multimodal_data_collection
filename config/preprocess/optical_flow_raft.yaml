@@ -17,6 +17,12 @@ model_config:
   mixed_precision: true       # Use mixed precision for faster inference and lower memory usage
   num_flow_updates: -1        # Number of RAFT iterations (-1 uses all iterations)
 
+flow_to_image_config:
+  enable_denoise: true
+  clip: 17.0
+  eps: 1e-5
+  eps_frame: 2e-7
+
 ## Image preprocessing configuration for RAFT
 #preprocess_config:
 #  resize_mode: "pad"          # "pad", "resize", "crop" - how to handle size requirements

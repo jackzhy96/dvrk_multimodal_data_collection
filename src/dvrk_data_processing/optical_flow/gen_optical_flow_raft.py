@@ -27,6 +27,135 @@ class AppCfg:
     workspace: str
     camera_names: List[str]
 
+def make_colorwheel_new() -> torch.Tensor:
+    """
+    Create the classic Middlebury optical-flow color wheel.
+    Segments: RY(15), YG(6), GC(4), CB(11), BM(13), MR(6) => 55 colors.
+    Returns:
+        torch.FloatTensor of shape (55, 3) with values in [0, 255].
+    """
+    # Segment lengths
+    RY, YG, GC, CB, BM, MR = 15, 6, 4, 11, 13, 6
+    ncols = RY + YG + GC + CB + BM + MR
+
+    colorwheel = torch.zeros(ncols, 3, dtype=torch.float32)  # RGB
+    col = 0
+
+    # R -> Y (red 255, green 0->255)
+    colorwheel[col:col+RY, 0] = 255
+    colorwheel[col:col+RY, 1] = torch.floor(255 * torch.arange(RY, dtype=torch.float32) / RY)
+    col += RY
+
+    # Y -> G (red 255->0, green 255)
+    colorwheel[col:col+YG, 0] = torch.floor(255 - 255 * torch.arange(YG, dtype=torch.float32) / YG)
+    colorwheel[col:col+YG, 1] = 255
+    col += YG
+
+    # G -> C (green 255, blue 0->255)
+    colorwheel[col:col+GC, 1] = 255
+    colorwheel[col:col+GC, 2] = torch.floor(255 * torch.arange(GC, dtype=torch.float32) / GC)
+    col += GC
+
+    # C -> B (green 255->0, blue 255)
+    colorwheel[col:col+CB, 1] = torch.floor(255 - 255 * torch.arange(CB, dtype=torch.float32) / CB)
+    colorwheel[col:col+CB, 2] = 255
+    col += CB
+
+    # B -> M (blue 255, red 0->255)
+    colorwheel[col:col+BM, 2] = 255
+    colorwheel[col:col+BM, 0] = torch.floor(255 * torch.arange(BM, dtype=torch.float32) / BM)
+    col += BM
+
+    # M -> R (red 255, blue 255->0)
+    colorwheel[col:col+MR, 0] = 255
+    colorwheel[col:col+MR, 2] = torch.floor(255 - 255 * torch.arange(MR, dtype=torch.float32) / MR)
+
+    return colorwheel
+
+
+@torch.no_grad()
+def normalized_flow_to_image_new(normalized_flow: torch.Tensor) ->torch.Tensor:
+    """
+    Convert a batch of normalized flow tensors to RGB images.
+    Args:
+        normalized_flow: (N, 2, H, W) float tensor, where magnitude ~ [0,1] (we clamp below).
+    Returns:
+        uint8 (N, 3, H, W)
+    """
+    N, _, H, W = normalized_flow.shape
+    device = normalized_flow.device
+    flow_image = torch.zeros((N, 3, H, W), dtype=torch.uint8, device=device)
+    colorwheel = make_colorwheel_new().to(device)  # [55,3]
+    num_cols = colorwheel.shape[0]
+
+    # Hue by direction; magnitude controls saturation/value mix
+    norm = torch.linalg.vector_norm(normalized_flow, dim=1)  # (N,H,W)
+    norm = norm.clamp_(0.0, 1.0)  # <-- IMPORTANT for stability
+
+    a = torch.atan2(-normalized_flow[:, 1], -normalized_flow[:, 0]) / torch.pi
+    fk = (a + 1) / 2 * (num_cols - 1)
+    k0 = torch.floor(fk).to(torch.long)
+    k1 = k0 + 1
+    k1[k1 == num_cols] = 0
+    f = fk - k0
+
+    for c in range(colorwheel.shape[1]):
+        tmp = colorwheel[:, c]
+        col0 = tmp[k0] / 255.0
+        col1 = tmp[k1] / 255.0
+        col = (1 - f) * col0 + f * col1
+        col = 1 - norm * (1 - col)
+        flow_image[:, c] = torch.floor(255 * col).clamp_(0, 255).to(torch.uint8)
+
+    return flow_image
+
+
+@torch.no_grad()
+def flow_to_image_new(
+    flow: torch.Tensor,
+    clip: float = 12.0,      # px mapped to full saturation (tune ~10–20)
+    eps: float = 0.05,       # per-pixel noise floor (px) -> zero
+    eps_frame: float = 0.02  # if median mag < this (px), treat whole frame as static
+) -> torch.Tensor:
+    """
+    Converts flow (px) to RGB uint8, robust on static scenes.
+    Accepts (N,2,H,W) or (2,H,W).
+    """
+    if not torch.is_floating_point(flow):
+        raise ValueError(f"Flow must be float, got {flow.dtype}.")
+
+    orig_shape = flow.shape
+    if flow.ndim == 3:
+        flow = flow.unsqueeze(0)  # (1,2,H,W)
+    if flow.ndim != 4 or flow.shape[1] != 2:
+        raise ValueError(f"Expected (2,H,W) or (N,2,H,W), got {orig_shape}.")
+
+    flow = flow.to(torch.float64)
+    flow = torch.nan_to_num(flow, nan=0.0, posinf=0.0, neginf=0.0)
+
+    # Magnitude
+    mag = torch.linalg.vector_norm(flow, dim=1)                # (N,H,W)
+
+    # Frame-level static detection
+    med = mag.view(mag.shape[0], -1).median(dim=1).values
+    static_frames = med < eps_frame
+    if static_frames.any():
+        flow[static_frames] = 0.0
+        mag[static_frames]  = 0.0
+
+    # Per-pixel tiny-motion suppression
+    small = (mag < eps).unsqueeze(1)                           # (N,1,H,W)
+    flow = flow.masked_fill(small, 0.0)
+
+    # Constant clipping -> normalized to [-1,1] per component
+    normalized_flow = (flow / clip).clamp_(-1.0, 1.0)
+
+    # Colorize
+    img = normalized_flow_to_image_new(normalized_flow)           # (N,3,H,W) uint8
+
+    if len(orig_shape) == 3:
+        img = img[0]
+    return img
 
 class InputPadder:
     """
@@ -301,7 +430,7 @@ class RaftOpticalFlowProcessor:
             logging.error(f"RAFT optical flow calculation failed: {e}")
             raise
 
-    def visualize_optical_flow(self, flow: np.ndarray) -> np.ndarray:
+    def visualize_optical_flow(self, flow: np.ndarray, clip: float=17.0, eps: float=1e-5, eps_frame: float=2e-7) -> np.ndarray:
         """
         Create a color-coded visualization of RAFT optical flow field.
 
@@ -315,25 +444,32 @@ class RaftOpticalFlowProcessor:
             Color-coded flow visualization in BGR format for OpenCV compatibility
         """
         try:
-            # Convert numpy flow to PyTorch tensor for torchvision function
-            # torchvision expects (2, H, W) format
+            # (1,2,H,W) tensor
             flow_tensor = torch.from_numpy(flow).permute(2, 0, 1).unsqueeze(0)
 
-            # Generate color-coded visualization using torchvision
-            # This function uses the standard optical flow color wheel encoding
-            flow_img_tensor = flow_to_image(flow_tensor)
-            ##### this needs to be fixed, add a filter to prevent rainbow images
+            if self.config.flow_to_image_config.enable_denoise:
+                clip = self.config.flow_to_image_config.clip
 
-            # Convert back to numpy and change from RGB to BGR for OpenCV
-            flow_img_rgb = flow_img_tensor[0].permute(1, 2, 0).numpy().astype(np.uint8)
-            flow_img_bgr = cv2.cvtColor(flow_img_rgb, cv2.COLOR_RGB2BGR)
+                # Stable visualization (tune clip/eps if needed)
+                flow_img_tensor = flow_to_image_new(flow_tensor, self.config.flow_to_image_config.clip,
+                                                    self.config.flow_to_image_config.eps, self.config.flow_to_image_config.eps_frame)
 
-            return flow_img_bgr
+                # -> NumPy RGB -> BGR for OpenCV
+                flow_img_rgb = flow_img_tensor[0].permute(1, 2, 0).cpu().numpy().astype(np.uint8)
+                flow_img_bgr = cv2.cvtColor(flow_img_rgb, cv2.COLOR_RGB2BGR)
+                return flow_img_bgr
+            else:
+                flow_img_tensor = flow_to_image(flow_tensor)
+                # Convert back to numpy and change from RGB to BGR for OpenCV
+                flow_img_rgb = flow_img_tensor[0].permute(1, 2, 0).numpy().astype(np.uint8)
+                flow_img_bgr = cv2.cvtColor(flow_img_rgb, cv2.COLOR_RGB2BGR)
+                return flow_img_bgr
+
 
         except Exception as e:
             logging.error(f"Flow visualization failed: {e}")
-            # Fallback to a simple magnitude-based visualization
-            magnitude = np.sqrt(flow[:, :, 0]**2 + flow[:, :, 1]**2)
+            # Fallback: magnitude heatmap
+            magnitude = np.sqrt(flow[..., 0] ** 2 + flow[..., 1] ** 2)
             magnitude_normalized = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX)
             return cv2.applyColorMap(magnitude_normalized.astype(np.uint8), cv2.COLORMAP_JET)
 
