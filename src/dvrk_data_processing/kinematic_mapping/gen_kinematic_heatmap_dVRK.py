@@ -56,7 +56,7 @@ def cam_project_3d_to_2d(coord_3d:np.ndarray, cam_param: CameraInfoProcessed,
     pixel_coord_check(pixel_coord.reshape(-1, 2), cam_param.image_width, cam_param.image_height)
     return pixel_coord.reshape(-1,2)
 
-def d_weight(xyz:np.ndarray, weight_adv:bool, tol_dist:float=0.05)->float:
+def d_weight(xyz:np.ndarray, weight_adv:bool, tol_dist:float=0.02)->float:
     '''
     Calculate the weight of the prediction term.
     xyz: 3D point in the camera coordinate system
