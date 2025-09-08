@@ -15,7 +15,9 @@ def gen_depth_from_disp(disp: np.float32)->float:
     Hard-coded fx and baseline
     '''
     disp_float = float(disp)
-    depth = 393.3557365890108 * 0.004344699 / disp_float * 1000
+    fx = 393.71867962482753
+    t_baseline = 0.004344699
+    depth = fx * t_baseline / disp_float * 1000
     return depth
 
 
