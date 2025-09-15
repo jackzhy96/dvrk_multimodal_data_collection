@@ -5,7 +5,6 @@ This script provides a clean interface to run the analysis.
 """
 
 import sys
-import os
 from pathlib import Path
 
 # Add current directory to path to import the main analysis module
@@ -20,7 +19,7 @@ def main():
     
     # Check if data directory exists (try both relative paths)
     current_dir = Path(__file__).parent
-    project_root = current_dir.parent  # This should be the actual project root
+    project_root = current_dir.parent.parent  # Go up two levels to reach project root
     
     # Try data path from current directory first, then from project root
     data_root = None

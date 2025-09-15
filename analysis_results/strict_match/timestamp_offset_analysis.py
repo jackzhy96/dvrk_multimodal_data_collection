@@ -29,7 +29,7 @@ sns.set_palette("husl")
 class TimestampAnalyzer:
     """Main class for analyzing timestamp offsets in DVRK data."""
     
-    def __init__(self, data_root: str = "../data/data_new"):
+    def __init__(self, data_root: str = "../../data/data_new"):
         """
         Initialize the analyzer.
         
@@ -38,6 +38,7 @@ class TimestampAnalyzer:
         """
         self.data_root = Path(data_root)
         self.base_output_dir = Path("output")
+        self.plots_dir = self.base_output_dir / "plots"
         
         # Dataset processing rules
         self.dataset_rules = {
@@ -65,8 +66,9 @@ class TimestampAnalyzer:
         # Setpoint/Measure categorization
         self.setpoint_measure_categories = {
             'setpoint': ['header_cp_set', 'header_js_set'],
-            'measured': ['header_measure_cp', 'header_js_meas', 'header_cv', 'header_lcp'],
-            'img': ['header_img_left', 'header_img_right', 'header_img_side']
+            'measured': ['header_measure_cp', 'header_cv', 'header_lcp'],
+            'measured+img': ['header_measure_cp', 'header_cv', 'header_lcp', 
+                            'header_img_left', 'header_img_right', 'header_img_side']
         }
         
         # All data is from CSR Camera system
@@ -212,7 +214,7 @@ class TimestampAnalyzer:
                         'arm': arm,
                         'sensor': 'header_measure_cp',
                         'category': 'kinematics',
-                        'setpoint_measure_category': 'measure',
+                        'setpoint_measure_category': self._get_setpoint_measure_category('header_measure_cp'),
                         'offset_ms': offset_ms,
                         'baseline_timestamp': baseline_timestamp,
                         'sensor_timestamp': sensor_timestamp
