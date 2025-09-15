@@ -20,6 +20,13 @@ warnings.filterwarnings('ignore')
 plt.style.use('seaborn-v0_8')
 sns.set_palette("husl")
 
+# Configure matplotlib for better font rendering
+plt.rcParams['font.family'] = 'DejaVu Sans'
+plt.rcParams['font.size'] = 12
+plt.rcParams['axes.unicode_minus'] = False
+plt.rcParams['font.serif'] = ['DejaVu Sans', 'Arial', 'sans-serif']
+plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'sans-serif']
+
 class SimplifiedTimestampAnalyzer:
     """Simplified analyzer focused on key metrics for PhD thesis."""
     
@@ -39,7 +46,7 @@ class SimplifiedTimestampAnalyzer:
         self.offset_data = []
         self.summary_stats = {}
         
-        # Sensor categorization for PhD thesis
+        # Modality categorization for PhD thesis
         self.sensor_categories = {
             'image': ['header_img_left', 'header_img_right', 'header_img_side'],
             'joint_states': ['header_js_set', 'header_js_meas'],
@@ -114,12 +121,12 @@ class SimplifiedTimestampAnalyzer:
         baseline_timestamp = baseline_data['sec'] + baseline_data['nsec'] * 1e-9
         frame_num = int(Path(json_file).stem)
         
-        # Calculate offsets for each sensor timestamp
+        # Calculate offsets for each modality timestamp
         for sensor_key, sensor_data in header.items():
             if sensor_key == 'header_js_meas':
                 continue
             
-            # Skip jaw sensors completely (temporarily disabled)
+            # Skip jaw modalities completely (temporarily disabled)
             if sensor_key in ['header_jaw_meas', 'header_jaw_set']:
                 continue
                 
@@ -143,14 +150,14 @@ class SimplifiedTimestampAnalyzer:
                 })
     
     def _get_sensor_category(self, sensor_key: str) -> str:
-        """Determine the category of a sensor based on its name."""
+        """Determine the category of a modality based on its name."""
         for category, sensors in self.sensor_categories.items():
             if sensor_key in sensors:
                 return category
         return 'other'
     
     def _get_setpoint_measure_category(self, sensor_key: str) -> str:
-        """Determine the setpoint/measure category of a sensor based on its name."""
+        """Determine the setpoint/measure category of a modality based on its name."""
         for category, sensors in self.setpoint_measure_categories.items():
             if sensor_key in sensors:
                 return category
@@ -176,7 +183,7 @@ class SimplifiedTimestampAnalyzer:
             'max_offset_ms': df['abs_offset_ms'].max()
         }
         
-        # Statistics by sensor category
+        # Statistics by modality category
         for category in df['category'].unique():
             category_data = df[df['category'] == category]
             self.summary_stats[f'category_{category}'] = {
@@ -273,20 +280,19 @@ class SimplifiedTimestampAnalyzer:
                 color=['skyblue', 'lightcoral', 'lightgreen', 'gold'],
                 edgecolor='black', linewidth=0.5)
         
-        # Add vertical line at 0
-        ax1.axvline(0, color='red', linestyle='--', linewidth=2, alpha=0.8)
+        # Removed 0ms vertical line as requested
         
-        ax1.set_xlabel('Timestamp Offset (ms)')
-        ax1.set_ylabel('Frequency')
-        ax1.set_title('Distribution of Timestamp Offsets by Group')
-        ax1.legend()
+        ax1.set_xlabel('Timestamp Offset (ms)', fontsize=20, fontweight='bold')
+        ax1.set_ylabel('Frequency', fontsize=20, fontweight='bold')
+        ax1.set_title('Distribution of Timestamp Offsets by Group', fontsize=22, fontweight='bold', pad=20)
+        ax1.legend(fontsize=22, prop={'family': 'DejaVu Sans', 'size': 22})
         ax1.grid(True, alpha=0.3)
         
         # 2. Box plot by category - still use absolute values for box plot
         sns.boxplot(data=df, x='category', y='abs_offset_ms', ax=ax2)
-        ax2.set_xlabel('Sensor Category')
-        ax2.set_ylabel('Absolute Timestamp Offset (ms)')
-        ax2.set_title('Offset Distribution by Sensor Category')
+        ax2.set_xlabel('Modality Category', fontsize=20, fontweight='bold')
+        ax2.set_ylabel('Absolute Timestamp Offset (ms)', fontsize=20, fontweight='bold')
+        ax2.set_title('Offset Distribution by Modality Category', fontsize=22, fontweight='bold', pad=20)
         ax2.grid(True, alpha=0.3)
         
         plt.tight_layout()
@@ -307,9 +313,9 @@ class SimplifiedTimestampAnalyzer:
         bars = ax1.bar(group_stats['setpoint_measure_category'], group_stats['mean'], 
                       yerr=group_stats['std'], capsize=5, alpha=0.8, color=colors)
         
-        ax1.set_xlabel('Sensor Group')
-        ax1.set_ylabel('Mean Absolute Offset (ms)')
-        ax1.set_title('Timestamp Offset by Sensor Group')
+        ax1.set_xlabel('Modality Group', fontsize=16, fontweight='bold')
+        ax1.set_ylabel('Mean Absolute Offset (ms)', fontsize=16, fontweight='bold')
+        ax1.set_title('Timestamp Offset by Modality Group', fontsize=18, fontweight='bold', pad=20)
         ax1.grid(True, alpha=0.3)
         
         # Add value labels on bars
@@ -320,9 +326,9 @@ class SimplifiedTimestampAnalyzer:
         # Box plot for detailed distribution
         sns.boxplot(data=df[df['setpoint_measure_category'].isin(['measured', 'setpoint', 'measured+img'])], 
                    x='setpoint_measure_category', y='abs_offset_ms', ax=ax2)
-        ax2.set_xlabel('Sensor Group')
-        ax2.set_ylabel('Absolute Timestamp Offset (ms)')
-        ax2.set_title('Offset Distribution by Sensor Group')
+        ax2.set_xlabel('Modality Group', fontsize=16, fontweight='bold')
+        ax2.set_ylabel('Absolute Timestamp Offset (ms)', fontsize=16, fontweight='bold')
+        ax2.set_title('Offset Distribution by Modality Group', fontsize=18, fontweight='bold', pad=20)
         ax2.grid(True, alpha=0.3)
         
         plt.tight_layout()
@@ -330,7 +336,7 @@ class SimplifiedTimestampAnalyzer:
         plt.close()
     
     def _plot_sensor_category_comparison(self, df: pd.DataFrame) -> None:
-        """Plot sensor category comparison."""
+        """Plot modality category comparison."""
         fig, ax = plt.subplots(figsize=(10, 6))
         
         # Create bar plot with error bars
@@ -340,9 +346,9 @@ class SimplifiedTimestampAnalyzer:
                      yerr=category_stats['std'], capsize=5, alpha=0.7, 
                      color=['skyblue', 'lightcoral', 'lightgreen'])
         
-        ax.set_xlabel('Sensor Category')
-        ax.set_ylabel('Mean Absolute Offset (ms)')
-        ax.set_title('Timestamp Offset by Sensor Category')
+        ax.set_xlabel('Modality Category', fontsize=16, fontweight='bold')
+        ax.set_ylabel('Mean Absolute Offset (ms)', fontsize=16, fontweight='bold')
+        ax.set_title('Timestamp Offset by Modality Category', fontsize=18, fontweight='bold', pad=20)
         ax.grid(True, alpha=0.3)
         
         # Add value labels on bars
@@ -365,9 +371,9 @@ class SimplifiedTimestampAnalyzer:
                      yerr=arm_stats['std'], capsize=5, alpha=0.7,
                      color=['gold', 'lightblue', 'lightgreen', 'lightpink'])
         
-        ax.set_xlabel('Robot Arm')
-        ax.set_ylabel('Mean Absolute Offset (ms)')
-        ax.set_title('Timestamp Offset by Robot Arm')
+        ax.set_xlabel('Robot Arm', fontsize=16, fontweight='bold')
+        ax.set_ylabel('Mean Absolute Offset (ms)', fontsize=16, fontweight='bold')
+        ax.set_title('Timestamp Offset by Robot Arm', fontsize=18, fontweight='bold', pad=20)
         ax.grid(True, alpha=0.3)
         
         # Add value labels on bars
@@ -388,19 +394,21 @@ class SimplifiedTimestampAnalyzer:
         
         pivot_data.plot(kind='bar', ax=ax, width=0.8, alpha=0.8)
         
-        ax.set_xlabel('Sensor Category')
-        ax.set_ylabel('Mean Absolute Offset (ms)')
-        ax.set_title('Timestamp Offset: Sensor Category vs Robot Arm')
-        ax.legend(title='Robot Arm', bbox_to_anchor=(1.05, 1), loc='upper left')
+        ax.set_xlabel('Modality Category', fontsize=16, fontweight='bold')
+        ax.set_ylabel('Mean Absolute Offset (ms)', fontsize=16, fontweight='bold')
+        ax.set_title('Timestamp Offset: Modality Category vs Robot Arm', fontsize=18, fontweight='bold', pad=20)
+        ax.legend(title='Robot Arm', bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=18, title_fontsize=20,
+                 prop={'family': 'DejaVu Sans', 'size': 18})
         ax.grid(True, alpha=0.3)
-        ax.tick_params(axis='x', rotation=0)
+        ax.tick_params(axis='x', rotation=0, labelsize=14)
+        ax.tick_params(axis='y', labelsize=14)
         
         plt.tight_layout()
         plt.savefig(self.output_dir / 'combined_comparison.png', dpi=300, bbox_inches='tight')
         plt.close()
     
     def _plot_four_group_histogram(self, df: pd.DataFrame) -> None:
-        """Create side-by-side histograms on the same plot for four sensor groups."""
+        """Create side-by-side histograms on the same plot for four modality groups."""
         fig, ax = plt.subplots(figsize=(16, 8))
         
         # Prepare data - use raw offset (not absolute) for visualization
@@ -432,44 +440,69 @@ class SimplifiedTimestampAnalyzer:
         # Plot each histogram on the same axes
         for data, label, color in datasets:
             if len(data) > 0:
-                ax.hist(data, bins=bins, alpha=0.6, label=f'{label} (n={len(data):,})', 
+                ax.hist(data, bins=bins, alpha=0.6, 
                        color=color, edgecolor='black', linewidth=0.5)
                 
                 # Add vertical line for mean value of each group
                 mean_val = data.mean()
                 mean_color = mean_colors[label]
-                ax.axvline(mean_val, color=mean_color, linestyle='--', linewidth=2, alpha=0.8,
-                          label=f'{label} Mean ({mean_val:.2f} ms)')
+                ax.axvline(mean_val, color=mean_color, linestyle='--', linewidth=2, alpha=0.8)
         
         # Customize plot
-        ax.set_xlabel('Timestamp Offset (ms)', fontsize=14, fontweight='bold')
-        ax.set_ylabel('Frequency', fontsize=14, fontweight='bold')
-        ax.set_title('Distribution of Timestamp Offsets by Sensor Group', 
-                    fontsize=16, fontweight='bold', pad=20)
+        ax.set_xlabel('Timestamp Offset (ms)', fontsize=22, fontweight='bold')
+        ax.set_ylabel('Frequency', fontsize=22, fontweight='bold')
+        ax.set_title('Distribution of Timestamp Offsets by Modality Group', 
+                    fontsize=24, fontweight='bold', pad=20)
         
-        # Add legend
-        ax.legend(loc='upper right', fontsize=12, framealpha=0.9)
+        # Add custom legend with smaller font for histogram labels
+        from matplotlib.patches import Patch
+        from matplotlib.lines import Line2D
+        
+        # Create custom legend elements
+        legend_elements = []
+        for data, label, color in datasets:
+            if len(data) > 0:
+                mean_val = data.mean()
+                mean_color = mean_colors[label]
+                # Histogram bar
+                legend_elements.append(Patch(facecolor=color, alpha=0.6, 
+                                           label=f'{label} (n={len(data):,})'))
+                # Mean line
+                legend_elements.append(Line2D([0], [0], color=mean_color, linestyle='--', linewidth=2,
+                                            label=f'{label} Mean ({mean_val:.2f} ms)'))
+        
+        # Create legend with smaller font for histogram labels
+        legend = ax.legend(handles=legend_elements, loc='upper right', framealpha=0.9,
+                          prop={'family': 'DejaVu Sans', 'size': 18})
         
         # Add grid
         ax.grid(True, alpha=0.3, linestyle='--')
         
         # Add statistics text box
         stats_text = f'Total Data Points: {len(df):,}\n'
-        stats_text += f'Mean |Offset|: {df["abs_offset_ms"].mean():.2f} ms\n'
-        stats_text += f'Std |Offset|: {df["abs_offset_ms"].std():.2f} ms\n'
-        stats_text += f'95th Percentile |Offset|: {df["abs_offset_ms"].quantile(0.95):.2f} ms\n'
+        stats_text += f'Mean Absolute Offset: {df["abs_offset_ms"].mean():.2f} ms\n'
+        stats_text += f'Std Absolute Offset: {df["abs_offset_ms"].std():.2f} ms\n'
+        stats_text += f'95th Percentile Absolute Offset: {df["abs_offset_ms"].quantile(0.95):.2f} ms\n'
         stats_text += f'Range: [{df["offset_ms"].min():.2f}, {df["offset_ms"].max():.2f}] ms'
         
         ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, 
                 verticalalignment='top', bbox=dict(boxstyle='round', 
-                facecolor='white', alpha=0.8), fontsize=10)
+                facecolor='white', alpha=0.8), fontsize=18, 
+                fontfamily='DejaVu Sans')
+        
+        # Set tick label font sizes
+        ax.tick_params(axis='x', labelsize=18)
+        ax.tick_params(axis='y', labelsize=18)
+        
+        # Set x-axis limits to actual data range
+        ax.set_xlim(df['offset_ms'].min(), df['offset_ms'].max())
         
         plt.tight_layout()
         plt.savefig(self.output_dir / 'four_group_histogram.pdf', bbox_inches='tight')
         plt.close()
     
     def _plot_four_group_boxplot(self, df: pd.DataFrame) -> None:
-        """Create box plot for four sensor groups as backup visualization."""
+        """Create box plot for four modality groups as backup visualization."""
         fig, ax = plt.subplots(figsize=(12, 8))
         
         # Prepare data for box plot
@@ -500,41 +533,43 @@ class SimplifiedTimestampAnalyzer:
             patch.set_facecolor(color)
             patch.set_alpha(0.7)
         
-        # Add horizontal line at 0
-        ax.axhline(0, color='red', linestyle='--', linewidth=2, alpha=0.8, label='Perfect Sync (0ms)')
+        # Removed 0ms horizontal line as requested
         
         # Customize plot
-        ax.set_ylabel('Timestamp Offset (ms)', fontsize=14, fontweight='bold')
-        ax.set_xlabel('Sensor Group', fontsize=14, fontweight='bold')
-        ax.set_title('Distribution of Timestamp Offsets by Sensor Group (Box Plot)', 
-                    fontsize=16, fontweight='bold', pad=20)
+        ax.set_ylabel('Timestamp Offset (ms)', fontsize=22, fontweight='bold')
+        ax.set_xlabel('Modality Group', fontsize=22, fontweight='bold')
+        ax.set_title('Distribution of Timestamp Offsets by Modality Group (Box Plot)', 
+                    fontsize=24, fontweight='bold', pad=20)
         
         # Add legend
-        ax.legend(loc='upper right', fontsize=12, framealpha=0.9)
+        ax.legend(loc='upper right', fontsize=24, framealpha=0.9, 
+                 prop={'family': 'DejaVu Sans', 'size': 24})
         
         # Add grid
         ax.grid(True, alpha=0.3, linestyle='--')
         
         # Add statistics text box
         stats_text = f'Total Data Points: {len(df):,}\n'
-        stats_text += f'Mean |Offset|: {df["abs_offset_ms"].mean():.2f} ms\n'
-        stats_text += f'Std |Offset|: {df["abs_offset_ms"].std():.2f} ms\n'
-        stats_text += f'95th Percentile |Offset|: {df["abs_offset_ms"].quantile(0.95):.2f} ms\n'
+        stats_text += f'Mean Absolute Offset: {df["abs_offset_ms"].mean():.2f} ms\n'
+        stats_text += f'Std Absolute Offset: {df["abs_offset_ms"].std():.2f} ms\n'
+        stats_text += f'95th Percentile Absolute Offset: {df["abs_offset_ms"].quantile(0.95):.2f} ms\n'
         stats_text += f'Range: [{df["offset_ms"].min():.2f}, {df["offset_ms"].max():.2f}] ms'
         
         ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, 
                 verticalalignment='top', bbox=dict(boxstyle='round', 
-                facecolor='white', alpha=0.8), fontsize=10)
+                facecolor='white', alpha=0.8), fontsize=18, 
+                fontfamily='DejaVu Sans')
         
         # Rotate x-axis labels for better readability
-        plt.xticks(rotation=45, ha='right')
+        plt.xticks(rotation=45, ha='right', fontsize=18)
+        plt.yticks(fontsize=18)
         
         plt.tight_layout()
         plt.savefig(self.output_dir / 'four_group_boxplot.pdf', bbox_inches='tight')
         plt.close()
     
     def _plot_four_group_histogram_overall_mean(self, df: pd.DataFrame) -> None:
-        """Create histogram with overall mean line for four sensor groups comparison."""
+        """Create histogram with overall mean line for four modality groups comparison."""
         fig, ax = plt.subplots(figsize=(16, 8))
         
         # Prepare data - use raw offset (not absolute) for visualization
@@ -567,13 +602,14 @@ class SimplifiedTimestampAnalyzer:
                   label=f'Overall Mean ({overall_mean:.2f} ms)')
         
         # Customize plot
-        ax.set_xlabel('Timestamp Offset (ms)', fontsize=14, fontweight='bold')
-        ax.set_ylabel('Frequency', fontsize=14, fontweight='bold')
-        ax.set_title('Distribution of Timestamp Offsets by Sensor Group (Overall Mean)', 
-                    fontsize=16, fontweight='bold', pad=20)
+        ax.set_xlabel('Timestamp Offset (ms)', fontsize=22, fontweight='bold')
+        ax.set_ylabel('Frequency', fontsize=22, fontweight='bold')
+        ax.set_title('Distribution of Timestamp Offsets by Modality Group (Overall Mean)', 
+                    fontsize=24, fontweight='bold', pad=20)
         
         # Add legend
-        ax.legend(loc='upper right', fontsize=12, framealpha=0.9)
+        ax.legend(loc='upper right', fontsize=24, framealpha=0.9, 
+                 prop={'family': 'DejaVu Sans', 'size': 24})
         
         # Add grid
         ax.grid(True, alpha=0.3, linestyle='--')
@@ -581,14 +617,22 @@ class SimplifiedTimestampAnalyzer:
         # Add statistics text box
         stats_text = f'Total Data Points: {len(df):,}\n'
         stats_text += f'Overall Mean: {overall_mean:.2f} ms\n'
-        stats_text += f'Mean |Offset|: {df["abs_offset_ms"].mean():.2f} ms\n'
-        stats_text += f'Std |Offset|: {df["abs_offset_ms"].std():.2f} ms\n'
-        stats_text += f'95th Percentile |Offset|: {df["abs_offset_ms"].quantile(0.95):.2f} ms\n'
+        stats_text += f'Mean Absolute Offset: {df["abs_offset_ms"].mean():.2f} ms\n'
+        stats_text += f'Std Absolute Offset: {df["abs_offset_ms"].std():.2f} ms\n'
+        stats_text += f'95th Percentile Absolute Offset: {df["abs_offset_ms"].quantile(0.95):.2f} ms\n'
         stats_text += f'Range: [{df["offset_ms"].min():.2f}, {df["offset_ms"].max():.2f}] ms'
         
         ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, 
                 verticalalignment='top', bbox=dict(boxstyle='round', 
-                facecolor='white', alpha=0.8), fontsize=10)
+                facecolor='white', alpha=0.8), fontsize=18, 
+                fontfamily='DejaVu Sans')
+        
+        # Set tick label font sizes
+        ax.tick_params(axis='x', labelsize=18)
+        ax.tick_params(axis='y', labelsize=18)
+        
+        # Set x-axis limits to actual data range
+        ax.set_xlim(df['offset_ms'].min(), df['offset_ms'].max())
         
         plt.tight_layout()
         plt.savefig(self.output_dir / 'four_group_histogram_overall_mean.pdf', bbox_inches='tight')
@@ -642,7 +686,7 @@ class SimplifiedTimestampAnalyzer:
             if f'category_{category}' in self.summary_stats:
                 cat_stats = self.summary_stats[f'category_{category}']
                 summary_data.append({
-                    'Category': f'Sensor: {category}',
+                    'Category': f'Modality: {category}',
                     'Count': cat_stats['count'],
                     'Mean (ms)': f"{cat_stats['mean_offset_ms']:.2f}",
                     'Std (ms)': f"{cat_stats['std_offset_ms']:.2f}",

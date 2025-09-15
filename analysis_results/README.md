@@ -4,6 +4,10 @@ This analysis examines timestamp offsets in synchronized multimodal data from th
 
 ## Overview
 
+This repository contains analysis tools for two types of DVRK data recorders:
+- **Strict Match Recorder**: High precision, low latency, variable frame rate (3-8Hz)
+- **Interpolation Recorder**: Fixed 10Hz frame rate, stable video stream, 5-candidate interpolation
+
 Each JSON file represents a synchronized frame containing timestamps from different sensors. The main timestamp serves as the reference, and we calculate offsets for each sensor timestamp relative to this reference.
 
 ## Data Structure
@@ -37,11 +41,23 @@ Each JSON file represents a synchronized frame containing timestamps from differ
 - `detailed_analysis_report.html`: Comprehensive HTML report
 - `plots/`: Directory containing all visualization plots
 
+## Folder Structure
+
+- `strict_match/` - Analysis tools for strict_match recorder data
+- `interpolation/` - Analysis tools for interpolation recorder data
+
 ## Usage
 
+### Strict Match Analysis
 ```bash
-cd analysis_results
-python timestamp_offset_analysis.py
+cd analysis_results/strict_match
+python run_analysis.py
+```
+
+### Interpolation Analysis
+```bash
+cd analysis_results/interpolation
+python run_analysis.py
 ```
 
 ## Requirements
