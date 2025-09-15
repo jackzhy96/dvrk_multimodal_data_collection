@@ -51,9 +51,8 @@ class TimestampDelayAnalyzer:
         self.processed_datasets = []
         self.temporal_data = []
         
-        # Sensor categorization
+        # Sensor categorization for interpolation data
         self.sensor_categories = {
-            'image': ['image_stamp_left', 'image_stamp_right'],
             'kinematics': [
                 'measured_cp_stamp', 'measured_cv_stamp', 'measured_js_stamp',
                 'setpoint_cp_stamp', 'setpoint_js_stamp', 'header_cv'
@@ -64,7 +63,13 @@ class TimestampDelayAnalyzer:
         self.setpoint_measure_categories = {
             'setpoint': ['setpoint_cp_stamp', 'setpoint_js_stamp'],
             'measured': ['measured_cp_stamp', 'measured_cv_stamp', 'measured_js_stamp'],
-            'img': ['image_stamp_left', 'image_stamp_right']
+            'header': ['header_cv']
+        }
+        
+        # Data type categorization
+        self.data_type_categories = {
+            'joint_states': ['measured_js_stamp', 'setpoint_js_stamp'],
+            'cartesian_states': ['measured_cp_stamp', 'measured_cv_stamp', 'setpoint_cp_stamp', 'header_cv']
         }
         
         # Robot arms
@@ -162,11 +167,12 @@ class TimestampDelayAnalyzer:
                         continue
                     
                     # Calculate delay: sensor_timestamp - baseline_timestamp
-                    delay_ms = (sensor_timestamp - baseline_timestamp) * 1000
+                    delay_ms = (baseline_timestamp - sensor_timestamp) * 1000
                     
                     # Determine sensor category
                     category = self._get_sensor_category(sensor_key)
                     setpoint_measure_category = self._get_setpoint_measure_category(sensor_key)
+                    data_type_category = self._get_data_type_category(sensor_key)
                     
                     self.delay_data.append({
                         'frame': frame_num,
@@ -178,6 +184,7 @@ class TimestampDelayAnalyzer:
                         'sensor': sensor_key,
                         'category': category,
                         'setpoint_measure_category': setpoint_measure_category,
+                        'data_type_category': data_type_category,
                         'delay_ms': delay_ms,
                         'baseline_timestamp': baseline_timestamp,
                         'sensor_timestamp': sensor_timestamp
@@ -323,6 +330,13 @@ class TimestampDelayAnalyzer:
                 return category
         return 'other'
     
+    def _get_data_type_category(self, sensor_key: str) -> str:
+        """Determine data type category based on sensor key."""
+        for category, sensors in self.data_type_categories.items():
+            if sensor_key in sensors:
+                return category
+        return 'other'
+    
     def calculate_delay_statistics(self) -> None:
         """Calculate comprehensive delay statistics."""
         print("Calculating delay statistics...")
@@ -336,8 +350,8 @@ class TimestampDelayAnalyzer:
         # Overall statistics
         self.summary_stats['overall'] = {
             'count': len(df),
-            'mean_delay_ms': df['delay_ms'].mean(),
-            'std_delay_ms': df['delay_ms'].std(),
+            'mean_delay_ms': df['delay_ms'].abs().mean(),
+            'std_delay_ms': df['delay_ms'].abs().std(),
             'min_delay_ms': df['delay_ms'].min(),
             'max_delay_ms': df['delay_ms'].max(),
             'median_delay_ms': df['delay_ms'].median(),
@@ -352,8 +366,8 @@ class TimestampDelayAnalyzer:
             category_data = df[df['category'] == category]
             self.summary_stats[f'category_{category}'] = {
                 'count': len(category_data),
-                'mean_delay_ms': category_data['delay_ms'].mean(),
-                'std_delay_ms': category_data['delay_ms'].std(),
+                'mean_delay_ms': category_data['delay_ms'].abs().mean(),
+                'std_delay_ms': category_data['delay_ms'].abs().std(),
                 'min_delay_ms': category_data['delay_ms'].min(),
                 'max_delay_ms': category_data['delay_ms'].max(),
                 'median_delay_ms': category_data['delay_ms'].median()
@@ -364,8 +378,8 @@ class TimestampDelayAnalyzer:
             arm_data = df[df['arm'] == arm]
             self.summary_stats[f'arm_{arm}'] = {
                 'count': len(arm_data),
-                'mean_delay_ms': arm_data['delay_ms'].mean(),
-                'std_delay_ms': arm_data['delay_ms'].std(),
+                'mean_delay_ms': arm_data['delay_ms'].abs().mean(),
+                'std_delay_ms': arm_data['delay_ms'].abs().std(),
                 'min_delay_ms': arm_data['delay_ms'].min(),
                 'max_delay_ms': arm_data['delay_ms'].max(),
                 'median_delay_ms': arm_data['delay_ms'].median()
@@ -376,8 +390,8 @@ class TimestampDelayAnalyzer:
             candidate_data = df[df['candidate'] == candidate]
             self.summary_stats[f'candidate_{candidate}'] = {
                 'count': len(candidate_data),
-                'mean_delay_ms': candidate_data['delay_ms'].mean(),
-                'std_delay_ms': candidate_data['delay_ms'].std(),
+                'mean_delay_ms': candidate_data['delay_ms'].abs().mean(),
+                'std_delay_ms': candidate_data['delay_ms'].abs().std(),
                 'min_delay_ms': candidate_data['delay_ms'].min(),
                 'max_delay_ms': candidate_data['delay_ms'].max(),
                 'median_delay_ms': candidate_data['delay_ms'].median()
@@ -473,8 +487,8 @@ class TimestampDelayAnalyzer:
         """Calculate statistics for a specific dataset."""
         stats = {
             'count': len(df),
-            'mean_delay_ms': df['delay_ms'].mean(),
-            'std_delay_ms': df['delay_ms'].std(),
+            'mean_delay_ms': df['delay_ms'].abs().mean(),
+            'std_delay_ms': df['delay_ms'].abs().std(),
             'min_delay_ms': df['delay_ms'].min(),
             'max_delay_ms': df['delay_ms'].max(),
             'median_delay_ms': df['delay_ms'].median(),
@@ -489,8 +503,8 @@ class TimestampDelayAnalyzer:
             category_data = df[df['category'] == category]
             stats[f'category_{category}'] = {
                 'count': len(category_data),
-                'mean_delay_ms': category_data['delay_ms'].mean(),
-                'std_delay_ms': category_data['delay_ms'].std()
+                'mean_delay_ms': category_data['delay_ms'].abs().mean(),
+                'std_delay_ms': category_data['delay_ms'].abs().std()
             }
         
         # Add arm statistics
@@ -498,8 +512,35 @@ class TimestampDelayAnalyzer:
             arm_data = df[df['arm'] == arm]
             stats[f'arm_{arm}'] = {
                 'count': len(arm_data),
-                'mean_delay_ms': arm_data['delay_ms'].mean(),
-                'std_delay_ms': arm_data['delay_ms'].std()
+                'mean_delay_ms': arm_data['delay_ms'].abs().mean(),
+                'std_delay_ms': arm_data['delay_ms'].abs().std()
+            }
+        
+        # Add sensor statistics
+        for sensor in df['sensor'].unique():
+            sensor_data = df[df['sensor'] == sensor]
+            stats[f'sensor_{sensor}'] = {
+                'count': len(sensor_data),
+                'mean_delay_ms': sensor_data['delay_ms'].abs().mean(),
+                'std_delay_ms': sensor_data['delay_ms'].abs().std()
+            }
+        
+        # Add setpoint/measure category statistics
+        for category in df['setpoint_measure_category'].unique():
+            category_data = df[df['setpoint_measure_category'] == category]
+            stats[f'{category}'] = {
+                'count': len(category_data),
+                'mean_delay_ms': category_data['delay_ms'].abs().mean(),
+                'std_delay_ms': category_data['delay_ms'].abs().std()
+            }
+        
+        # Add data type category statistics
+        for category in df['data_type_category'].unique():
+            category_data = df[df['data_type_category'] == category]
+            stats[f'data_type_{category}'] = {
+                'count': len(category_data),
+                'mean_delay_ms': category_data['delay_ms'].abs().mean(),
+                'std_delay_ms': category_data['delay_ms'].abs().std()
             }
         
         return stats
@@ -583,12 +624,12 @@ class TimestampDelayAnalyzer:
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
         
         # Histogram
-        ax1.hist(df['delay_ms'], bins=50, alpha=0.7, edgecolor='black')
+        ax1.hist(df['delay_ms'].abs(), bins=50, alpha=0.7, edgecolor='black')
         ax1.set_xlabel('Delay (ms)')
         ax1.set_ylabel('Frequency')
-        ax1.set_title('Overall Delay Distribution')
-        ax1.axvline(df['delay_ms'].mean(), color='red', linestyle='--', 
-                   label=f'Mean: {df["delay_ms"].mean():.2f} ms')
+        ax1.set_title('Overall Delay Distribution (Absolute Values)')
+        ax1.axvline(df['delay_ms'].abs().mean(), color='red', linestyle='--', 
+                   label=f'Mean: {df["delay_ms"].abs().mean():.2f} ms')
         ax1.legend()
         
         # Box plot by candidate
@@ -607,19 +648,21 @@ class TimestampDelayAnalyzer:
         
         # Mean delay by candidate
         candidate_stats = df.groupby('candidate')['delay_ms'].agg(['mean', 'std', 'count']).reset_index()
+        candidate_stats['mean'] = candidate_stats['mean'].abs()
+        candidate_stats['std'] = candidate_stats['std'].abs()
         ax1.bar(candidate_stats['candidate'], candidate_stats['mean'], 
                 yerr=candidate_stats['std'], capsize=5, alpha=0.7)
         ax1.set_xlabel('Candidate Index')
         ax1.set_ylabel('Mean Delay (ms)')
-        ax1.set_title('Mean Delay by Candidate')
+        ax1.set_title('Mean Delay by Candidate (Absolute Values)')
         
         # Delay distribution by candidate
         for candidate in sorted(df['candidate'].unique()):
-            candidate_data = df[df['candidate'] == candidate]['delay_ms']
+            candidate_data = df[df['candidate'] == candidate]['delay_ms'].abs()
             ax2.hist(candidate_data, alpha=0.6, label=f'Candidate {candidate}', bins=30)
         ax2.set_xlabel('Delay (ms)')
         ax2.set_ylabel('Frequency')
-        ax2.set_title('Delay Distribution by Candidate')
+        ax2.set_title('Delay Distribution by Candidate (Absolute Values)')
         ax2.legend()
         
         # Delay range by candidate
@@ -634,7 +677,7 @@ class TimestampDelayAnalyzer:
         ax4.bar(candidate_stats['candidate'], candidate_stats['std'], alpha=0.7)
         ax4.set_xlabel('Candidate Index')
         ax4.set_ylabel('Delay Std Dev (ms)')
-        ax4.set_title('Delay Stability by Candidate')
+        ax4.set_title('Delay Stability by Candidate (Absolute Values)')
         
         plt.tight_layout()
         plt.savefig(plots_dir / 'candidate_delay_analysis.png', dpi=300, bbox_inches='tight')
@@ -652,11 +695,13 @@ class TimestampDelayAnalyzer:
         
         # Mean delay by category
         category_stats = df.groupby('category')['delay_ms'].agg(['mean', 'std', 'count']).reset_index()
+        category_stats['mean'] = category_stats['mean'].abs()
+        category_stats['std'] = category_stats['std'].abs()
         ax2.bar(category_stats['category'], category_stats['mean'], 
                 yerr=category_stats['std'], capsize=5, alpha=0.7)
         ax2.set_xlabel('Sensor Category')
         ax2.set_ylabel('Mean Delay (ms)')
-        ax2.set_title('Mean Delay by Sensor Category')
+        ax2.set_title('Mean Delay by Sensor Category (Absolute Values)')
         
         plt.tight_layout()
         plt.savefig(plots_dir / 'category_delay_analysis.png', dpi=300, bbox_inches='tight')
@@ -674,11 +719,13 @@ class TimestampDelayAnalyzer:
         
         # Mean delay by arm
         arm_stats = df.groupby('arm')['delay_ms'].agg(['mean', 'std', 'count']).reset_index()
+        arm_stats['mean'] = arm_stats['mean'].abs()
+        arm_stats['std'] = arm_stats['std'].abs()
         ax2.bar(arm_stats['arm'], arm_stats['mean'], 
                 yerr=arm_stats['std'], capsize=5, alpha=0.7)
         ax2.set_xlabel('Robot Arm')
         ax2.set_ylabel('Mean Delay (ms)')
-        ax2.set_title('Mean Delay by Robot Arm')
+        ax2.set_title('Mean Delay by Robot Arm (Absolute Values)')
         
         plt.tight_layout()
         plt.savefig(plots_dir / 'arm_delay_analysis.png', dpi=300, bbox_inches='tight')

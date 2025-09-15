@@ -1,12 +1,10 @@
 # DVRK Interpolation Analysis
 
-This folder contains analysis tools for **timestamp delay analysis** of the interpolation-based DVRK data recorder.
+This folder contains the **timestamp delay analysis** script for the interpolation-based DVRK data recorder.
 
 ## Files
 
 - `timestamp_delay_analysis.py` - **Main script** for timestamp delay analysis
-- `recorder_comparison_analysis.py` - Comparison between interpolation and strict_match recorders
-- `run_analysis.py` - Complete analysis pipeline runner
 
 ## Output
 
