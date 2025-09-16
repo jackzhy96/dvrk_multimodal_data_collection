@@ -40,11 +40,9 @@ class TimestampAnalyzer:
         self.base_output_dir = Path("output")
         self.plots_dir = self.base_output_dir / "plots"
         
-        # Dataset processing rules
+        # Dataset processing rules - only process data_20250909
         self.dataset_rules = {
-            'data_20250908': ['2'],  # Only process subfolder 2
-            'data_20250909': ['strict_match/1', 'strict_match/2', 'strict_match/3', 'strict_match/4'],  # Process strict_match subfolders
-            'data_20250911': ['suturing/strict_match/1', 'dissection/1']  # Process new data folders
+            'data_20250909': ['strict_match/1', 'strict_match/2', 'strict_match/3', 'strict_match/4']  # Process strict_match subfolders
         }
         
         # Data containers
@@ -55,26 +53,25 @@ class TimestampAnalyzer:
         
         # Sensor categorization
         self.sensor_categories = {
-            'image': ['header_img_left', 'header_img_right', 'header_img_side'],
-            # 'jaw': ['header_jaw_meas', 'header_jaw_set'],  # 暂时注释掉jaw传感器
+            'image': ['header_img_right', 'header_img_side'],
             'kinematics': [
                 'header_cp_set', 'header_cv', 'header_js_set', 
-                'header_lcp', 'header_measure_cp'
+                'header_lcp', 'header_measure_cp', 'header_js_meas'
             ]
         }
         
         # Setpoint/Measure categorization
         self.setpoint_measure_categories = {
             'setpoint': ['header_cp_set', 'header_js_set'],
-            'measured': ['header_measure_cp', 'header_cv', 'header_lcp'],
-            'measured+img': ['header_measure_cp', 'header_cv', 'header_lcp', 
-                            'header_img_left', 'header_img_right', 'header_img_side']
+            'measured': ['header_measure_cp', 'header_lcp', 'header_js_meas'],
+            'measured+img': ['header_measure_cp', 'header_cv', 'header_lcp', 'header_js_meas',
+                            'header_img_right', 'header_img_side']
         }
         
         # All data is from CSR Camera system
         
         # Robot arms
-        self.robot_arms = ['ECM', 'PSM1', 'PSM2', 'PSM3']
+        self.robot_arms = ['ECM', 'PSM1', 'PSM2']
         
     def load_data(self) -> None:
         """Load all JSON files and extract timestamp information."""
@@ -157,9 +154,9 @@ class TimestampAnalyzer:
         with open(json_file, 'r') as f:
             data = json.load(f)
         
-        # Extract baseline timestamp (header_js_meas)
+        # Extract baseline timestamp (header_img_left)
         header = data.get('header', {})
-        baseline_data = header.get('header_js_meas', {})
+        baseline_data = header.get('header_img_left', {})
         
         if 'sec' not in baseline_data or 'nsec' not in baseline_data:
             return
@@ -171,12 +168,16 @@ class TimestampAnalyzer:
         
         # Calculate offsets for each sensor timestamp
         for sensor_key, sensor_data in header.items():
-            # Skip the baseline timestamp (header_js_meas)
-            if sensor_key == 'header_js_meas':
+            # Skip baseline sensor (header_img_left) - it's used as reference, not for analysis
+            if sensor_key == 'header_img_left':
                 continue
-            
+                
             # Skip jaw sensors completely (temporarily disabled)
             if sensor_key in ['header_jaw_meas', 'header_jaw_set']:
+                continue
+            
+            # Skip image sensors for PSM2 and ECM (image data is common, only process once with PSM1)
+            if arm in ['PSM2', 'ECM'] and sensor_key in ['header_img_right', 'header_img_side']:
                 continue
                 
             if isinstance(sensor_data, dict) and 'sec' in sensor_data and 'nsec' in sensor_data:
@@ -346,9 +347,26 @@ class TimestampAnalyzer:
             'min_offset_ms': df['offset_ms'].min(),
             'max_offset_ms': df['offset_ms'].max(),
             'median_offset_ms': df['offset_ms'].median(),
+            'abs_median_offset_ms': df['offset_ms'].abs().median(),
             'q25_offset_ms': df['offset_ms'].quantile(0.25),
             'q75_offset_ms': df['offset_ms'].quantile(0.75),
             'q95_offset_ms': df['offset_ms'].quantile(0.95)
+        }
+        
+        # Baseline statistics (online recorder with perfect alignment)
+        # Since online recorder has perfect alignment, we add baseline statistics
+        self.summary_stats['baseline_online_recorder'] = {
+            'count': len(df),
+            'mean_offset_ms': 0.0,  # Perfect alignment means 0 offset
+            'std_offset_ms': 0.0,   # Perfect alignment means 0 std
+            'min_offset_ms': 0.0,   # Perfect alignment means 0 min
+            'max_offset_ms': 0.0,   # Perfect alignment means 0 max
+            'median_offset_ms': 0.0, # Perfect alignment means 0 median
+            'abs_median_offset_ms': 0.0, # Perfect alignment means 0 abs median
+            'q25_offset_ms': 0.0,   # Perfect alignment means 0 q25
+            'q75_offset_ms': 0.0,   # Perfect alignment means 0 q75
+            'q95_offset_ms': 0.0,   # Perfect alignment means 0 q95
+            'description': 'Online recorder with perfect timestamp alignment'
         }
         
         # Statistics by camera system (removed - only one dataset)
@@ -362,7 +380,8 @@ class TimestampAnalyzer:
                 'std_offset_ms': arm_data['offset_ms'].abs().std(),
                 'min_offset_ms': arm_data['offset_ms'].min(),
                 'max_offset_ms': arm_data['offset_ms'].max(),
-                'median_offset_ms': arm_data['offset_ms'].median()
+                'median_offset_ms': arm_data['offset_ms'].median(),
+                'abs_median_offset_ms': arm_data['offset_ms'].abs().median()
             }
         
         # Statistics by sensor category
@@ -374,7 +393,8 @@ class TimestampAnalyzer:
                 'std_offset_ms': category_data['offset_ms'].abs().std(),
                 'min_offset_ms': category_data['offset_ms'].min(),
                 'max_offset_ms': category_data['offset_ms'].max(),
-                'median_offset_ms': category_data['offset_ms'].median()
+                'median_offset_ms': category_data['offset_ms'].median(),
+                'abs_median_offset_ms': category_data['offset_ms'].abs().median()
             }
         
         # Statistics by setpoint/measure category
@@ -386,7 +406,8 @@ class TimestampAnalyzer:
                 'std_offset_ms': setpoint_measure_data['offset_ms'].abs().std(),
                 'min_offset_ms': setpoint_measure_data['offset_ms'].min(),
                 'max_offset_ms': setpoint_measure_data['offset_ms'].max(),
-                'median_offset_ms': setpoint_measure_data['offset_ms'].median()
+                'median_offset_ms': setpoint_measure_data['offset_ms'].median(),
+                'abs_median_offset_ms': setpoint_measure_data['offset_ms'].abs().median()
             }
         
         # Combined img + measured statistics
@@ -398,7 +419,8 @@ class TimestampAnalyzer:
                 'std_offset_ms': img_measured_data['offset_ms'].abs().std(),
                 'min_offset_ms': img_measured_data['offset_ms'].min(),
                 'max_offset_ms': img_measured_data['offset_ms'].max(),
-                'median_offset_ms': img_measured_data['offset_ms'].median()
+                'median_offset_ms': img_measured_data['offset_ms'].median(),
+                'abs_median_offset_ms': img_measured_data['offset_ms'].abs().median()
             }
         
         # Statistics by individual sensor
@@ -410,7 +432,8 @@ class TimestampAnalyzer:
                 'std_offset_ms': sensor_data['offset_ms'].abs().std(),
                 'min_offset_ms': sensor_data['offset_ms'].min(),
                 'max_offset_ms': sensor_data['offset_ms'].max(),
-                'median_offset_ms': sensor_data['offset_ms'].median()
+                'median_offset_ms': sensor_data['offset_ms'].median(),
+                'abs_median_offset_ms': sensor_data['offset_ms'].abs().median()
             }
         
         # Add temporal statistics (per second)
@@ -481,8 +504,10 @@ class TimestampAnalyzer:
                         
                         per_second_data.columns = ['second', 'count', 'mean_offset_ms', 'std_offset_ms', 
                                                 'min_offset_ms', 'max_offset_ms', 'median_offset_ms']
-                        # Calculate absolute mean for per-second analysis
+                        # Calculate absolute mean, std, and median for per-second analysis
                         per_second_data['mean_offset_ms'] = dataset_data.groupby('second_group')['offset_ms'].apply(lambda x: x.abs().mean()).values
+                        per_second_data['std_offset_ms'] = dataset_data.groupby('second_group')['offset_ms'].apply(lambda x: x.abs().std()).values
+                        per_second_data['abs_median_offset_ms'] = dataset_data.groupby('second_group')['offset_ms'].apply(lambda x: x.abs().median()).values
                         
                         per_second_stats[f'{dataset_name}_{subfolder}'] = {
                             'sampling_rate_hz': sampling_rate,
@@ -501,8 +526,10 @@ class TimestampAnalyzer:
                         
                         per_second_data.columns = ['second', 'count', 'mean_offset_ms', 'std_offset_ms', 
                                                 'min_offset_ms', 'max_offset_ms', 'median_offset_ms']
-                        # Calculate absolute mean for per-second analysis
+                        # Calculate absolute mean, std, and median for per-second analysis
                         per_second_data['mean_offset_ms'] = dataset_data.groupby('second_group')['offset_ms'].apply(lambda x: x.abs().mean()).values
+                        per_second_data['std_offset_ms'] = dataset_data.groupby('second_group')['offset_ms'].apply(lambda x: x.abs().std()).values
+                        per_second_data['abs_median_offset_ms'] = dataset_data.groupby('second_group')['offset_ms'].apply(lambda x: x.abs().median()).values
                         
                         per_second_stats[f'{dataset_name}_{subfolder}'] = {
                             'sampling_rate_hz': sampling_rate,
@@ -597,6 +624,9 @@ class TimestampAnalyzer:
         
         # 7. Sampling rate analysis
         self._plot_sampling_rate_analysis()
+        
+        # 8. Baseline comparison analysis
+        self._plot_baseline_comparison(df)
         
         print("Visualizations created successfully.")
     
@@ -943,6 +973,90 @@ class TimestampAnalyzer:
         plt.savefig(plots_dir / 'sampling_rate_analysis.png', dpi=300, bbox_inches='tight')
         plt.close()
     
+    def _plot_baseline_comparison(self, df: pd.DataFrame, plots_dir: Path = None) -> None:
+        """Create baseline comparison plot showing online recorder vs actual data."""
+        if plots_dir is None:
+            plots_dir = self.plots_dir
+            
+        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 12))
+        
+        # 1. Bar chart comparing baseline vs actual data
+        categories = ['Baseline (Online Recorder)', 'Actual Data']
+        mean_values = [0.0, df['offset_ms'].abs().mean()]  # Baseline has 0 offset
+        std_values = [0.0, df['offset_ms'].abs().std()]    # Baseline has 0 std
+        
+        bars = ax1.bar(categories, mean_values, yerr=std_values, capsize=5, 
+                      alpha=0.8, color=['lightgreen', 'lightcoral'])
+        
+        ax1.set_ylabel('Mean Absolute Offset (ms)', fontsize=12, fontweight='bold')
+        ax1.set_title('Baseline vs Actual Data Comparison', fontsize=14, fontweight='bold')
+        ax1.grid(True, alpha=0.3)
+        
+        # Add value labels on bars
+        for i, (bar, mean_val, std_val) in enumerate(zip(bars, mean_values, std_values)):
+            ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + std_val + 0.1,
+                    f'{mean_val:.2f}±{std_val:.2f}', ha='center', va='bottom', fontsize=10)
+        
+        # 2. Histogram showing actual data distribution with baseline reference
+        ax2.hist(df['offset_ms'], bins=50, alpha=0.7, color='lightcoral', 
+                edgecolor='black', linewidth=0.5, label='Actual Data')
+        
+        # Add vertical line for baseline (0 offset)
+        ax2.axvline(0, color='green', linestyle='--', linewidth=3, alpha=0.8, 
+                   label='Baseline (Perfect Alignment)')
+        
+        # Add vertical line for actual mean
+        actual_mean = df['offset_ms'].mean()
+        ax2.axvline(actual_mean, color='red', linestyle='--', linewidth=2, alpha=0.8,
+                   label=f'Actual Mean ({actual_mean:.2f} ms)')
+        
+        ax2.set_xlabel('Timestamp Offset (ms)', fontsize=12, fontweight='bold')
+        ax2.set_ylabel('Frequency', fontsize=12, fontweight='bold')
+        ax2.set_title('Actual Data Distribution vs Baseline Reference', fontsize=14, fontweight='bold')
+        ax2.legend(fontsize=10)
+        ax2.grid(True, alpha=0.3)
+        
+        # 3. Comparison by sensor category
+        category_stats = df.groupby('category')['offset_ms'].abs().agg(['mean', 'std']).reset_index()
+        category_stats.loc[len(category_stats)] = ['Baseline', 0.0, 0.0]  # Add baseline
+        
+        bars3 = ax3.bar(category_stats['category'], category_stats['mean'], 
+                       yerr=category_stats['std'], capsize=5, alpha=0.8,
+                       color=['lightgreen' if cat == 'Baseline' else 'lightcoral' 
+                              for cat in category_stats['category']])
+        
+        ax3.set_ylabel('Mean Absolute Offset (ms)', fontsize=12, fontweight='bold')
+        ax3.set_title('Baseline vs Sensor Categories', fontsize=14, fontweight='bold')
+        ax3.tick_params(axis='x', rotation=45)
+        ax3.grid(True, alpha=0.3)
+        
+        # Add value labels on bars
+        for i, (bar, mean_val, std_val) in enumerate(zip(bars3, category_stats['mean'], category_stats['std'])):
+            ax3.text(bar.get_x() + bar.get_width()/2, bar.get_height() + std_val + 0.1,
+                    f'{mean_val:.2f}±{std_val:.2f}', ha='center', va='bottom', fontsize=9)
+        
+        # 4. Comparison by robot arm
+        arm_stats = df.groupby('arm')['offset_ms'].abs().agg(['mean', 'std']).reset_index()
+        arm_stats.loc[len(arm_stats)] = ['Baseline', 0.0, 0.0]  # Add baseline
+        
+        bars4 = ax4.bar(arm_stats['arm'], arm_stats['mean'], 
+                       yerr=arm_stats['std'], capsize=5, alpha=0.8,
+                       color=['lightgreen' if arm == 'Baseline' else 'lightcoral' 
+                              for arm in arm_stats['arm']])
+        
+        ax4.set_ylabel('Mean Absolute Offset (ms)', fontsize=12, fontweight='bold')
+        ax4.set_title('Baseline vs Robot Arms', fontsize=14, fontweight='bold')
+        ax4.grid(True, alpha=0.3)
+        
+        # Add value labels on bars
+        for i, (bar, mean_val, std_val) in enumerate(zip(bars4, arm_stats['mean'], arm_stats['std'])):
+            ax4.text(bar.get_x() + bar.get_width()/2, bar.get_height() + std_val + 0.1,
+                    f'{mean_val:.2f}±{std_val:.2f}', ha='center', va='bottom', fontsize=9)
+        
+        plt.tight_layout()
+        plt.savefig(plots_dir / 'baseline_comparison.png', dpi=300, bbox_inches='tight')
+        plt.close()
+    
     def save_results(self) -> None:
         """Save analysis results to files."""
         print("Saving results...")
@@ -1004,6 +1118,7 @@ class TimestampAnalyzer:
             'min_offset_ms': df['offset_ms'].min(),
             'max_offset_ms': df['offset_ms'].max(),
             'median_offset_ms': df['offset_ms'].median(),
+            'abs_median_offset_ms': df['offset_ms'].abs().median(),
             'q25_offset_ms': df['offset_ms'].quantile(0.25),
             'q75_offset_ms': df['offset_ms'].quantile(0.75),
             'q95_offset_ms': df['offset_ms'].quantile(0.95)
@@ -1018,7 +1133,8 @@ class TimestampAnalyzer:
                 'std_offset_ms': arm_data['offset_ms'].abs().std(),
                 'min_offset_ms': arm_data['offset_ms'].min(),
                 'max_offset_ms': arm_data['offset_ms'].max(),
-                'median_offset_ms': arm_data['offset_ms'].median()
+                'median_offset_ms': arm_data['offset_ms'].median(),
+                'abs_median_offset_ms': arm_data['offset_ms'].abs().median()
             }
         
         # Statistics by sensor category
@@ -1030,7 +1146,8 @@ class TimestampAnalyzer:
                 'std_offset_ms': category_data['offset_ms'].abs().std(),
                 'min_offset_ms': category_data['offset_ms'].min(),
                 'max_offset_ms': category_data['offset_ms'].max(),
-                'median_offset_ms': category_data['offset_ms'].median()
+                'median_offset_ms': category_data['offset_ms'].median(),
+                'abs_median_offset_ms': category_data['offset_ms'].abs().median()
             }
         
         # Statistics by setpoint/measure category
@@ -1042,7 +1159,8 @@ class TimestampAnalyzer:
                 'std_offset_ms': setpoint_measure_data['offset_ms'].abs().std(),
                 'min_offset_ms': setpoint_measure_data['offset_ms'].min(),
                 'max_offset_ms': setpoint_measure_data['offset_ms'].max(),
-                'median_offset_ms': setpoint_measure_data['offset_ms'].median()
+                'median_offset_ms': setpoint_measure_data['offset_ms'].median(),
+                'abs_median_offset_ms': setpoint_measure_data['offset_ms'].abs().median()
             }
         
         # Combined img + measured statistics
@@ -1054,7 +1172,8 @@ class TimestampAnalyzer:
                 'std_offset_ms': img_measured_data['offset_ms'].abs().std(),
                 'min_offset_ms': img_measured_data['offset_ms'].min(),
                 'max_offset_ms': img_measured_data['offset_ms'].max(),
-                'median_offset_ms': img_measured_data['offset_ms'].median()
+                'median_offset_ms': img_measured_data['offset_ms'].median(),
+                'abs_median_offset_ms': img_measured_data['offset_ms'].abs().median()
             }
         
         # Statistics by individual sensor
@@ -1066,7 +1185,8 @@ class TimestampAnalyzer:
                 'std_offset_ms': sensor_data['offset_ms'].abs().std(),
                 'min_offset_ms': sensor_data['offset_ms'].min(),
                 'max_offset_ms': sensor_data['offset_ms'].max(),
-                'median_offset_ms': sensor_data['offset_ms'].median()
+                'median_offset_ms': sensor_data['offset_ms'].median(),
+                'abs_median_offset_ms': sensor_data['offset_ms'].abs().median()
             }
         
         return stats

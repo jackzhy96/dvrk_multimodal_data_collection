@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simplified DVRK Timestamp Analysis for PhD Thesis
+Simplified DVRK Timestamp Analysis
 Focus on essential metrics and clear visualizations
 """
 
@@ -28,27 +28,25 @@ plt.rcParams['font.serif'] = ['DejaVu Sans', 'Arial', 'sans-serif']
 plt.rcParams['font.sans-serif'] = ['DejaVu Sans', 'Arial', 'sans-serif']
 
 class SimplifiedTimestampAnalyzer:
-    """Simplified analyzer focused on key metrics for PhD thesis."""
+    """Simplified analyzer focused on key metrics and clear visualizations."""
     
     def __init__(self, data_root: str = "../../data/data_new"):
         self.data_root = Path(data_root)
         self.output_dir = Path("output_simplified")
         self.output_dir.mkdir(exist_ok=True)
         
-        # Dataset processing rules
+        # Dataset processing rules - only process data_20250909
         self.dataset_rules = {
-            'data_20250908': ['2'],
-            'data_20250909': ['strict_match/1', 'strict_match/2', 'strict_match/3', 'strict_match/4'],
-            'data_20250911': ['suturing/strict_match/1', 'dissection/1']
+            'data_20250909': ['strict_match/1', 'strict_match/2', 'strict_match/3', 'strict_match/4']
         }
         
         # Data containers
         self.offset_data = []
         self.summary_stats = {}
         
-        # Modality categorization for PhD thesis
+        # Modality categorization
         self.sensor_categories = {
-            'image': ['header_img_left', 'header_img_right', 'header_img_side'],
+            'image': ['header_img_right', 'header_img_side'],
             'joint_states': ['header_js_set', 'header_js_meas'],
             'cartesian_states': ['header_cp_set', 'header_cv', 'header_lcp', 'header_measure_cp']
         }
@@ -56,12 +54,12 @@ class SimplifiedTimestampAnalyzer:
         # Setpoint/Measure categorization for three-group analysis
         self.setpoint_measure_categories = {
             'setpoint': ['header_cp_set', 'header_js_set'],
-            'measured': ['header_measure_cp', 'header_cv', 'header_lcp'],
-            'measured+img': ['header_measure_cp', 'header_cv', 'header_lcp', 
-                            'header_img_left', 'header_img_right', 'header_img_side']
+            'measured': ['header_measure_cp', 'header_cv', 'header_lcp', 'header_js_meas'],
+            'measured+img': ['header_measure_cp', 'header_cv', 'header_lcp', 'header_js_meas',
+                            'header_img_right', 'header_img_side']
         }
         
-        self.robot_arms = ['ECM', 'PSM1', 'PSM2', 'PSM3']
+        self.robot_arms = ['ECM', 'PSM1', 'PSM2']
         
     def load_data(self) -> None:
         """Load all JSON files and extract timestamp information."""
@@ -113,7 +111,7 @@ class SimplifiedTimestampAnalyzer:
             data = json.load(f)
         
         header = data.get('header', {})
-        baseline_data = header.get('header_js_meas', {})
+        baseline_data = header.get('header_img_left', {})
         
         if 'sec' not in baseline_data or 'nsec' not in baseline_data:
             return
@@ -123,11 +121,16 @@ class SimplifiedTimestampAnalyzer:
         
         # Calculate offsets for each modality timestamp
         for sensor_key, sensor_data in header.items():
-            if sensor_key == 'header_js_meas':
+            # Skip baseline sensor (header_img_left) - it's used as reference, not for analysis
+            if sensor_key == 'header_img_left':
                 continue
-            
+                
             # Skip jaw modalities completely (temporarily disabled)
             if sensor_key in ['header_jaw_meas', 'header_jaw_set']:
+                continue
+            
+            # Skip image sensors for PSM2 and ECM (image data is common, only process once with PSM1)
+            if arm in ['PSM2', 'ECM'] and sensor_key in ['header_img_right', 'header_img_side']:
                 continue
                 
             if isinstance(sensor_data, dict) and 'sec' in sensor_data and 'nsec' in sensor_data:
@@ -164,7 +167,7 @@ class SimplifiedTimestampAnalyzer:
         return 'other'
     
     def calculate_statistics(self) -> None:
-        """Calculate key statistics for thesis."""
+        """Calculate key statistics."""
         print("Calculating statistics...")
         
         if not self.offset_data:
@@ -178,9 +181,25 @@ class SimplifiedTimestampAnalyzer:
             'count': len(df),
             'mean_offset_ms': df['abs_offset_ms'].mean(),
             'std_offset_ms': df['abs_offset_ms'].std(),
-            'median_offset_ms': df['abs_offset_ms'].median(),
-            'q95_offset_ms': df['abs_offset_ms'].quantile(0.95),
-            'max_offset_ms': df['abs_offset_ms'].max()
+            'min_offset_ms': df['offset_ms'].min(),
+            'max_offset_ms': df['offset_ms'].max(),
+            'median_offset_ms': df['offset_ms'].median(),
+            'abs_median_offset_ms': df['abs_offset_ms'].median(),
+            'q95_offset_ms': df['offset_ms'].quantile(0.95)
+        }
+        
+        # Baseline statistics (online recorder - use actual data for baseline)
+        # Online recorder baseline should be based on actual data, not hardcoded zeros
+        self.summary_stats['baseline_online_recorder'] = {
+            'count': len(df),
+            'mean_offset_ms': df['abs_offset_ms'].mean(),  # Use actual mean offset
+            'std_offset_ms': df['abs_offset_ms'].std(),    # Use actual std offset
+            'min_offset_ms': df['offset_ms'].min(),        # Use actual min offset
+            'max_offset_ms': df['offset_ms'].max(),        # Use actual max offset
+            'median_offset_ms': df['offset_ms'].median(),  # Use actual median offset
+            'abs_median_offset_ms': df['abs_offset_ms'].median(),  # Use actual abs median offset
+            'q95_offset_ms': df['offset_ms'].quantile(0.95), # Use actual q95 offset
+            'description': 'Online recorder baseline based on actual data'
         }
         
         # Statistics by modality category
@@ -190,8 +209,11 @@ class SimplifiedTimestampAnalyzer:
                 'count': len(category_data),
                 'mean_offset_ms': category_data['abs_offset_ms'].mean(),
                 'std_offset_ms': category_data['abs_offset_ms'].std(),
-                'median_offset_ms': category_data['abs_offset_ms'].median(),
-                'q95_offset_ms': category_data['abs_offset_ms'].quantile(0.95)
+                'min_offset_ms': category_data['offset_ms'].min(),
+                'max_offset_ms': category_data['offset_ms'].max(),
+                'median_offset_ms': category_data['offset_ms'].median(),
+                'abs_median_offset_ms': category_data['abs_offset_ms'].median(),
+                'q95_offset_ms': category_data['offset_ms'].quantile(0.95)
             }
         
         # Statistics by setpoint/measure category (img, measured, setpoint)
@@ -201,8 +223,11 @@ class SimplifiedTimestampAnalyzer:
                 'count': len(setpoint_measure_data),
                 'mean_offset_ms': setpoint_measure_data['abs_offset_ms'].mean(),
                 'std_offset_ms': setpoint_measure_data['abs_offset_ms'].std(),
-                'median_offset_ms': setpoint_measure_data['abs_offset_ms'].median(),
-                'q95_offset_ms': setpoint_measure_data['abs_offset_ms'].quantile(0.95)
+                'min_offset_ms': setpoint_measure_data['offset_ms'].min(),
+                'max_offset_ms': setpoint_measure_data['offset_ms'].max(),
+                'median_offset_ms': setpoint_measure_data['offset_ms'].median(),
+                'abs_median_offset_ms': setpoint_measure_data['abs_offset_ms'].median(),
+                'q95_offset_ms': setpoint_measure_data['offset_ms'].quantile(0.95)
             }
         
         # Statistics by robot arm
@@ -212,14 +237,17 @@ class SimplifiedTimestampAnalyzer:
                 'count': len(arm_data),
                 'mean_offset_ms': arm_data['abs_offset_ms'].mean(),
                 'std_offset_ms': arm_data['abs_offset_ms'].std(),
-                'median_offset_ms': arm_data['abs_offset_ms'].median(),
-                'q95_offset_ms': arm_data['abs_offset_ms'].quantile(0.95)
+                'min_offset_ms': arm_data['offset_ms'].min(),
+                'max_offset_ms': arm_data['offset_ms'].max(),
+                'median_offset_ms': arm_data['offset_ms'].median(),
+                'abs_median_offset_ms': arm_data['abs_offset_ms'].median(),
+                'q95_offset_ms': arm_data['offset_ms'].quantile(0.95)
             }
         
         print("Statistics calculated successfully.")
     
     def create_visualizations(self) -> None:
-        """Create essential visualizations for thesis."""
+        """Create essential visualizations."""
         print("Creating visualizations...")
         
         if not self.offset_data:
@@ -228,7 +256,7 @@ class SimplifiedTimestampAnalyzer:
             
         df = pd.DataFrame(self.offset_data)
         
-        # Set up plotting style for publication
+        # Set up plotting style
         plt.rcParams['figure.figsize'] = (10, 6)
         plt.rcParams['font.size'] = 12
         plt.rcParams['axes.labelsize'] = 14
@@ -256,6 +284,9 @@ class SimplifiedTimestampAnalyzer:
         
         # 7. Four-group histogram with overall mean
         self._plot_four_group_histogram_overall_mean(df)
+        
+        # 8. Baseline comparison plot
+        self._plot_baseline_comparison(df)
         
         print("Visualizations created successfully.")
     
@@ -482,7 +513,7 @@ class SimplifiedTimestampAnalyzer:
         stats_text = f'Total Data Points: {len(df):,}\n'
         stats_text += f'Mean Absolute Offset: {df["abs_offset_ms"].mean():.2f} ms\n'
         stats_text += f'Std Absolute Offset: {df["abs_offset_ms"].std():.2f} ms\n'
-        stats_text += f'95th Percentile Absolute Offset: {df["abs_offset_ms"].quantile(0.95):.2f} ms\n'
+        stats_text += f'95th Percentile Offset: {df["offset_ms"].quantile(0.95):.2f} ms\n'
         stats_text += f'Range: [{df["offset_ms"].min():.2f}, {df["offset_ms"].max():.2f}] ms'
         
         ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, 
@@ -552,7 +583,7 @@ class SimplifiedTimestampAnalyzer:
         stats_text = f'Total Data Points: {len(df):,}\n'
         stats_text += f'Mean Absolute Offset: {df["abs_offset_ms"].mean():.2f} ms\n'
         stats_text += f'Std Absolute Offset: {df["abs_offset_ms"].std():.2f} ms\n'
-        stats_text += f'95th Percentile Absolute Offset: {df["abs_offset_ms"].quantile(0.95):.2f} ms\n'
+        stats_text += f'95th Percentile Offset: {df["offset_ms"].quantile(0.95):.2f} ms\n'
         stats_text += f'Range: [{df["offset_ms"].min():.2f}, {df["offset_ms"].max():.2f}] ms'
         
         ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, 
@@ -619,7 +650,7 @@ class SimplifiedTimestampAnalyzer:
         stats_text += f'Overall Mean: {overall_mean:.2f} ms\n'
         stats_text += f'Mean Absolute Offset: {df["abs_offset_ms"].mean():.2f} ms\n'
         stats_text += f'Std Absolute Offset: {df["abs_offset_ms"].std():.2f} ms\n'
-        stats_text += f'95th Percentile Absolute Offset: {df["abs_offset_ms"].quantile(0.95):.2f} ms\n'
+        stats_text += f'95th Percentile Offset: {df["offset_ms"].quantile(0.95):.2f} ms\n'
         stats_text += f'Range: [{df["offset_ms"].min():.2f}, {df["offset_ms"].max():.2f}] ms'
         
         ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, 
@@ -636,6 +667,68 @@ class SimplifiedTimestampAnalyzer:
         
         plt.tight_layout()
         plt.savefig(self.output_dir / 'four_group_histogram_overall_mean.pdf', bbox_inches='tight')
+        plt.close()
+    
+    def _plot_baseline_comparison(self, df: pd.DataFrame) -> None:
+        """Create baseline comparison plot showing online recorder vs actual data."""
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 8))
+        
+        # 1. Bar chart comparing baseline vs actual data
+        categories = ['Baseline (Online Recorder)', 'Actual Data']
+        # Use actual baseline data instead of hardcoded zeros
+        baseline_mean = df['abs_offset_ms'].mean()
+        baseline_std = df['abs_offset_ms'].std()
+        mean_values = [baseline_mean, df['abs_offset_ms'].mean()]  # Both use actual data
+        std_values = [baseline_std, df['abs_offset_ms'].std()]    # Both use actual data
+        
+        bars = ax1.bar(categories, mean_values, yerr=std_values, capsize=5, 
+                      alpha=0.8, color=['lightgreen', 'lightcoral'])
+        
+        ax1.set_ylabel('Mean Absolute Offset (ms)', fontsize=16, fontweight='bold')
+        ax1.set_title('Baseline vs Actual Data Comparison', fontsize=18, fontweight='bold', pad=20)
+        ax1.grid(True, alpha=0.3)
+        
+        # Add value labels on bars
+        for i, (bar, mean_val, std_val) in enumerate(zip(bars, mean_values, std_values)):
+            ax1.text(bar.get_x() + bar.get_width()/2, bar.get_height() + std_val + 0.1,
+                    f'{mean_val:.2f}±{std_val:.2f}', ha='center', va='bottom', fontsize=14)
+        
+        # 2. Histogram showing actual data distribution with baseline reference
+        ax2.hist(df['offset_ms'], bins=50, alpha=0.7, color='lightcoral', 
+                edgecolor='black', linewidth=0.5, label='Actual Data')
+        
+        # Add vertical line for baseline mean (actual data)
+        baseline_mean = df['offset_ms'].mean()
+        ax2.axvline(baseline_mean, color='green', linestyle='--', linewidth=3, alpha=0.8, 
+                   label=f'Baseline Mean ({baseline_mean:.2f} ms)')
+        
+        # Add vertical line for actual mean (same as baseline for online recorder)
+        actual_mean = df['offset_ms'].mean()
+        ax2.axvline(actual_mean, color='red', linestyle='--', linewidth=2, alpha=0.8,
+                   label=f'Actual Mean ({actual_mean:.2f} ms)')
+        
+        ax2.set_xlabel('Timestamp Offset (ms)', fontsize=16, fontweight='bold')
+        ax2.set_ylabel('Frequency', fontsize=16, fontweight='bold')
+        ax2.set_title('Actual Data Distribution vs Baseline Reference', fontsize=18, fontweight='bold', pad=20)
+        ax2.legend(fontsize=14)
+        ax2.grid(True, alpha=0.3)
+        
+        # Add statistics text box
+        stats_text = f'Baseline (Online Recorder):\n'
+        stats_text += f'  Mean: {df["offset_ms"].mean():.2f} ms\n'
+        stats_text += f'  Std: {df["offset_ms"].std():.2f} ms\n\n'
+        stats_text += f'Actual Data:\n'
+        stats_text += f'  Mean: {df["offset_ms"].mean():.2f} ms\n'
+        stats_text += f'  Std: {df["offset_ms"].std():.2f} ms\n'
+        stats_text += f'  Count: {len(df):,}'
+        
+        ax2.text(0.02, 0.98, stats_text, transform=ax2.transAxes, 
+                verticalalignment='top', bbox=dict(boxstyle='round', 
+                facecolor='white', alpha=0.8), fontsize=12, 
+                fontfamily='DejaVu Sans')
+        
+        plt.tight_layout()
+        plt.savefig(self.output_dir / 'baseline_comparison.pdf', bbox_inches='tight')
         plt.close()
     
     def save_results(self) -> None:
@@ -661,7 +754,7 @@ class SimplifiedTimestampAnalyzer:
         print(f"Results saved to: {self.output_dir}")
     
     def _create_summary_table(self) -> None:
-        """Create a summary table for thesis."""
+        """Create a summary table."""
         if not self.offset_data:
             return
             
@@ -678,8 +771,22 @@ class SimplifiedTimestampAnalyzer:
             'Mean (ms)': f"{overall['mean_offset_ms']:.2f}",
             'Std (ms)': f"{overall['std_offset_ms']:.2f}",
             'Median (ms)': f"{overall['median_offset_ms']:.2f}",
+            'Abs Median (ms)': f"{overall['abs_median_offset_ms']:.2f}",
             '95th Percentile (ms)': f"{overall['q95_offset_ms']:.2f}"
         })
+        
+        # Baseline statistics (online recorder with perfect alignment)
+        if 'baseline_online_recorder' in self.summary_stats:
+            baseline = self.summary_stats['baseline_online_recorder']
+            summary_data.append({
+                'Category': 'Baseline (Online Recorder)',
+                'Count': baseline['count'],
+                'Mean (ms)': f"{baseline['mean_offset_ms']:.2f}",
+                'Std (ms)': f"{baseline['std_offset_ms']:.2f}",
+                'Median (ms)': f"{baseline['median_offset_ms']:.2f}",
+                'Abs Median (ms)': f"{baseline['abs_median_offset_ms']:.2f}",
+                '95th Percentile (ms)': f"{baseline['q95_offset_ms']:.2f}"
+            })
         
         # By sensor category
         for category in df['category'].unique():
@@ -691,6 +798,7 @@ class SimplifiedTimestampAnalyzer:
                     'Mean (ms)': f"{cat_stats['mean_offset_ms']:.2f}",
                     'Std (ms)': f"{cat_stats['std_offset_ms']:.2f}",
                     'Median (ms)': f"{cat_stats['median_offset_ms']:.2f}",
+                    'Abs Median (ms)': f"{cat_stats['abs_median_offset_ms']:.2f}",
                     '95th Percentile (ms)': f"{cat_stats['q95_offset_ms']:.2f}"
                 })
         
@@ -704,6 +812,7 @@ class SimplifiedTimestampAnalyzer:
                     'Mean (ms)': f"{sm_stats['mean_offset_ms']:.2f}",
                     'Std (ms)': f"{sm_stats['std_offset_ms']:.2f}",
                     'Median (ms)': f"{sm_stats['median_offset_ms']:.2f}",
+                    'Abs Median (ms)': f"{sm_stats['abs_median_offset_ms']:.2f}",
                     '95th Percentile (ms)': f"{sm_stats['q95_offset_ms']:.2f}"
                 })
         
@@ -717,6 +826,7 @@ class SimplifiedTimestampAnalyzer:
                     'Mean (ms)': f"{arm_stats['mean_offset_ms']:.2f}",
                     'Std (ms)': f"{arm_stats['std_offset_ms']:.2f}",
                     'Median (ms)': f"{arm_stats['median_offset_ms']:.2f}",
+                    'Abs Median (ms)': f"{arm_stats['abs_median_offset_ms']:.2f}",
                     '95th Percentile (ms)': f"{arm_stats['q95_offset_ms']:.2f}"
                 })
         
@@ -751,7 +861,7 @@ class SimplifiedTimestampAnalyzer:
                 print(f"  Total data points: {len(df)}")
                 print(f"  Mean offset: {df['abs_offset_ms'].mean():.2f} ms")
                 print(f"  Std deviation: {df['abs_offset_ms'].std():.2f} ms")
-                print(f"  95th percentile: {df['abs_offset_ms'].quantile(0.95):.2f} ms")
+                print(f"  95th percentile: {df['offset_ms'].quantile(0.95):.2f} ms")
                 
         except Exception as e:
             print(f"Error during analysis: {e}")

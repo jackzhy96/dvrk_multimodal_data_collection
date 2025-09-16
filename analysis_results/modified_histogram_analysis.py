@@ -20,12 +20,7 @@ import seaborn as sns
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 import warnings
-import random
 warnings.filterwarnings('ignore')
-
-# Set random seed for reproducibility
-random.seed(42)
-np.random.seed(42)
 
 # Set style for publication-ready plots
 plt.style.use('seaborn-v0_8')
@@ -33,7 +28,7 @@ sns.set_palette("husl")
 
 # Configure matplotlib for better font rendering
 plt.rcParams['font.family'] = 'DejaVu Sans'
-plt.rcParams['font.size'] = 12
+plt.rcParams['font.size'] = 28
 plt.rcParams['axes.unicode_minus'] = False
 
 class ModifiedHistogramAnalyzer:
@@ -85,55 +80,24 @@ class ModifiedHistogramAnalyzer:
             print(f"  Warning: Overall strict match data not found at {overall_csv}")
     
     def _load_interpolation_data(self) -> None:
-        """Load interpolation data from CSV files with random candidate selection."""
+        """Load interpolation data from CSV files using all available data."""
         # Only load overall dataset to match original analysis
         overall_csv = self.interpolation_dir / "overall" / "detailed_delay_data.csv"
         
         if overall_csv.exists():
             try:
                 df = pd.read_csv(overall_csv)
-                if 'delay_ms' in df.columns and 'candidate' in df.columns:
-                    # Randomly select one candidate per frame
-                    df_sampled = self._random_sample_candidates(df)
-                    if not df_sampled.empty:
-                        df_sampled['abs_delay_ms'] = df_sampled['delay_ms'].abs()
-                        df_sampled['recorder_type'] = 'interpolation'
-                        self.interpolation_data.append(df_sampled)
-                        print(f"  Loaded interpolation data from: {overall_csv} (sampled from {len(df)} to {len(df_sampled)} points)")
-                elif 'delay_ms' in df.columns:
-                    # Fallback for files without candidate column
+                if 'delay_ms' in df.columns:
+                    # Use all data without sampling
                     df['abs_delay_ms'] = df['delay_ms'].abs()
                     df['recorder_type'] = 'interpolation'
                     self.interpolation_data.append(df)
-                    print(f"  Loaded interpolation data from: {overall_csv}")
+                    print(f"  Loaded interpolation data from: {overall_csv} ({len(df)} points)")
             except Exception as e:
                 print(f"Error loading {overall_csv}: {e}")
         else:
             print(f"  Warning: Overall interpolation data not found at {overall_csv}")
     
-    def _random_sample_candidates(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Randomly sample one candidate per frame, keeping all sensors for that candidate."""
-        if 'frame' not in df.columns or 'candidate' not in df.columns:
-            return df
-        
-        # Set random seed once for reproducibility
-        np.random.seed(42)
-        
-        # For each frame, randomly select one candidate and keep ALL sensors for that candidate
-        sampled_data = []
-        for frame, frame_group in df.groupby('frame'):
-            # Get unique candidates for this frame
-            unique_candidates = frame_group['candidate'].unique()
-            # Randomly select one candidate
-            selected_candidate = np.random.choice(unique_candidates)
-            # Get all sensor data for this selected candidate
-            candidate_data = frame_group[frame_group['candidate'] == selected_candidate]
-            sampled_data.append(candidate_data)
-        
-        if sampled_data:
-            return pd.concat(sampled_data, ignore_index=True)
-        else:
-            return df
     
     def create_modified_histograms(self) -> None:
         """Create modified histograms with simplified categories."""
@@ -160,10 +124,10 @@ class ModifiedHistogramAnalyzer:
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12))
         
         # Plot 1: Strict Match (Online) - Overall only
-        self._plot_simplified_histogram(combined_df, 'strict_match', ax1, "Strict Match (Online) Recorder")
+        self._plot_simplified_histogram(combined_df, 'strict_match', ax1, "Online-Matching Recorder")
         
         # Plot 2: Interpolation (Offline) - Overall only  
-        self._plot_simplified_histogram(combined_df, 'interpolation', ax2, "Interpolation (Offline) Recorder")
+        self._plot_simplified_histogram(combined_df, 'interpolation', ax2, "Offline-Matching Recorder")
         
         plt.tight_layout()
         plt.savefig(self.output_dir / 'modified_histograms.png', dpi=300, bbox_inches='tight')
@@ -179,8 +143,8 @@ class ModifiedHistogramAnalyzer:
         
         if len(data) == 0:
             ax.text(0.5, 0.5, f'No data available for {recorder_type}', 
-                   ha='center', va='center', transform=ax.transAxes, fontsize=16)
-            ax.set_title(title, fontsize=18, fontweight='bold')
+                   ha='center', va='center', transform=ax.transAxes, fontsize=28)
+            ax.set_title(title, fontsize=34, fontweight='bold')
             return
         
         # Define bins - symmetric around 0
@@ -191,28 +155,29 @@ class ModifiedHistogramAnalyzer:
         ax.hist(data, bins=bins, alpha=0.7, color='skyblue', 
                edgecolor='black', linewidth=0.5)
         
-        # Add mean line
-        mean_val = data.abs().mean()
-        ax.axvline(mean_val, color='red', linestyle='--', linewidth=2, 
-                  label=f'Mean: {mean_val:.2f} ms')
+
         
         # Customize plot
-        ax.set_xlabel('Timestamp Delay (ms)', fontsize=16, fontweight='bold')
-        ax.set_ylabel('Frequency', fontsize=16, fontweight='bold')
-        ax.set_title(title, fontsize=18, fontweight='bold', pad=20)
-        ax.legend(fontsize=14)
+        ax.set_xlabel('Timestamp Delay (ms)', fontsize=32, fontweight='normal')
+        ax.set_ylabel('Frequency', fontsize=32, fontweight='normal')
+        ax.set_title(title, fontsize=42, fontweight='bold', pad=20)
+        ax.legend(fontsize=30)
+        
+        # Make tick labels larger and more frequent
+        ax.tick_params(axis='both', which='major', labelsize=28)
+        ax.locator_params(axis='x', nbins=10)  # Increase x-axis tick density
+        ax.locator_params(axis='y', nbins=8)   # Increase y-axis tick density
         ax.grid(True, alpha=0.3)
         
-        # Add statistics text box
+        # Add statistics text box (median removed as requested)
         stats_text = f'Count: {len(data):,}\n'
         stats_text += f'Mean: {data.abs().mean():.2f} ms\n'
         stats_text += f'Std: {data.abs().std():.2f} ms\n'
-        stats_text += f'Median: {data.median():.2f} ms\n'
         stats_text += f'Range: [{data.min():.2f}, {data.max():.2f}] ms'
         
         ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, 
                 verticalalignment='top', bbox=dict(boxstyle='round', 
-                facecolor='white', alpha=0.8), fontsize=12)
+                facecolor='white', alpha=0.8), fontsize=24)
     
     def create_comparison_table(self) -> None:
         """Create comparison table between the two recorder types."""
@@ -228,13 +193,13 @@ class ModifiedHistogramAnalyzer:
         # Strict Match (Online) data
         if self.strict_match_data:
             strict_df = pd.concat(self.strict_match_data, ignore_index=True)
-            strict_stats = self._calculate_recorder_stats(strict_df, 'Strict Match (Online)')
+            strict_stats = self._calculate_recorder_stats(strict_df, 'Online-Matching')
             comparison_data.append(strict_stats)
         
         # Interpolation (Offline) data
         if self.interpolation_data:
             interp_df = pd.concat(self.interpolation_data, ignore_index=True)
-            interp_stats = self._calculate_recorder_stats(interp_df, 'Interpolation (Offline)')
+            interp_stats = self._calculate_recorder_stats(interp_df, 'Offline-Matching')
             comparison_data.append(interp_stats)
         
         # Create comparison DataFrame
@@ -265,14 +230,14 @@ class ModifiedHistogramAnalyzer:
         abs_delay_data = df['abs_delay_ms']
         
         # Determine recorder type based on data characteristics
-        if 'strict_match' in recorder_name.lower() or 'online' in recorder_name.lower():
-            recorder_type = 'Online'
+        if 'online' in recorder_name.lower() or 'strict_match' in recorder_name.lower():
+            recorder_type = 'Online-Matching'
             frequency = '2-3 Hz'
             post_processing = 'No'
             ready_to_use = 'Yes'
             data_size = 'Larger (uncompressed images)'
         else:
-            recorder_type = 'Offline'
+            recorder_type = 'Offline-Matching'
             frequency = '10-15 Hz'
             post_processing = 'Yes (interpolation required)'
             ready_to_use = 'No'
@@ -345,25 +310,34 @@ class ModifiedHistogramAnalyzer:
         
         # Plot histograms
         if len(strict_data) > 0:
-            ax.hist(strict_data, bins=bins, alpha=0.6, label='Strict Match (Online)', 
+            ax.hist(strict_data, bins=bins, alpha=0.6, label='Online-Matching', 
                    color='skyblue', edgecolor='black', linewidth=0.5)
         
         if len(interp_data) > 0:
-            ax.hist(interp_data, bins=bins, alpha=0.6, label='Interpolation (Offline)', 
+            ax.hist(interp_data, bins=bins, alpha=0.6, label='Offline-Matching', 
                    color='lightcoral', edgecolor='black', linewidth=0.5)
         
-        ax.set_xlabel('Timestamp Delay (ms)', fontsize=14, fontweight='bold')
-        ax.set_ylabel('Frequency', fontsize=14, fontweight='bold')
-        ax.set_title('Delay Distribution Comparison', fontsize=16, fontweight='bold')
-        ax.legend(fontsize=12)
+        ax.set_xlabel('Timestamp Delay (ms)', fontsize=30, fontweight='normal')
+        ax.set_ylabel('Frequency', fontsize=30, fontweight='normal')
+        ax.set_title('Delay Distribution Comparison', fontsize=38, fontweight='bold')
+        ax.legend(fontsize=28)
+        
+        # Make tick labels larger and more frequent
+        ax.tick_params(axis='both', which='major', labelsize=28)
+        ax.locator_params(axis='x', nbins=10)  # Increase x-axis tick density
+        ax.locator_params(axis='y', nbins=8)   # Increase y-axis tick density
         ax.grid(True, alpha=0.3)
     
     def _plot_box_comparison(self, df: pd.DataFrame, ax) -> None:
         """Plot box plot comparison."""
         sns.boxplot(data=df, x='recorder_type', y='abs_delay_ms', ax=ax)
-        ax.set_xlabel('Recorder Type', fontsize=14, fontweight='bold')
-        ax.set_ylabel('Absolute Delay (ms)', fontsize=14, fontweight='bold')
-        ax.set_title('Delay Distribution by Recorder Type', fontsize=16, fontweight='bold')
+        ax.set_xlabel('Recorder Type', fontsize=30, fontweight='normal')
+        ax.set_ylabel('Absolute Delay (ms)', fontsize=30, fontweight='normal')
+        ax.set_title('Delay Distribution by Recorder Type', fontsize=38, fontweight='bold')
+        
+        # Make tick labels larger and more frequent
+        ax.tick_params(axis='both', which='major', labelsize=28)
+        ax.locator_params(axis='y', nbins=8)   # Increase y-axis tick density
         ax.grid(True, alpha=0.3)
     
     def _plot_cumulative_distribution(self, df: pd.DataFrame, ax) -> None:
@@ -373,16 +347,21 @@ class ModifiedHistogramAnalyzer:
         
         if len(strict_data) > 0:
             ax.hist(strict_data, bins=50, alpha=0.6, cumulative=True, density=True, 
-                   label='Strict Match (Online)', color='skyblue')
+                   label='Online-Matching', color='skyblue')
         
         if len(interp_data) > 0:
             ax.hist(interp_data, bins=50, alpha=0.6, cumulative=True, density=True, 
-                   label='Interpolation (Offline)', color='lightcoral')
+                   label='Offline-Matching', color='lightcoral')
         
-        ax.set_xlabel('Absolute Delay (ms)', fontsize=14, fontweight='bold')
-        ax.set_ylabel('Cumulative Probability', fontsize=14, fontweight='bold')
-        ax.set_title('Cumulative Distribution Comparison', fontsize=16, fontweight='bold')
-        ax.legend(fontsize=12)
+        ax.set_xlabel('Absolute Delay (ms)', fontsize=30, fontweight='normal')
+        ax.set_ylabel('Cumulative Probability', fontsize=30, fontweight='normal')
+        ax.set_title('Cumulative Distribution Comparison', fontsize=38, fontweight='bold')
+        ax.legend(fontsize=28)
+        
+        # Make tick labels larger and more frequent
+        ax.tick_params(axis='both', which='major', labelsize=28)
+        ax.locator_params(axis='x', nbins=10)  # Increase x-axis tick density
+        ax.locator_params(axis='y', nbins=8)   # Increase y-axis tick density
         ax.grid(True, alpha=0.3)
     
     def _plot_statistical_comparison(self, df: pd.DataFrame, ax) -> None:
@@ -407,12 +386,16 @@ class ModifiedHistogramAnalyzer:
         ax.bar(x, stats_df['Median'], width, label='Median', alpha=0.8, color='lightcoral')
         ax.bar(x + width, stats_df['Std'], width, label='Std Dev', alpha=0.8, color='lightgreen')
         
-        ax.set_xlabel('Recorder Type', fontsize=14, fontweight='bold')
-        ax.set_ylabel('Delay (ms)', fontsize=14, fontweight='bold')
-        ax.set_title('Statistical Comparison', fontsize=16, fontweight='bold')
+        ax.set_xlabel('Recorder Type', fontsize=30, fontweight='normal')
+        ax.set_ylabel('Delay (ms)', fontsize=30, fontweight='normal')
+        ax.set_title('Statistical Comparison', fontsize=38, fontweight='bold')
         ax.set_xticks(x)
         ax.set_xticklabels(stats_df['Recorder Type'])
-        ax.legend(fontsize=12)
+        ax.legend(fontsize=28)
+        
+        # Make tick labels larger and more frequent
+        ax.tick_params(axis='both', which='major', labelsize=28)
+        ax.locator_params(axis='y', nbins=8)   # Increase y-axis tick density
         ax.grid(True, alpha=0.3)
     
     def run_analysis(self) -> None:

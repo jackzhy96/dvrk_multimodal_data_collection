@@ -35,38 +35,42 @@ class SimplifiedInterpolationAnalyzer:
         self.output_dir = Path("output_simplified")
         self.output_dir.mkdir(exist_ok=True)
         
-        # Dataset processing rules for interpolation data
+        # Dataset processing rules for interpolation data - only process data_20250909
         self.dataset_rules = {
-            'data_20250909': ['interpolation/3'],
-            'data_20250911': ['suturing/interpolation/3', 'suturing/interpolation/4']
+            'data_20250909': ['interpolation/1', 'interpolation/2', 'interpolation/3', 'interpolation/4']
         }
         
         # Data containers
         self.delay_data = []
         self.summary_stats = {}
         
-        # Sensor categorization for interpolation data (no image data)
+        # Sensor categorization for interpolation data
         self.sensor_categories = {
+            'image': [],
             'kinematics': [
                 'measured_cp_stamp', 'measured_cv_stamp', 'measured_js_stamp',
-                'setpoint_cp_stamp', 'setpoint_js_stamp', 'header_cv'
+                'setpoint_cp_stamp', 'setpoint_js_stamp'
+            ],
+            'jaw': [
+                'jaw_measured_js_stamp', 'jaw_setpoint_js_stamp'
             ]
         }
         
         # Setpoint/Measure categorization for three-group analysis
         self.setpoint_measure_categories = {
-            'setpoint': ['setpoint_cp_stamp', 'setpoint_js_stamp'],
-            'measured': ['measured_cp_stamp', 'measured_cv_stamp', 'measured_js_stamp'],
-            'header': ['header_cv']
+            'setpoint': ['setpoint_cp_stamp', 'setpoint_js_stamp', 'jaw_setpoint_js_stamp'],
+            'measured': ['measured_cp_stamp', 'measured_cv_stamp', 'measured_js_stamp', 'jaw_measured_js_stamp'],
+            'measured+img': ['measured_cp_stamp', 'measured_cv_stamp', 'measured_js_stamp', 'jaw_measured_js_stamp']
         }
         
         # Data type categorization
         self.data_type_categories = {
-            'joint_states': ['measured_js_stamp', 'setpoint_js_stamp'],
-            'cartesian_states': ['measured_cp_stamp', 'measured_cv_stamp', 'setpoint_cp_stamp', 'header_cv']
+            'image': [],
+            'joint_states': ['measured_js_stamp', 'setpoint_js_stamp', 'jaw_measured_js_stamp', 'jaw_setpoint_js_stamp'],
+            'cartesian_states': ['measured_cp_stamp', 'measured_cv_stamp', 'setpoint_cp_stamp']
         }
         
-        self.robot_arms = ['ECM', 'PSM1', 'PSM2', 'PSM3']
+        self.robot_arms = ['ECM', 'PSM1', 'PSM2']
         
     def load_data(self) -> None:
         """Load all JSON files and extract timestamp delay information."""
@@ -183,7 +187,7 @@ class SimplifiedInterpolationAnalyzer:
                 continue
                 
             # Extract all timestamps from this candidate
-            timestamps = self._extract_all_timestamps(candidate_data)
+            timestamps = self._extract_all_timestamps(candidate_data, arm)
             
             # Debug: print first few files
             if len(self.delay_data) < 5:
@@ -217,11 +221,12 @@ class SimplifiedInterpolationAnalyzer:
                 })
                 delays_added += 1
         
+        
         # Debug: print first few files
         if delays_added > 0 and len(self.delay_data) <= 10:
             print(f"      Added {delays_added} delays from {json_file}")
     
-    def _extract_all_timestamps(self, candidate_data: Dict) -> Dict[str, float]:
+    def _extract_all_timestamps(self, candidate_data: Dict, arm: str) -> Dict[str, float]:
         """Extract all timestamps from a candidate data point."""
         timestamps = {}
 
@@ -250,16 +255,41 @@ class SimplifiedInterpolationAnalyzer:
             else:
                 timestamps[key] = None
 
-        # Header timestamps
-        header = candidate_data.get('header', {})
-        for key in ['header_cv']:
-            if key in header and isinstance(header[key], dict):
-                if 'sec' in header[key] and 'nsec' in header[key]:
-                    timestamps[key] = header[key]['sec'] + header[key]['nsec'] * 1e-9
+        # Jaw data timestamps (only for PSM1 and PSM2)
+        # Note: jaw data is at the top level, not inside arm_data
+        if arm in ['PSM1', 'PSM2']:
+            jaw_data = candidate_data.get('jaw', {})
+            
+            # Process jaw measured data
+            jaw_measured = jaw_data.get('measured_data', {})
+            if 'stamp' in jaw_measured and isinstance(jaw_measured['stamp'], dict):
+                if 'sec' in jaw_measured['stamp'] and 'nsec' in jaw_measured['stamp']:
+                    timestamps['jaw_measured_js_stamp'] = jaw_measured['stamp']['sec'] + jaw_measured['stamp']['nsec'] * 1e-9
                 else:
-                    timestamps[key] = None
+                    timestamps['jaw_measured_js_stamp'] = None
             else:
-                timestamps[key] = None
+                timestamps['jaw_measured_js_stamp'] = None
+            
+            # Process jaw setpoint data
+            jaw_setpoint = jaw_data.get('setpoint_data', {})
+            if 'stamp' in jaw_setpoint and isinstance(jaw_setpoint['stamp'], dict):
+                if 'sec' in jaw_setpoint['stamp'] and 'nsec' in jaw_setpoint['stamp']:
+                    timestamps['jaw_setpoint_js_stamp'] = jaw_setpoint['stamp']['sec'] + jaw_setpoint['stamp']['nsec'] * 1e-9
+                else:
+                    timestamps['jaw_setpoint_js_stamp'] = None
+            else:
+                timestamps['jaw_setpoint_js_stamp'] = None
+
+        # Header timestamps - header_cv removed from processing
+        # header = candidate_data.get('header', {})
+        # for key in ['header_cv']:
+        #     if key in header and isinstance(header[key], dict):
+        #         if 'sec' in header[key] and 'nsec' in header[key]:
+        #             timestamps[key] = header[key]['sec'] + header[key]['nsec'] * 1e-9
+        #         else:
+        #             timestamps[key] = None
+        #     else:
+        #         timestamps[key] = None
 
         return timestamps
     
@@ -299,9 +329,11 @@ class SimplifiedInterpolationAnalyzer:
             'count': len(df),
             'mean_delay_ms': df['abs_delay_ms'].mean(),
             'std_delay_ms': df['abs_delay_ms'].std(),
-            'median_delay_ms': df['abs_delay_ms'].median(),
-            'q95_delay_ms': df['abs_delay_ms'].quantile(0.95),
-            'max_delay_ms': df['abs_delay_ms'].max()
+            'min_delay_ms': df['delay_ms'].min(),
+            'max_delay_ms': df['delay_ms'].max(),
+            'median_delay_ms': df['delay_ms'].median(),
+            'abs_median_delay_ms': df['abs_delay_ms'].median(),
+            'q95_delay_ms': df['delay_ms'].quantile(0.95)
         }
         
         # Statistics by sensor category
@@ -311,8 +343,11 @@ class SimplifiedInterpolationAnalyzer:
                 'count': len(category_data),
                 'mean_delay_ms': category_data['abs_delay_ms'].mean(),
                 'std_delay_ms': category_data['abs_delay_ms'].std(),
-                'median_delay_ms': category_data['abs_delay_ms'].median(),
-                'q95_delay_ms': category_data['abs_delay_ms'].quantile(0.95)
+                'min_delay_ms': category_data['delay_ms'].min(),
+                'max_delay_ms': category_data['delay_ms'].max(),
+                'median_delay_ms': category_data['delay_ms'].median(),
+                'abs_median_delay_ms': category_data['abs_delay_ms'].median(),
+                'q95_delay_ms': category_data['delay_ms'].quantile(0.95)
             }
         
         # Statistics by setpoint/measure category
@@ -322,8 +357,11 @@ class SimplifiedInterpolationAnalyzer:
                 'count': len(setpoint_measure_data),
                 'mean_delay_ms': setpoint_measure_data['abs_delay_ms'].mean(),
                 'std_delay_ms': setpoint_measure_data['abs_delay_ms'].std(),
-                'median_delay_ms': setpoint_measure_data['abs_delay_ms'].median(),
-                'q95_delay_ms': setpoint_measure_data['abs_delay_ms'].quantile(0.95)
+                'min_delay_ms': setpoint_measure_data['delay_ms'].min(),
+                'max_delay_ms': setpoint_measure_data['delay_ms'].max(),
+                'median_delay_ms': setpoint_measure_data['delay_ms'].median(),
+                'abs_median_delay_ms': setpoint_measure_data['abs_delay_ms'].median(),
+                'q95_delay_ms': setpoint_measure_data['delay_ms'].quantile(0.95)
             }
         
         # Statistics by data type category
@@ -333,8 +371,11 @@ class SimplifiedInterpolationAnalyzer:
                 'count': len(data_type_data),
                 'mean_delay_ms': data_type_data['abs_delay_ms'].mean(),
                 'std_delay_ms': data_type_data['abs_delay_ms'].std(),
-                'median_delay_ms': data_type_data['abs_delay_ms'].median(),
-                'q95_delay_ms': data_type_data['abs_delay_ms'].quantile(0.95)
+                'min_delay_ms': data_type_data['delay_ms'].min(),
+                'max_delay_ms': data_type_data['delay_ms'].max(),
+                'median_delay_ms': data_type_data['delay_ms'].median(),
+                'abs_median_delay_ms': data_type_data['abs_delay_ms'].median(),
+                'q95_delay_ms': data_type_data['delay_ms'].quantile(0.95)
             }
         
         # Statistics by robot arm
@@ -344,8 +385,11 @@ class SimplifiedInterpolationAnalyzer:
                 'count': len(arm_data),
                 'mean_delay_ms': arm_data['abs_delay_ms'].mean(),
                 'std_delay_ms': arm_data['abs_delay_ms'].std(),
-                'median_delay_ms': arm_data['abs_delay_ms'].median(),
-                'q95_delay_ms': arm_data['abs_delay_ms'].quantile(0.95)
+                'min_delay_ms': arm_data['delay_ms'].min(),
+                'max_delay_ms': arm_data['delay_ms'].max(),
+                'median_delay_ms': arm_data['delay_ms'].median(),
+                'abs_median_delay_ms': arm_data['abs_delay_ms'].median(),
+                'q95_delay_ms': arm_data['delay_ms'].quantile(0.95)
             }
         
         print("Statistics calculated successfully.")
@@ -608,7 +652,7 @@ class SimplifiedInterpolationAnalyzer:
         stats_text = f'Total Data Points: {len(df):,}\n'
         stats_text += f'Mean Absolute Delay: {df["abs_delay_ms"].mean():.2f} ms\n'
         stats_text += f'Std Absolute Delay: {df["abs_delay_ms"].std():.2f} ms\n'
-        stats_text += f'95th Percentile Absolute Delay: {df["abs_delay_ms"].quantile(0.95):.2f} ms\n'
+        stats_text += f'95th Percentile Delay: {df["delay_ms"].quantile(0.95):.2f} ms\n'
         stats_text += f'Range: [{df["delay_ms"].min():.2f}, {df["delay_ms"].max():.2f}] ms'
         
         ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, 
@@ -702,7 +746,7 @@ class SimplifiedInterpolationAnalyzer:
         stats_text = f'Total Data Points: {len(df):,}\n'
         stats_text += f'Mean Absolute Delay: {df["abs_delay_ms"].mean():.2f} ms\n'
         stats_text += f'Std Absolute Delay: {df["abs_delay_ms"].std():.2f} ms\n'
-        stats_text += f'95th Percentile Absolute Delay: {df["abs_delay_ms"].quantile(0.95):.2f} ms\n'
+        stats_text += f'95th Percentile Delay: {df["delay_ms"].quantile(0.95):.2f} ms\n'
         stats_text += f'Range: [{df["delay_ms"].min():.2f}, {df["delay_ms"].max():.2f}] ms'
         
         ax.text(0.02, 0.98, stats_text, transform=ax.transAxes, 
@@ -761,6 +805,7 @@ class SimplifiedInterpolationAnalyzer:
             'Mean (ms)': f"{overall['mean_delay_ms']:.2f}",
             'Std (ms)': f"{overall['std_delay_ms']:.2f}",
             'Median (ms)': f"{overall['median_delay_ms']:.2f}",
+            'Abs Median (ms)': f"{overall['abs_median_delay_ms']:.2f}",
             '95th Percentile (ms)': f"{overall['q95_delay_ms']:.2f}"
         })
         
@@ -774,6 +819,7 @@ class SimplifiedInterpolationAnalyzer:
                     'Mean (ms)': f"{cat_stats['mean_delay_ms']:.2f}",
                     'Std (ms)': f"{cat_stats['std_delay_ms']:.2f}",
                     'Median (ms)': f"{cat_stats['median_delay_ms']:.2f}",
+                    'Abs Median (ms)': f"{cat_stats['abs_median_delay_ms']:.2f}",
                     '95th Percentile (ms)': f"{cat_stats['q95_delay_ms']:.2f}"
                 })
         
@@ -787,6 +833,7 @@ class SimplifiedInterpolationAnalyzer:
                     'Mean (ms)': f"{sm_stats['mean_delay_ms']:.2f}",
                     'Std (ms)': f"{sm_stats['std_delay_ms']:.2f}",
                     'Median (ms)': f"{sm_stats['median_delay_ms']:.2f}",
+                    'Abs Median (ms)': f"{sm_stats['abs_median_delay_ms']:.2f}",
                     '95th Percentile (ms)': f"{sm_stats['q95_delay_ms']:.2f}"
                 })
         
@@ -800,6 +847,7 @@ class SimplifiedInterpolationAnalyzer:
                     'Mean (ms)': f"{arm_stats['mean_delay_ms']:.2f}",
                     'Std (ms)': f"{arm_stats['std_delay_ms']:.2f}",
                     'Median (ms)': f"{arm_stats['median_delay_ms']:.2f}",
+                    'Abs Median (ms)': f"{arm_stats['abs_median_delay_ms']:.2f}",
                     '95th Percentile (ms)': f"{arm_stats['q95_delay_ms']:.2f}"
                 })
         
@@ -834,7 +882,7 @@ class SimplifiedInterpolationAnalyzer:
                 print(f"  Total data points: {len(df)}")
                 print(f"  Mean delay: {df['abs_delay_ms'].mean():.2f} ms")
                 print(f"  Std deviation: {df['abs_delay_ms'].std():.2f} ms")
-                print(f"  95th percentile: {df['abs_delay_ms'].quantile(0.95):.2f} ms")
+                print(f"  95th percentile: {df['delay_ms'].quantile(0.95):.2f} ms")
                 
         except Exception as e:
             print(f"Error during analysis: {e}")

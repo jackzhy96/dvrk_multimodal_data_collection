@@ -180,3 +180,5 @@ data
 outputs
 .vscode
 
+/analysis_results/interpolation/output/
+/analysis_results/interpolation/output_simplified/

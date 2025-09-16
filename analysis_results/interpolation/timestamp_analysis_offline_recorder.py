@@ -39,10 +39,9 @@ class TimestampDelayAnalyzer:
         self.data_root = Path(data_root)
         self.base_output_dir = Path("output")
         
-        # Dataset processing rules for interpolation data
+        # Dataset processing rules for interpolation data - only process data_20250909
         self.dataset_rules = {
-            'data_20250909': ['interpolation/3'],
-            'data_20250911': ['suturing/interpolation/3', 'suturing/interpolation/4']
+            'data_20250909': ['interpolation/1', 'interpolation/2', 'interpolation/3', 'interpolation/4']
         }
         
         # Data containers
@@ -53,27 +52,32 @@ class TimestampDelayAnalyzer:
         
         # Sensor categorization for interpolation data
         self.sensor_categories = {
+            'image': [],
             'kinematics': [
                 'measured_cp_stamp', 'measured_cv_stamp', 'measured_js_stamp',
-                'setpoint_cp_stamp', 'setpoint_js_stamp', 'header_cv'
+                'setpoint_cp_stamp', 'setpoint_js_stamp'
+            ],
+            'jaw': [
+                'jaw_measured_js_stamp', 'jaw_setpoint_js_stamp'
             ]
         }
         
         # Setpoint/Measure categorization
         self.setpoint_measure_categories = {
-            'setpoint': ['setpoint_cp_stamp', 'setpoint_js_stamp'],
-            'measured': ['measured_cp_stamp', 'measured_cv_stamp', 'measured_js_stamp'],
-            'header': ['header_cv']
+            'setpoint': ['setpoint_cp_stamp', 'setpoint_js_stamp', 'jaw_setpoint_js_stamp'],
+            'measured': ['measured_cp_stamp', 'measured_cv_stamp', 'measured_js_stamp', 'jaw_measured_js_stamp'],
+            'measured+img': ['measured_cp_stamp', 'measured_cv_stamp', 'measured_js_stamp', 'jaw_measured_js_stamp']
         }
         
         # Data type categorization
         self.data_type_categories = {
-            'joint_states': ['measured_js_stamp', 'setpoint_js_stamp'],
-            'cartesian_states': ['measured_cp_stamp', 'measured_cv_stamp', 'setpoint_cp_stamp', 'header_cv']
+            'image': [],
+            'joint_states': ['measured_js_stamp', 'setpoint_js_stamp', 'jaw_measured_js_stamp', 'jaw_setpoint_js_stamp'],
+            'cartesian_states': ['measured_cp_stamp', 'measured_cv_stamp', 'setpoint_cp_stamp']
         }
         
         # Robot arms
-        self.robot_arms = ['ECM', 'PSM1', 'PSM2', 'PSM3']
+        self.robot_arms = ['ECM', 'PSM1', 'PSM2']
         
     def load_data(self) -> None:
         """Load all interpolation JSON files and extract timestamp delays."""
@@ -159,7 +163,7 @@ class TimestampDelayAnalyzer:
             # Process each of the 5 candidate points
             for candidate_idx, candidate_data in enumerate(data):
                 # Extract all timestamps from this candidate
-                timestamps = self._extract_all_timestamps(candidate_data)
+                timestamps = self._extract_all_timestamps(candidate_data, arm)
                 
                 # Calculate delays for each timestamp
                 for sensor_key, sensor_timestamp in timestamps.items():
@@ -186,15 +190,17 @@ class TimestampDelayAnalyzer:
                         'setpoint_measure_category': setpoint_measure_category,
                         'data_type_category': data_type_category,
                         'delay_ms': delay_ms,
+                        'abs_delay_ms': abs(delay_ms),
                         'baseline_timestamp': baseline_timestamp,
                         'sensor_timestamp': sensor_timestamp
                     })
+            
                     
         except Exception as e:
             print(f"      Error processing {json_file}: {e}")
             return
     
-    def _extract_all_timestamps(self, candidate_data: Dict) -> Dict[str, Optional[float]]:
+    def _extract_all_timestamps(self, candidate_data: Dict, arm: str) -> Dict[str, Optional[float]]:
         """Extract all timestamps from a candidate data point."""
         timestamps = {}
         
@@ -223,16 +229,41 @@ class TimestampDelayAnalyzer:
             else:
                 timestamps[key] = None
         
-        # Header timestamps
-        header = candidate_data.get('header', {})
-        for key in ['header_cv']:
-            if key in header and isinstance(header[key], dict):
-                if 'sec' in header[key] and 'nsec' in header[key]:
-                    timestamps[key] = header[key]['sec'] + header[key]['nsec'] * 1e-9
+        # Jaw data timestamps (only for PSM1 and PSM2)
+        # Note: jaw data is at the top level, not inside arm_data
+        if arm in ['PSM1', 'PSM2']:
+            jaw_data = candidate_data.get('jaw', {})
+            
+            # Process jaw measured data
+            jaw_measured = jaw_data.get('measured_data', {})
+            if 'stamp' in jaw_measured and isinstance(jaw_measured['stamp'], dict):
+                if 'sec' in jaw_measured['stamp'] and 'nsec' in jaw_measured['stamp']:
+                    timestamps['jaw_measured_js_stamp'] = jaw_measured['stamp']['sec'] + jaw_measured['stamp']['nsec'] * 1e-9
                 else:
-                    timestamps[key] = None
+                    timestamps['jaw_measured_js_stamp'] = None
             else:
-                timestamps[key] = None
+                timestamps['jaw_measured_js_stamp'] = None
+            
+            # Process jaw setpoint data
+            jaw_setpoint = jaw_data.get('setpoint_data', {})
+            if 'stamp' in jaw_setpoint and isinstance(jaw_setpoint['stamp'], dict):
+                if 'sec' in jaw_setpoint['stamp'] and 'nsec' in jaw_setpoint['stamp']:
+                    timestamps['jaw_setpoint_js_stamp'] = jaw_setpoint['stamp']['sec'] + jaw_setpoint['stamp']['nsec'] * 1e-9
+                else:
+                    timestamps['jaw_setpoint_js_stamp'] = None
+            else:
+                timestamps['jaw_setpoint_js_stamp'] = None
+        
+        # Header timestamps - header_cv removed from processing
+        # header = candidate_data.get('header', {})
+        # for key in ['header_cv']:
+        #     if key in header and isinstance(header[key], dict):
+        #         if 'sec' in header[key] and 'nsec' in header[key]:
+        #             timestamps[key] = header[key]['sec'] + header[key]['nsec'] * 1e-9
+        #         else:
+        #             timestamps[key] = None
+        #     else:
+        #         timestamps[key] = None
         
         return timestamps
     
@@ -350,11 +381,12 @@ class TimestampDelayAnalyzer:
         # Overall statistics
         self.summary_stats['overall'] = {
             'count': len(df),
-            'mean_delay_ms': df['delay_ms'].abs().mean(),
-            'std_delay_ms': df['delay_ms'].abs().std(),
+            'mean_delay_ms': df['abs_delay_ms'].mean(),
+            'std_delay_ms': df['abs_delay_ms'].std(),
             'min_delay_ms': df['delay_ms'].min(),
             'max_delay_ms': df['delay_ms'].max(),
             'median_delay_ms': df['delay_ms'].median(),
+            'abs_median_delay_ms': df['abs_delay_ms'].median(),
             'p25_delay_ms': df['delay_ms'].quantile(0.25),
             'p75_delay_ms': df['delay_ms'].quantile(0.75),
             'p95_delay_ms': df['delay_ms'].quantile(0.95),
@@ -366,11 +398,12 @@ class TimestampDelayAnalyzer:
             category_data = df[df['category'] == category]
             self.summary_stats[f'category_{category}'] = {
                 'count': len(category_data),
-                'mean_delay_ms': category_data['delay_ms'].abs().mean(),
-                'std_delay_ms': category_data['delay_ms'].abs().std(),
+                'mean_delay_ms': category_data['abs_delay_ms'].mean(),
+                'std_delay_ms': category_data['abs_delay_ms'].std(),
                 'min_delay_ms': category_data['delay_ms'].min(),
                 'max_delay_ms': category_data['delay_ms'].max(),
-                'median_delay_ms': category_data['delay_ms'].median()
+                'median_delay_ms': category_data['delay_ms'].median(),
+                'abs_median_delay_ms': category_data['abs_delay_ms'].median()
             }
         
         # Statistics by arm
@@ -378,11 +411,12 @@ class TimestampDelayAnalyzer:
             arm_data = df[df['arm'] == arm]
             self.summary_stats[f'arm_{arm}'] = {
                 'count': len(arm_data),
-                'mean_delay_ms': arm_data['delay_ms'].abs().mean(),
-                'std_delay_ms': arm_data['delay_ms'].abs().std(),
+                'mean_delay_ms': arm_data['abs_delay_ms'].mean(),
+                'std_delay_ms': arm_data['abs_delay_ms'].std(),
                 'min_delay_ms': arm_data['delay_ms'].min(),
                 'max_delay_ms': arm_data['delay_ms'].max(),
-                'median_delay_ms': arm_data['delay_ms'].median()
+                'median_delay_ms': arm_data['delay_ms'].median(),
+                'abs_median_delay_ms': arm_data['abs_delay_ms'].median()
             }
         
         # Statistics by candidate
@@ -390,11 +424,12 @@ class TimestampDelayAnalyzer:
             candidate_data = df[df['candidate'] == candidate]
             self.summary_stats[f'candidate_{candidate}'] = {
                 'count': len(candidate_data),
-                'mean_delay_ms': candidate_data['delay_ms'].abs().mean(),
-                'std_delay_ms': candidate_data['delay_ms'].abs().std(),
+                'mean_delay_ms': candidate_data['abs_delay_ms'].mean(),
+                'std_delay_ms': candidate_data['abs_delay_ms'].std(),
                 'min_delay_ms': candidate_data['delay_ms'].min(),
                 'max_delay_ms': candidate_data['delay_ms'].max(),
-                'median_delay_ms': candidate_data['delay_ms'].median()
+                'median_delay_ms': candidate_data['delay_ms'].median(),
+                'abs_median_delay_ms': candidate_data['abs_delay_ms'].median()
             }
         
         print("Delay statistics calculated successfully.")
@@ -492,6 +527,7 @@ class TimestampDelayAnalyzer:
             'min_delay_ms': df['delay_ms'].min(),
             'max_delay_ms': df['delay_ms'].max(),
             'median_delay_ms': df['delay_ms'].median(),
+            'abs_median_delay_ms': df['delay_ms'].abs().median(),
             'p25_delay_ms': df['delay_ms'].quantile(0.25),
             'p75_delay_ms': df['delay_ms'].quantile(0.75),
             'p95_delay_ms': df['delay_ms'].quantile(0.95),
@@ -504,7 +540,9 @@ class TimestampDelayAnalyzer:
             stats[f'category_{category}'] = {
                 'count': len(category_data),
                 'mean_delay_ms': category_data['delay_ms'].abs().mean(),
-                'std_delay_ms': category_data['delay_ms'].abs().std()
+                'std_delay_ms': category_data['delay_ms'].abs().std(),
+                'median_delay_ms': category_data['delay_ms'].median(),
+                'abs_median_delay_ms': category_data['delay_ms'].abs().median()
             }
         
         # Add arm statistics
@@ -513,7 +551,9 @@ class TimestampDelayAnalyzer:
             stats[f'arm_{arm}'] = {
                 'count': len(arm_data),
                 'mean_delay_ms': arm_data['delay_ms'].abs().mean(),
-                'std_delay_ms': arm_data['delay_ms'].abs().std()
+                'std_delay_ms': arm_data['delay_ms'].abs().std(),
+                'median_delay_ms': arm_data['delay_ms'].median(),
+                'abs_median_delay_ms': arm_data['delay_ms'].abs().median()
             }
         
         # Add sensor statistics
@@ -522,7 +562,9 @@ class TimestampDelayAnalyzer:
             stats[f'sensor_{sensor}'] = {
                 'count': len(sensor_data),
                 'mean_delay_ms': sensor_data['delay_ms'].abs().mean(),
-                'std_delay_ms': sensor_data['delay_ms'].abs().std()
+                'std_delay_ms': sensor_data['delay_ms'].abs().std(),
+                'median_delay_ms': sensor_data['delay_ms'].median(),
+                'abs_median_delay_ms': sensor_data['delay_ms'].abs().median()
             }
         
         # Add setpoint/measure category statistics
@@ -531,7 +573,9 @@ class TimestampDelayAnalyzer:
             stats[f'{category}'] = {
                 'count': len(category_data),
                 'mean_delay_ms': category_data['delay_ms'].abs().mean(),
-                'std_delay_ms': category_data['delay_ms'].abs().std()
+                'std_delay_ms': category_data['delay_ms'].abs().std(),
+                'median_delay_ms': category_data['delay_ms'].median(),
+                'abs_median_delay_ms': category_data['delay_ms'].abs().median()
             }
         
         # Add data type category statistics
@@ -540,7 +584,9 @@ class TimestampDelayAnalyzer:
             stats[f'data_type_{category}'] = {
                 'count': len(category_data),
                 'mean_delay_ms': category_data['delay_ms'].abs().mean(),
-                'std_delay_ms': category_data['delay_ms'].abs().std()
+                'std_delay_ms': category_data['delay_ms'].abs().std(),
+                'median_delay_ms': category_data['delay_ms'].median(),
+                'abs_median_delay_ms': category_data['delay_ms'].abs().median()
             }
         
         return stats
