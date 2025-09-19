@@ -13,7 +13,6 @@ in dVRK multi-modal data. This tool provides an intuitive interface for:
 - Configurable image sizing and display options
 """
 
-
 import json
 import sys
 import re
@@ -693,8 +692,6 @@ class DataAnnotationGUI(QMainWindow):
         
         # GUI components (initialized in setup methods)
         self.video_display_label: Optional[QLabel] = None
-        self.video_scroll_area: Optional[QScrollArea] = None
-        self._current_pixmap: Optional[QPixmap] = None
         self.timeline_slider: Optional[QSlider] = None
         self.frame_info_label: Optional[QLabel] = None
         self.annotation_list: Optional[QListWidget] = None
@@ -856,8 +853,8 @@ class DataAnnotationGUI(QMainWindow):
         # Video display label - size will be set from config after loading
         self.video_display_label = QLabel()
         self.video_display_label.setAlignment(Qt.AlignCenter)
-        # Initial minimum size, will be updated from config (keep small to fit small screens)
-        self.video_display_label.setMinimumSize(200, 150)
+        # Initial minimum size, will be updated from config
+        self.video_display_label.setMinimumSize(800, 600)
         self.video_display_label.setStyleSheet("""
             QLabel {
                 border: 2px solid #ddd;
@@ -869,10 +866,10 @@ class DataAnnotationGUI(QMainWindow):
         self.video_display_label.setText("Load configuration to display video")
         
         # Wrap in scroll area for large images
-        self.video_scroll_area = QScrollArea()
-        self.video_scroll_area.setWidget(self.video_display_label)
-        self.video_scroll_area.setWidgetResizable(True)
-        video_group_layout.addWidget(self.video_scroll_area)
+        scroll_area = QScrollArea()
+        scroll_area.setWidget(self.video_display_label)
+        scroll_area.setWidgetResizable(True)
+        video_group_layout.addWidget(scroll_area)
         
         # Original image buttons (arranged to match the 2x2 camera layout)
         camera_buttons_widget = self._create_camera_buttons_widget()
@@ -1341,13 +1338,6 @@ class DataAnnotationGUI(QMainWindow):
             self.config = self.config_loader.load_config(Path(config_file))
             
             # Get image paths from configuration
-            print("=== 配置信息 ===")
-            print(f"数据目录: {self.config.path_config.data_dir}")
-            print(f"数据名称: {self.config.path_config.data_name}")
-            print(f"数据类型: {self.config.path_config.data_type}")
-            print(f"数据索引: {self.config.path_config.data_index}")
-            print("================")
-            
             self.image_paths = self.config_loader.get_image_paths()
             
             # Get PSM configuration from config file
@@ -1361,23 +1351,12 @@ class DataAnnotationGUI(QMainWindow):
             
             # Verify paths exist and get frame files
             existing_cameras = []
-            print("=== 检查相机图像目录 ===")
             for camera_name, camera_path in self.image_paths.items():
-                print(f"相机 {camera_name}: {camera_path}")
-                print(f"  路径存在: {camera_path.exists()}")
                 if camera_path.exists():
                     existing_cameras.append(camera_name)
-                    print(f"  ✓ 找到图像目录")
-                else:
-                    print(f"  ✗ 目录不存在")
-            print(f"找到的相机数量: {len(existing_cameras)}")
-            print("========================")
             
             if not existing_cameras:
-                error_msg = "No camera image directories found. 检查的路径:\n"
-                for camera_name, camera_path in self.image_paths.items():
-                    error_msg += f"  {camera_name}: {camera_path}\n"
-                raise FileNotFoundError(error_msg)
+                raise FileNotFoundError("No camera image directories found")
             
             # Enable camera buttons for available cameras
             self._update_camera_buttons(existing_cameras)
@@ -1448,8 +1427,7 @@ class DataAnnotationGUI(QMainWindow):
             
             # Create pixmap and display
             pixmap = QPixmap.fromImage(q_image)
-            self._current_pixmap = pixmap
-            self._update_scaled_display()
+            self.video_display_label.setPixmap(pixmap)
             
             # Update frame info
             self.frame_info_label.setText(frame_info)
@@ -2811,8 +2789,6 @@ By Category:"""
                 # Update video display size
                 self.video_display_label.setMinimumSize(max_display_width, max_display_height)
                 self.video_display_label.setMaximumSize(max_display_width + 100, max_display_height + 100)
-                # Re-scale current image to the new viewport
-                self._update_scaled_display()
                 
                 self.statusBar().showMessage(f"Video display sized for {main_size} main, {side_size} side cameras")
                 
@@ -2827,28 +2803,6 @@ By Category:"""
             return self.config_loader.get_save_folder()
         else:
             return Path.home() / "dvrk_annotations"
-
-    def resizeEvent(self, event):
-        """Ensure image scales to fit when the main window is resized."""
-        super().resizeEvent(event)
-        self._update_scaled_display()
-
-    def _update_scaled_display(self):
-        """Scale the current pixmap to fit the scroll area viewport, preserving aspect ratio."""
-        if self._current_pixmap is None or self.video_display_label is None:
-            return
-        # Determine available size
-        if hasattr(self, 'video_scroll_area') and self.video_scroll_area is not None:
-            viewport_size = self.video_scroll_area.viewport().size()
-            target_width = max(1, viewport_size.width())
-            target_height = max(1, viewport_size.height())
-        else:
-            label_size = self.video_display_label.size()
-            target_width = max(1, label_size.width())
-            target_height = max(1, label_size.height())
-
-        scaled = self._current_pixmap.scaled(target_width, target_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-        self.video_display_label.setPixmap(scaled)
     
     def save_annotations(self):
         """Save all annotations to files."""

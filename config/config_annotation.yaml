@@ -1,18 +1,18 @@
 defaults:
-  - path_config: Wu_local     # pick one file from the data, data load and store paths
+  - path_config: jack_local     # pick one file from the data, data load and store paths
   - _self_
 
-workspace: "D:/Users/lol/Documents/GitHub/Yimeng/dvrk_multimodal_data_collection"
+workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
 
 
-left_image_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_type}/${path_config.data_index}/regular/image/left"
-right_image_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_type}/${path_config.data_index}/regular/image/right"
-side_camera_1_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_type}/${path_config.data_index}/regular/image/side"
+left_image_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_index}/regular/image/left"
+right_image_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_index}/regular/image/right"
+side_camera_1_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_index}/regular/image/side"
 #side_camera_1_path: None
-side_camera_2_path: "${path_config.data_dir}/output/${path_config.data_name}/${path_config.data_type}/${path_config.data_index}/depth_estimation/depth_image"
+side_camera_2_path: "${path_config.data_dir}/output/${path_config.data_name}/${path_config.data_index}/depth_estimation/depth_image"
 #side_camera_2_path: None
 
-save_folder: "${path_config.data_dir}/output/${path_config.data_name}/${path_config.data_type}/${path_config.data_index}"
+save_folder: "${path_config.data_dir}/output/${path_config.data_name}/${path_config.data_index}"
 
 resize_max_size: False
 
