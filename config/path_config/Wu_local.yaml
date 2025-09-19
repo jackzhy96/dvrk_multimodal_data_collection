@@ -1,0 +1,9 @@
+data_dir: "D:/Users/lol/Documents/GitHub/Yimeng/dvrk_multimodal_data_collection/data"
+data_name: "data_20250828"
+
+data_type: "peg_transfer"
+data_index: "peg_transfer1/1"
+
+raw_dir: "${.data_dir}/${.data_name}/{.data_type}/${.data_index}"
+intermediate_dir: "${.data_dir}/interm/${.data_name}/{.data_type}/${.data_index}"
+processed_dir:  "${.data_dir}/output/${.data_name}/{.data_type}/${.data_index}"
