@@ -1,5 +1,5 @@
 data_dir: "/home/jackzhy/dvrk_multimodal_data_collection/data"
-#data_name: "data_20250808"
+#data_name: "data_20250807"
 #data_index: "3"
 data_name: "data_20250828/suturing1"
 data_index: "7"

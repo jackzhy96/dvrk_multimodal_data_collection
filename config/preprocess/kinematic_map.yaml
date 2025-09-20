@@ -15,4 +15,5 @@ weight_config:
   tol_dist: 0.05
 
 fps_img: 30
-enable_overlay: true
+#enable_overlay: true
+enable_overlay: false
