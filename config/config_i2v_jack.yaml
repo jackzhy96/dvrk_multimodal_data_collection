@@ -1,0 +1,14 @@
+defaults:
+  - path_config: jack_local_video     # pick one file from the data, data load and store paths
+  - preprocess: image_to_video  # select the preprocess type
+  - _self_
+
+workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+
+video_name: 'left'
+
+image_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_index}/regular/image/${video_name}"
+timestamp_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_index}/regular/time_syn"
+
+save_folder: "${path_config.data_dir}/output_video/${path_config.data_name}/${path_config.data_index}"
+

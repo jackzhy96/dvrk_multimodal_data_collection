@@ -141,6 +141,27 @@ class RaftOpticalFlowConfig:
     save_confidence: bool = False  # Save confidence/uncertainty maps (if supported)
     folder_initialize: bool = False
 
+class ResizeVideoConfig:
+    enable_resize: bool
+    new_size: List[int]  # [width, height]
+
+
+@dataclass
+class ImageToVideoConfig:
+    stage: str
+    video_fixed_rate: float
+    enable_fixed_rate: bool
+    resize_config: ResizeVideoConfig
+    codec: str = "mp4v"  # video codec
+    folder_initialize: bool = False
+
+
+@dataclass
+class VideoToImageConfig:
+    stage: str
+    enable_timestamp: bool
+    file_extension: str = "png"  # output image file extension
+    folder_initialize: bool = False
 
 
 if __name__ == "__main__":

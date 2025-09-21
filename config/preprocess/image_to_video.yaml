@@ -1,0 +1,14 @@
+stage: image_to_video
+folder_initialize: false
+
+enable_fixed_rate: true
+video_fixed_rate: 10
+
+resize_config:
+  enable_resize: true
+  new_size: [1280, 720]
+
+codec: "mp4v"
+#codec: "x264"
+
+#file extension: "png"
