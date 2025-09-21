@@ -126,7 +126,20 @@ def create_video_from_images(config: AppCfg) -> None:
     # Get sorted image files
     image_files = glob_sorted_frame(image_path)
 
-    print(f"Found {len(image_files)} images to process")
+    print(f"Found {len(image_files)} total images")
+
+    # Apply frame range selection based on start_frame and end_frame
+    start_idx = 0 if config.preprocess.start_frame == -1 else config.preprocess.start_frame
+    end_idx = len(image_files) if config.preprocess.end_frame == -1 else config.preprocess.end_frame + 1
+
+    # Ensure indices are within valid range
+    start_idx = max(0, min(start_idx, len(image_files) - 1))
+    end_idx = max(start_idx + 1, min(end_idx, len(image_files)))
+
+    # Slice the image files list
+    image_files = image_files[start_idx:end_idx]
+
+    print(f"Processing frames {start_idx} to {end_idx - 1} ({len(image_files)} images)")
 
     # Load timestamps if not using fixed rate
     timestamps = None
@@ -139,7 +152,15 @@ def create_video_from_images(config: AppCfg) -> None:
             raise FileNotFoundError(f"Timestamp file not found: {timestamp_path}")
 
         timestamps = load_timestamps(timestamp_path)
-        print(f"Loaded {len(timestamps)} timestamps")
+        print(f"Loaded {len(timestamps)} total timestamps")
+
+        # Apply the same frame range selection to timestamps
+        if len(timestamps) > 0:
+            # Ensure we don't go out of bounds for timestamps
+            timestamp_start_idx = max(0, min(start_idx, len(timestamps) - 1))
+            timestamp_end_idx = max(timestamp_start_idx + 1, min(end_idx, len(timestamps)))
+            timestamps = timestamps[timestamp_start_idx:timestamp_end_idx]
+            print(f"Using timestamps {timestamp_start_idx} to {timestamp_end_idx - 1} ({len(timestamps)} timestamps)")
 
     if not image_files:
         raise ValueError("No image files found")

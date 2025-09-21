@@ -4,11 +4,14 @@ folder_initialize: false
 enable_fixed_rate: true
 video_fixed_rate: 10
 
+# Frame range selection (-1 means use all frames)
+start_frame: -1  # -1 means start from first frame (0)
+end_frame: -1    # -1 means process until last frame
+
 resize_config:
   enable_resize: true
   new_size: [1280, 720]
 
 codec: "mp4v"
-#codec: "x264"
 
 #file extension: "png"

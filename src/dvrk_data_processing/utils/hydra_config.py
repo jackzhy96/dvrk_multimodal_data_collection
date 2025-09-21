@@ -152,6 +152,8 @@ class ImageToVideoConfig:
     video_fixed_rate: float
     enable_fixed_rate: bool
     resize_config: ResizeVideoConfig
+    start_frame: int = -1  # -1 means start from first frame (0)
+    end_frame: int = -1  # -1 means process until last frame
     codec: str = "mp4v"  # video codec
     folder_initialize: bool = False
 
