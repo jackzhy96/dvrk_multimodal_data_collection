@@ -14,8 +14,8 @@ timestamp_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.
 #image_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_index}/regular/image/left"
 #save_folder: "${path_config.data_dir}/output_video/data/${path_config.data_name}/${path_config.data_index}"
 
-#video_name: 'side'
-video_name: 'side_resized'
+video_name: 'side'
+#video_name: 'side_resized'
 image_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_index}/regular/image/side"
 save_folder: "${path_config.data_dir}/output_video/data/${path_config.data_name}/${path_config.data_index}"
 
