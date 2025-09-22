@@ -6,7 +6,7 @@ defaults:
 workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
 
 camera_calibration_path: "${path_config.intermediate_dir}/camera_calibration" # use your own path
-handeye_calib_path: "${path_config.data_dir}/data_20250828/hand_eye_calibration"
+handeye_calib_path: "${path_config.data_dir}/data_20250911/hand_eye_calibration"
 
 camera_names: ['left', 'right']
 camera_offset: [-1.0, 0.0, 0.0,

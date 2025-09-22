@@ -4,12 +4,17 @@ folder_initialize: false
 enable_fixed_rate: true
 video_fixed_rate: 10
 
-# Frame range selection (-1 means use all frames)
+### Frame range selection (-1 means use all frames)
 start_frame: -1  # -1 means start from first frame (0)
 end_frame: -1    # -1 means process until last frame
 
+### 2025-08-28 suturing1 7
+#start_frame: 65  # -1 means start from first frame (0)
+#end_frame: 729    # -1 means process until last frame
+
 resize_config:
-  enable_resize: true
+  enable_resize: false
+#  enable_resize: true
   new_size: [1280, 720]
 
 codec: "mp4v"
