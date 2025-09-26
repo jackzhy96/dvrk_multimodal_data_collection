@@ -9,15 +9,15 @@ timestamp_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.
 
 
 ### raw images to video
-#video_name: 'left'
-##video_name: 'left_resized'
-#image_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_index}/regular/image/left"
-#save_folder: "${path_config.data_dir}/output_video/data/${path_config.data_name}/${path_config.data_index}"
-
-video_name: 'side'
-#video_name: 'side_resized'
-image_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_index}/regular/image/side"
+video_name: 'left'
+#video_name: 'left_resized'
+image_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_index}/regular/image/left"
 save_folder: "${path_config.data_dir}/output_video/data/${path_config.data_name}/${path_config.data_index}"
+
+#video_name: 'side'
+##video_name: 'side_resized'
+#image_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_index}/regular/image/side"
+#save_folder: "${path_config.data_dir}/output_video/data/${path_config.data_name}/${path_config.data_index}"
 
 
 

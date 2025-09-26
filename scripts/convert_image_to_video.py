@@ -215,9 +215,10 @@ def create_video_from_images(config: AppCfg) -> None:
         avg_fps = max(0.5, min(avg_fps, 120.0))  # Clamp between 1 and 120 fps
         print(f"Average fps: {avg_fps:.2f}")
 
-        video_writer = cv2.VideoWriter(str(output_file), fourcc, avg_fps, (width, height))
+        video_fps = config.preprocess.video_fixed_rate
+        video_writer = cv2.VideoWriter(str(output_file), fourcc, video_fps, (width, height))
 
-        print(f"Creating video with timestamp-based timing (avg fps: {avg_fps:.2f})")
+        print(f"Creating video with timestamp-based timing (video fps: {video_fps:.2f})")
 
         for i, (image_file, delay) in enumerate(tqdm(zip(image_files, frame_delays), desc="Processing images", total=len(image_files))):
             image = cv2.imread(str(image_file))
@@ -230,7 +231,7 @@ def create_video_from_images(config: AppCfg) -> None:
 
             # Calculate how many times to repeat this frame based on delay
             # This is a simplification - for more accurate timing, consider using variable frame rates
-            repeat_count = max(1, int(delay * avg_fps))
+            repeat_count = max(1, int(delay * video_fps))
 
             for _ in range(repeat_count):
                 video_writer.write(image)

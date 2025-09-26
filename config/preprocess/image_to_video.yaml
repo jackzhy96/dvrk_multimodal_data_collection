@@ -1,7 +1,7 @@
 stage: image_to_video
 folder_initialize: false
 
-enable_fixed_rate: true
+enable_fixed_rate: false
 video_fixed_rate: 10
 
 ### Frame range selection (-1 means use all frames)
