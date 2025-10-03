@@ -117,6 +117,10 @@ def get_rectify_map(camera_param_left:CameraInfoProcessed, camera_param_right:Ca
     new_size: new size of the image
     output: rectify map for both cameras, and valid pixels for both cameras
     '''
+
+    ############## uncomment if on-campus ################
+    # new_size = tuple(new_size)
+
     R1, R2, P1, P2, Q, valid1, valid2= cv2.stereoRectify(camera_param_left.K, camera_param_left.D, camera_param_right.K,
                                                 camera_param_right.D, new_size, camera_param_right.R_c,
                                                 camera_param_right.t_c,alpha=0)
@@ -138,6 +142,7 @@ p_config = Path.cwd().parents[2] / 'config'
     config_path= str(p_config),
     config_name="config_rr_jack"
     # config_name="config_rr_jack_ubc"
+    # config_name="config_rr_jack_campus"
 )
 def main(cfg: AppCfg):
     camera_calibration_path = Path(cfg.camera_calibration_path)

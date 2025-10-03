@@ -111,6 +111,7 @@ p_config = Path.cwd().parents[2] / 'config'
     version_base=None,
     config_path= str(p_config),
     config_name="config_kp_jack"
+    # config_name="config_kp_jack_campus"
 )
 def main(cfg: AppCfg):
     camera_calibration_path = Path(cfg.camera_calibration_path)
