@@ -221,7 +221,7 @@ def save_depth_results(disparity: np.ndarray, original_img: np.ndarray,
     if not depth_output_dir.exists():
         create_folder(depth_output_dir)
 
-    img_output_dir = output_dir / "depth_image"
+    img_output_dir = output_dir / "disparity_image"
     vis_img_output_dir = output_dir / "combined_image"
 
     if not img_output_dir.exists():

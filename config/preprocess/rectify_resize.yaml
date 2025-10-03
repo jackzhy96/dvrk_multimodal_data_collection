@@ -1,0 +1,14 @@
+stage: rectify_resize
+folder_initialize: false
+
+# custom configurations
+resize_config:
+  original_size: [1920, 1080]
+#  original_size: [1400, 986]
+  new_size: [1024, 576]
+  enable_resize: true
+
+input_folder: '${path_config.raw_dir}/regular'
+output_folder: "${path_config.intermediate_dir}/regular"
+
+enable_rectify: true

@@ -2,15 +2,15 @@ stage: kinematic_map
 folder_initialize: false
 
 # custom configurations
-img_size: [640, 480]
+img_size: [1024, 576]
 arm_name: ['PSM1', 'PSM2']
 
 input_folder: '${path_config.intermediate_dir}/regular'
 output_folder: "${path_config.processed_dir}/${.stage}"
 
 weight_config:
-  sigma_x: 60
-  sigma_y: 60
+  sigma_x: 96
+  sigma_y: 96
   advanced_weight: true
   tol_dist: 0.05
 

@@ -1,6 +1,6 @@
 defaults:
   - path_config: jack_local     # pick one file from the data, data load and store paths
-  - preprocess: resize_rectify   # select the preprocess type
+  - preprocess: rectify_resize  # select the preprocess type
   - _self_
 
 workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
