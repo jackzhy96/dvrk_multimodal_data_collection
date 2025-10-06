@@ -5,7 +5,8 @@ folder_initialize: false
 resize_config:
   original_size: [1920, 1080]
 #  original_size: [1400, 986]
-  new_size: [1024, 576]
+  new_size: [512, 288]
+#  new_size: [1024, 576]
   enable_resize: true
 
 input_folder: '${path_config.raw_dir}/regular'
