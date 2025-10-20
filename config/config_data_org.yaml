@@ -1,0 +1,34 @@
+workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+
+# Input/Output folders
+#input_folder: "${workspace}/data"      # Raw data with nested structure
+input_folder: "/media/jackzhy/Jack_SSD_4T/multi_modal_data/JHU"
+#output_folder: "${workspace}/raw_data" # Organized output with flat structure
+output_folder: "/media/jackzhy/Jack_SSD_4T/raw_data_jhu"
+
+# Camera selection: which camera views to copy
+# Options: "left", "right", "side"
+copy_image_name: ["left", "right", "side"]
+
+# Data modality flags: control which data types to copy
+enable_kinematic_copy: true   # Copy kinematic data (robot joint/pose information)
+enable_timestamp_copy: true   # Copy time_syn data (synchronization timestamps)
+enable_label_copy: true       # Copy annotation data (contact detection, labels, etc.)
+
+# Starting index for output folder numbering
+# Use -1 to automatically continue from the last existing index in output_folder
+# Use 0 or positive integer to start from a specific index
+start_idx: -1
+
+# User metadata (optional, can be filled in or left empty)
+user_info:
+  user_id: ""  # User identifier (can be int or string)
+  user_skill_level:
+    dVRK: -1       # Skill level with dVRK system (0-10 scale)
+    clinical: -1   # Clinical/surgical skill level (0-10 scale)
+  user_description: ""  # Additional description about the user
+
+# Optional: define log output if required
+# hydra:
+#   run:
+#     dir: "${workspace}/outputs/logs/${now:%Y%m%d}_${now:%H%M%S}"

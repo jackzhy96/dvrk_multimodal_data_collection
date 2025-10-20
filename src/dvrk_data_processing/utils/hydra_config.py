@@ -166,5 +166,48 @@ class VideoToImageConfig:
     folder_initialize: bool = False
 
 
+@dataclass
+class UserSkillLevel:
+    """User skill level information for data organization"""
+    dVRK: int = -1  # skill level with dVRK system
+    clinical: int = -1  # clinical/surgical skill level
+
+
+@dataclass
+class UserInfo:
+    """User information for data organization metadata"""
+    user_id: Union[int, str] = ""  # user identifier (can be empty)
+    user_skill_level: UserSkillLevel = None  # skill level ratings
+    user_description: str = ""  # additional user description (can be empty)
+
+    def __post_init__(self):
+        # Initialize default UserSkillLevel if not provided
+        if self.user_skill_level is None:
+            self.user_skill_level = UserSkillLevel()
+
+
+@dataclass
+class DataOrganizationConfig:
+    """
+    Configuration for data organization/reorganization script.
+    Reorganizes raw data from nested folder structures into a flat, indexed structure.
+    """
+    stage: str  # processing stage name
+    input_folder: str  # path to unorganized raw data (may contain multiple subfolders)
+    output_folder: str  # path for reorganized data (will be created if needed)
+    copy_image_name: List[str]  # list of camera names to copy (e.g., ["left", "right", "side"])
+    enable_kinematic_copy: bool  # whether to copy kinematic folders
+    enable_timestamp_copy: bool  # whether to copy time_syn folders
+    enable_label_copy: bool  # whether to copy annotation folders
+    start_idx: int  # starting index for output folders (use -1 to auto-continue from last)
+    user_info: UserInfo = None  # user metadata for the dataset
+    folder_initialize: bool = False  # whether to initialize/clear output folder
+
+    def __post_init__(self):
+        # Initialize default UserInfo if not provided
+        if self.user_info is None:
+            self.user_info = UserInfo()
+
+
 if __name__ == "__main__":
     pass
