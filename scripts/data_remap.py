@@ -16,6 +16,7 @@ automatically stripped during parsing.
 import os
 import sys
 import json
+import re
 import shutil
 from pathlib import Path
 from typing import Dict, Any
@@ -47,19 +48,21 @@ def load_remap_mapping(remap_file: Path) -> Dict[str, str]:
         remap_file: Path to remap_data_note.json
 
     Returns:
-        Dictionary mapping input folder indices to output folder paths
+        Dictionary mapping output folder indices to input folder paths
 
     Note:
         The JSON file should have the format:
         {
-          "<input_idx>": <output_idx_or_path>,
+          "<output_idx>": <input_idx_or_path>,
           ...
         }
 
-        Supports multiple output formats:
-        - Simple index: "0": 5 or "0": "5" -> maps to "5"
-        - Nested path: "0": "test/5" -> maps to "test/5"
-        - Integer values: "0": 10 -> maps to "10"
+        This means: "what goes into output folder X" <- "comes from input folder Y"
+
+        Supports multiple formats:
+        - Simple index: "0": 113 -> output/0 gets data from input/113
+        - Nested paths: "test/0": 5 -> output/test/0 gets data from input/5
+        - Integer values: "0": 10 -> output/0 gets data from input/10
 
         This function normalizes all keys and values to strings.
 
@@ -85,6 +88,11 @@ def load_remap_mapping(remap_file: Path) -> Dict[str, str]:
 
             # Join the cleaned lines and parse as JSON
             cleaned_content = '\n'.join(lines)
+
+            # Remove trailing commas before closing braces/brackets
+            # This handles common JSON-with-comments formatting issues
+            cleaned_content = re.sub(r',(\s*[}\]])', r'\1', cleaned_content)
+
             raw_mapping = json.loads(cleaned_content)
     except json.JSONDecodeError as e:
         raise ValueError(f"Invalid JSON in remap file {remap_file}: {e}")
@@ -286,14 +294,15 @@ def remap_data(config: RemapConfig) -> int:
 
     print(f"Found {len(remap_mapping)} remap mapping(s)")
     print("\nRemap plan:")
-    # Sort by input index (try to parse as int, fallback to string comparison)
+    # Sort by output index (try to parse as int, fallback to string comparison)
+    # Note: Keys are OUTPUT indices, values are INPUT indices
     def get_sort_key(item):
         try:
             return (0, int(item[0]))  # Numeric indices first
         except ValueError:
             return (1, item[0])  # String indices second
 
-    for src_idx, dst_path in sorted(remap_mapping.items(), key=get_sort_key):
+    for dst_path, src_idx in sorted(remap_mapping.items(), key=get_sort_key):
         print(f"  {input_path.name}/{src_idx} -> {output_path.name}/{dst_path}")
     print()
 
@@ -305,12 +314,15 @@ def remap_data(config: RemapConfig) -> int:
     output_org_note = {}
 
     # Process each remap entry
+    # Note: Keys in remap_mapping are OUTPUT indices, values are INPUT indices
     processed_count = 0
     failed_mappings = []
 
-    for src_idx, dst_path in tqdm(remap_mapping.items(), desc="Remapping datasets"):
-        src_folder = input_path / src_idx
-        # dst_path can now be a simple index ("5") or a nested path ("test/5")
+    for dst_path, src_idx in tqdm(remap_mapping.items(), desc="Remapping datasets"):
+        # src_idx is where we READ from (input folder)
+        # dst_path is where we WRITE to (output folder)
+        src_folder = input_path / str(src_idx)
+        # dst_path can be a simple index ("0") or a nested path ("test/0")
         dst_folder = output_path / dst_path
 
         print(f"\n[{processed_count + 1}/{len(remap_mapping)}] Remapping: {src_idx} -> {dst_path}")
@@ -320,9 +332,11 @@ def remap_data(config: RemapConfig) -> int:
             processed_count += 1
 
             # Update metadata if available in input organization note
-            if src_idx in input_org_note:
+            # Convert src_idx to string for dictionary lookup
+            src_key = str(src_idx)
+            if src_key in input_org_note:
                 updated_entry = update_metadata_entry(
-                    input_org_note[src_idx],
+                    input_org_note[src_key],
                     dst_path,  # Now supports nested paths
                     output_path
                 )
@@ -335,7 +349,7 @@ def remap_data(config: RemapConfig) -> int:
                     "original_data_path": f"(remapped from {input_path.name}/{src_idx})",
                     "new_data_path": f"{output_path.name}/{dst_path}",
                     "full_path": {
-                        "original": str((input_path / src_idx).resolve()),
+                        "original": str((input_path / str(src_idx)).resolve()),
                         "new": str((output_path / dst_path).resolve())
                     },
                     "user_info": {
@@ -345,7 +359,7 @@ def remap_data(config: RemapConfig) -> int:
                     }
                 }
         else:
-            failed_mappings.append((src_idx, dst_idx))
+            failed_mappings.append((dst_path, src_idx))
 
     # Save output organization note
     output_note_file = output_path / "data_organization_note.json"
@@ -358,8 +372,8 @@ def remap_data(config: RemapConfig) -> int:
 
     if failed_mappings:
         print(f"\nFailed mappings:")
-        for src_idx, dst_idx in failed_mappings:
-            print(f"  {src_idx} -> {dst_idx}")
+        for dst_path, src_idx in failed_mappings:
+            print(f"  {src_idx} -> {dst_path}")
 
     print(f"\nInput folder: {input_path}")
     print(f"Output folder: {output_path}")
