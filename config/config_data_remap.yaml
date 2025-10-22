@@ -1,0 +1,25 @@
+# Data Remapping Configuration
+# Used to re-sequence already organized data based on a mapping configuration
+
+workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+
+# Input folder: organized data with sequential numbered folders
+# This should be the output from data_reorg.py (e.g., raw_data)
+input_folder: "/media/jackzhy/Jack_SSD_4T/raw_data_jhu"
+
+# Output folder: where remapped data will be copied
+# Create one if it doesn't exist
+output_folder: "/media/jackzhy/Jack_SSD_4T/contact_detection_dataset/raw"
+
+# Remap configuration file: JSON file defining the mapping
+# Format: {"<input_idx>": <output_idx>, ...}
+# Example: {"0": 5, "1": 3, "2": 0} means:
+#   - Copy input/0 to output/5
+#   - Copy input/1 to output/3
+#   - Copy input/2 to output/0
+remap_config: "${workspace}/tests/remap_data_note.json"
+
+# Optional: Hydra log output configuration
+# hydra:
+#   run:
+#     dir: "${workspace}/outputs/logs/${now:%Y%m%d}_${now:%H%M%S}"

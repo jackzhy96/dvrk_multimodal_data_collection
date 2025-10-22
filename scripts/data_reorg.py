@@ -79,7 +79,10 @@ def find_numeric_folders(root_path: Path, max_depth: int = 5) -> List[Tuple[Path
         max_depth: Maximum recursion depth
 
     Returns:
-        List of tuples (folder_path, numeric_value) sorted by path
+        List of tuples (folder_path, numeric_value) sorted hierarchically:
+        - First by data_<date> folder (chronological order)
+        - Then by complete subfolder path within each date folder
+        - Finally by numeric value within each complete path (0, 1, 2, ...)
 
     Note:
         This function efficiently searches for data collection folders which
@@ -89,6 +92,27 @@ def find_numeric_folders(root_path: Path, max_depth: int = 5) -> List[Tuple[Path
         - Top level: date-based folders like "data_20250809"
         - Within date folders: either direct numeric folders or task folders containing numeric folders
         - Skips calibration folders at all levels
+
+        Sorting follows the hierarchical rules
+        1. Primary sort: by data_<date> folder name (e.g., data_20250809, data_20250810, ...)
+        2. Secondary sort: by complete subfolder hierarchy (e.g., /task1/, /task1/subtask2/, /task2/, ...)
+        3. Tertiary sort: by numeric folder value (0, 1, 2, ...)
+
+        This handles arbitrary nesting depth: /subfolder/ or /subfolder/sub-subfolder/ etc.
+
+        Example correct ordering (with nested subfolders):
+          data_20250809/0
+          data_20250809/task1/0
+          data_20250809/task1/1
+          data_20250809/task1/subtask2/0
+          data_20250809/task1/subtask2/1
+          data_20250809/task2/0
+          data_20250810/0
+
+        This enforces the first rule before the second rule, preventing incorrect ordering like:
+          data_20250809/task1/0
+          data_20250809/task2/0  <-- WRONG: should complete all task1 hierarchy first
+          data_20250809/task1/1
     """
     numeric_folders = []
 
@@ -125,8 +149,55 @@ def find_numeric_folders(root_path: Path, max_depth: int = 5) -> List[Tuple[Path
 
     _search(root_path, 0)
 
-    # Sort by full path for consistent ordering
-    numeric_folders.sort(key=lambda x: str(x[0]))
+    # 1. First, sort by data_<date> folder AND subfolder hierarchy (maintaining path structure)
+    # 2. Within each complete path hierarchy, sort by numeric value (0, 1, 2, ...)
+    def get_sort_key(folder_tuple):
+        """
+        Extract sorting key: (date_folder, subfolder_path, numeric_value)
+
+        This ensures processing follows the rule:
+        - Primary: data_<date> folders in order (e.g., data_20250809, data_20250810, ...)
+        - Secondary: subfolder hierarchy within date folder (e.g., /task1/, /task2/, ...)
+        - Tertiary: numeric folders (0,1,2,...) within each complete path
+
+        Example correct ordering:
+          data_20250809/task1/0
+          data_20250809/task1/1
+          data_20250809/task2/0
+          data_20250810/0
+          data_20250810/1
+
+        This prevents incorrect interleaving like:
+          data_20250809/task1/0
+          data_20250809/task2/0  <-- WRONG
+          data_20250809/task1/1  <-- Should be after task1/0
+        """
+        folder_path, num_value = folder_tuple
+        parts = folder_path.parts
+
+        # Find the data_<date> folder index in the path
+        date_folder = ""
+        date_folder_idx = -1
+        for i, part in enumerate(parts):
+            if part.startswith('data_'):
+                date_folder = part
+                date_folder_idx = i
+                break
+
+        # Extract the subfolder path between date_folder and the numeric folder
+        # This maintains the hierarchy: data_<date>/subfolder1/subfolder2/.../numeric_folder
+        if date_folder_idx >= 0 and date_folder_idx < len(parts) - 1:
+            # Get all folders between date folder and numeric folder (exclusive of both)
+            # e.g., for data_20250809/task1/subtask2/0, we get ('task1', 'subtask2')
+            subfolder_path = parts[date_folder_idx + 1:-1]
+        else:
+            subfolder_path = ()
+
+        # Return (date_folder, subfolder_path_tuple, numeric_value) for hierarchical sorting
+        # If no date folder found, use empty string (will sort first)
+        return (date_folder, subfolder_path, num_value)
+
+    numeric_folders.sort(key=get_sort_key)
 
     return numeric_folders
 
@@ -369,7 +440,7 @@ def update_organization_note(note_path: Path, idx: int, entry: Dict):
         the dataset index (start_idx), and values contain:
         - original_data_path: relative path where the data came from (e.g., "data/data_20250809/0")
         - new_data_path: relative path where it was copied to (e.g., "raw_data/0")
-        - full_path_name: dictionary with "original" and "new" absolute paths
+        - full_path: dictionary with "original" and "new" absolute paths
         - user_info: metadata about the user/operator (user_id, skill_level, description)
 
         Example structure:
@@ -539,7 +610,7 @@ def organize_data(config: DataOrganizationConfig) -> int:
             note_entry = {
                 "original_data_path": str(original_data_rel),
                 "new_data_path": str(new_data_rel),
-                "full_path_name": {
+                "full_path": {
                     "original": str(src_folder.resolve()),
                     "new": str(dst_folder.resolve())
                 },
