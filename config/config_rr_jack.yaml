@@ -1,11 +1,11 @@
 defaults:
-  - path_config: jack_local     # pick one file from the data, data load and store paths
+  - path_config: jack_local_new     # pick one file from the data, data load and store paths
   - preprocess: rectify_resize  # select the preprocess type
   - _self_
 
 workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
 
-camera_calibration_path: "${workspace}/data/camera_calibration" # use your own path
+camera_calibration_path: "${path_config.raw_dir}/camera_calibration" # use your own path
 
 camera_names: ['left', 'right']
 camera_offset:

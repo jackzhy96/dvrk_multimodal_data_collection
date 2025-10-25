@@ -4,15 +4,18 @@ folder_initialize: false
 # custom configurations
 img_size: [512, 288]
 arm_name: ['PSM1', 'PSM2']
+#arm_name: ['PSM2']
 
-input_folder: '${path_config.intermediate_dir}/regular'
+input_folder: '${path_config.intermediate_dir}'
 output_folder: "${path_config.processed_dir}/${.stage}"
 
 weight_config:
   sigma_x: 64
   sigma_y: 64
+#  sigma_x: 128
+#  sigma_y: 96
   advanced_weight: true
-  tol_dist: 0.01
+  tol_dist: 0.02
 
 fps_img: 30
 enable_overlay: true

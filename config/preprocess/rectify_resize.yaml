@@ -9,7 +9,7 @@ resize_config:
 #  new_size: [1024, 576]
   enable_resize: true
 
-input_folder: '${path_config.raw_dir}/regular'
-output_folder: "${path_config.intermediate_dir}/regular"
+input_folder: '${path_config.raw_dir}'
+output_folder: "${path_config.intermediate_dir}"
 
 enable_rectify: true

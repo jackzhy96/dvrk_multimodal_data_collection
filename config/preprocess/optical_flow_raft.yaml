@@ -2,7 +2,7 @@ stage: optical_flow
 folder_initialize: false
 
 
-input_folder: "${path_config.intermediate_dir}/regular"
+input_folder: "${path_config.intermediate_dir}"
 output_folder: "${path_config.processed_dir}/${.stage}"
 flow_format: "npy"
 enable_visualization: true

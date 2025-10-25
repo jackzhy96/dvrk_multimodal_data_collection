@@ -223,7 +223,8 @@ def main(cfg: AppCfg):
 
     _, _, P1_t, P2_t, Q_target = get_rectify_map_new_size(camera_param_left, camera_param_right, original_size, new_size)
 
-    new_camera_calibration_path = output_folder.parent / camera_calibration_path.name
+    # new_camera_calibration_path = output_folder.parent / camera_calibration_path.name
+    new_camera_calibration_path = output_folder / camera_calibration_path.name
 
     if not new_camera_calibration_path.exists():
         create_folder(new_camera_calibration_path)
@@ -292,8 +293,9 @@ def main(cfg: AppCfg):
         create_folder(new_timestamp_folder)
     copy_folder(old_timestamp_folder, new_timestamp_folder)
     # copy and scale the camera parameters
-    copy_stereo_camera_calibration(camera_calibration_path, camera_names, output_folder.parent, original_size,
-                                   new_size)
+    # copy_stereo_camera_calibration(camera_calibration_path, camera_names, output_folder.parent, original_size,
+    #                                new_size)
+    copy_stereo_camera_calibration(camera_calibration_path, camera_names, output_folder, original_size, new_size)
 
 if __name__ == '__main__':
     main()
