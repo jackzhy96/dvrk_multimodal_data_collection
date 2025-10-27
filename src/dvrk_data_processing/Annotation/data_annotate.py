@@ -197,10 +197,13 @@ class ConfigLoader:
     def get_gui_config(self) -> Dict[str, Any]:
         """Get GUI configuration parameters for better scalability."""
         if not self.config or not hasattr(self.config, 'gui_config'):
-            # Return default GUI configuration
+            # Return default GUI configuration optimized for 1080P (1920x1080)
+            # CRITICAL FIX: Ensure FULL window is visible (no parts cut off)
+            # Window size must account for: taskbar (~40px) + decorations (~40px) = ~80px total
+            # Available space: 1080 - 80 = 1000px maximum safe height
             return {
-                'window_width': 1900,
-                'window_height': 1000,
+                'window_width': 1910,  # Slightly wider (user: width has space left)
+                'window_height': 1000,  # Safe height to ensure full visibility
                 'default_playback_speed_ms': 33,
                 'min_playback_speed_ms': 10,
                 'max_playback_speed_ms': 1000,
@@ -214,7 +217,7 @@ class ConfigLoader:
         
         gui_config = self.config.gui_config
         return {
-            'window_width': getattr(gui_config, 'window_width', 1900),
+            'window_width': getattr(gui_config, 'window_width', 1910),
             'window_height': getattr(gui_config, 'window_height', 1000),
             'default_playback_speed_ms': getattr(gui_config, 'default_playback_speed_ms', 33),
             'min_playback_speed_ms': getattr(gui_config, 'min_playback_speed_ms', 10),
@@ -727,13 +730,17 @@ class DataAnnotationGUI(QMainWindow):
         """Initialize the user interface components."""
         self.setWindowTitle("dVRK Data Annotation Tool")
         
+        # CRITICAL FIX: GUI optimized for 1080P with FULL visibility (no parts cut off)
         # Get GUI configuration parameters - using configurable values for better scalability
         gui_config = self.config_loader.get_gui_config() if hasattr(self, 'config_loader') else {
-            'window_width': 1820, 'window_height': 980
+            'window_width': 1910, 'window_height': 1000
         }
-        
+
         # Set window geometry using configurable parameters
-        self.setGeometry(50, 50, gui_config['window_width'], gui_config['window_height'])
+        # Position at (5, 10) to minimize top edge while ensuring full bottom visibility
+        # Height set to 1000px (safe maximum for 1080P with taskbar + decorations)
+        # This ensures NO parts of GUI are cut off at bottom
+        self.setGeometry(5, 10, gui_config['window_width'], gui_config['window_height'])
         
         # Set application style
         self.setStyleSheet(self._get_app_stylesheet())
@@ -913,7 +920,48 @@ class DataAnnotationGUI(QMainWindow):
         slider_layout.addWidget(next_btn)
         
         timeline_layout.addLayout(slider_layout)
-        
+
+        # IMPROVEMENT: Visual annotation progress indicator
+        # Shows which frames have been annotated vs unannotated
+        annotation_indicator_layout = QHBoxLayout()
+        annotation_indicator_layout.addWidget(QLabel("Annotation Status:"))
+
+        self.annotation_progress_label = QLabel("No data loaded")
+        self.annotation_progress_label.setStyleSheet(
+            "font-size: 11px; font-weight: bold; color: #2196F3; padding: 3px;"
+        )
+        annotation_indicator_layout.addWidget(self.annotation_progress_label)
+
+        # Add a progress bar showing annotation completion
+        self.annotation_progress_bar = QProgressBar()
+        self.annotation_progress_bar.setMaximum(100)
+        self.annotation_progress_bar.setValue(0)
+        self.annotation_progress_bar.setTextVisible(True)
+        self.annotation_progress_bar.setFormat("%p% annotated")
+        self.annotation_progress_bar.setMaximumHeight(15)
+        self.annotation_progress_bar.setStyleSheet("""
+            QProgressBar {
+                border: 1px solid #ccc;
+                border-radius: 3px;
+                text-align: center;
+                font-size: 10px;
+            }
+            QProgressBar::chunk {
+                background-color: #4CAF50;
+            }
+        """)
+        annotation_indicator_layout.addWidget(self.annotation_progress_bar)
+
+        # Current frame annotation status indicator
+        self.current_frame_status_label = QLabel("⚪")
+        self.current_frame_status_label.setStyleSheet(
+            "font-size: 14px; font-weight: bold; padding: 3px;"
+        )
+        self.current_frame_status_label.setToolTip("Current frame annotation status")
+        annotation_indicator_layout.addWidget(self.current_frame_status_label)
+
+        timeline_layout.addLayout(annotation_indicator_layout)
+
         # Auto-play controls with speed configuration
         playback_layout = QHBoxLayout()
         
@@ -1133,19 +1181,62 @@ class DataAnnotationGUI(QMainWindow):
         return multi_frame_group
     
     def _create_event_section(self) -> QGroupBox:
-        """Create event annotation section with text input."""
-        event_group = QGroupBox("Event Annotation")
-        event_layout = QFormLayout(event_group)
-        
-        # Use simple text input for event annotation
+        """
+        Create enhanced event annotation section supporting multiple events.
+
+        IMPROVEMENT: Supports multiple events per frame with sequencing:
+        - Add multiple events to the same frame
+        - Reorder events (Move Up/Down)
+        - Remove individual events
+        - Shows current events for the frame in a list
+        """
+        event_group = QGroupBox("Event Annotation (Multi-Event Support)")
+        event_layout = QVBoxLayout(event_group)
+
+        # Input for new event
+        input_layout = QHBoxLayout()
+        input_layout.addWidget(QLabel("Event:"))
         self.event_input = QLineEdit()
         self.event_input.setPlaceholderText("Enter event name...")
-        event_layout.addRow("Event:", self.event_input)
-        
-        add_event_btn = QPushButton("Add Event")
+        self.event_input.returnPressed.connect(self._add_event_annotation)  # Add on Enter
+        input_layout.addWidget(self.event_input)
+        event_layout.addLayout(input_layout)
+
+        # Add event button
+        add_event_btn = QPushButton("+ Add Event")
         add_event_btn.clicked.connect(self._add_event_annotation)
+        add_event_btn.setStyleSheet("background-color: #4CAF50; font-weight: bold;")
         event_layout.addWidget(add_event_btn)
-        
+
+        # IMPROVEMENT: List showing current frame's events with ordering
+        event_layout.addWidget(QLabel("Current Frame Events:"))
+        self.current_frame_events_list = QListWidget()
+        self.current_frame_events_list.setMaximumHeight(80)
+        self.current_frame_events_list.setStyleSheet(
+            "QListWidget { background-color: #f9f9f9; border: 1px solid #ccc; }"
+        )
+        event_layout.addWidget(self.current_frame_events_list)
+
+        # IMPROVEMENT: Event management buttons (Remove, Move Up/Down)
+        event_mgmt_layout = QHBoxLayout()
+
+        remove_event_btn = QPushButton("− Remove")
+        remove_event_btn.clicked.connect(self._remove_selected_event)
+        remove_event_btn.setStyleSheet("background-color: #f44336; color: white;")
+        event_mgmt_layout.addWidget(remove_event_btn)
+
+        move_up_btn = QPushButton("↑ Move Up")
+        move_up_btn.clicked.connect(self._move_event_up)
+        move_up_btn.setStyleSheet("background-color: #2196F3; color: white;")
+        event_mgmt_layout.addWidget(move_up_btn)
+
+        move_down_btn = QPushButton("↓ Move Down")
+        move_down_btn.clicked.connect(self._move_event_down)
+        move_down_btn.setStyleSheet("background-color: #2196F3; color: white;")
+        event_mgmt_layout.addWidget(move_down_btn)
+
+        event_layout.addLayout(event_mgmt_layout)
+
         return event_group
     
     def _create_phase_section(self) -> QGroupBox:
@@ -1169,22 +1260,47 @@ class DataAnnotationGUI(QMainWindow):
         return phase_group
     
     def _create_contact_section(self) -> QGroupBox:
-        """Create contact annotation section."""
+        """
+        Create contact annotation section.
+
+        FIXED: Compact layout to fit 3 PSMs without requiring scroll.
+        Uses horizontal layout for checkboxes to save vertical space.
+
+        FIXED: Increased font sizes from 10px to 12px for better readability.
+        """
         contact_group = QGroupBox("Contact Detection")
-        contact_layout = QFormLayout(contact_group)
-        
-        contact_layout.addRow(QLabel("Select PSMs with contact:"))
-        
-        # Create contact checkboxes for each active PSM
+        contact_layout = QVBoxLayout(contact_group)  # Changed from QFormLayout for better control
+
+        # Label with readable font size
+        label = QLabel("Select PSMs with contact:")
+        label.setStyleSheet("font-size: 12px; margin-bottom: 2px;")  # FIXED: 10px → 12px
+        contact_layout.addWidget(label)
+
+        # FIXED: Use horizontal layout for checkboxes to save vertical space
+        # This allows all 3 PSMs to fit without scrolling
+        checkbox_layout = QHBoxLayout()
+        checkbox_layout.setSpacing(8)  # Slightly more spacing for readability
+
+        # Create checkboxes for each active PSM with readable font
         for psm in self.active_psms:
-            checkbox = QCheckBox(f"{psm} Contact")
+            checkbox = QCheckBox(psm)  # Just PSM name (compact)
+            checkbox.setStyleSheet("font-size: 12px;")  # FIXED: 10px → 12px for readability
             self.contact_checkboxes[psm] = checkbox
-            contact_layout.addWidget(checkbox)
-        
+            checkbox_layout.addWidget(checkbox)
+
+        checkbox_layout.addStretch()  # Push checkboxes to left
+        contact_layout.addLayout(checkbox_layout)
+
+        # Button with readable font
         add_contact_btn = QPushButton("Add Contact State")
+        add_contact_btn.setStyleSheet("font-size: 12px; padding: 5px;")  # FIXED: 10px → 12px, padding 3px → 5px
         add_contact_btn.clicked.connect(self._add_contact_annotation)
         contact_layout.addWidget(add_contact_btn)
-        
+
+        # Minimize vertical spacing while maintaining readability
+        contact_layout.setSpacing(5)  # FIXED: 3px → 5px for better visual separation
+        contact_layout.setContentsMargins(5, 5, 5, 5)
+
         return contact_group
     
     def _create_current_annotations_section(self) -> QGroupBox:
@@ -1815,7 +1931,106 @@ class DataAnnotationGUI(QMainWindow):
         
         self._add_annotation("event", annotation)
         self.event_input.clear()  # Clear input
-    
+
+    def _remove_selected_event(self):
+        """
+        Remove selected event from current frame's event list.
+
+        IMPROVEMENT: Allows selective removal of individual events from multi-event frames.
+        """
+        current_item = self.current_frame_events_list.currentItem()
+        if not current_item:
+            QMessageBox.information(self, "No Selection", "Please select an event to remove.")
+            return
+
+        event_name = current_item.text()
+
+        # Find and remove the matching event annotation
+        if self.current_frame_index in self.annotations:
+            frame_annotations = self.annotations[self.current_frame_index]
+            # Find all event annotations
+            event_annotations = [a for a in frame_annotations if a["category"] == "event"]
+
+            # Remove the matching event
+            for annotation in event_annotations:
+                if annotation["data"].get("event") == event_name:
+                    frame_annotations.remove(annotation)
+                    break
+
+            # Clean up if no annotations left for this frame
+            if not frame_annotations:
+                del self.annotations[self.current_frame_index]
+
+            # Update displays
+            self._update_annotation_list()
+            self.statusBar().showMessage(f"Removed event '{event_name}' from frame {self.current_frame_index + 1}")
+
+    def _move_event_up(self):
+        """
+        Move selected event up in the sequence.
+
+        IMPROVEMENT: Allows reordering of multiple events on the same frame.
+        FIXED: Now properly swaps events in the original frame_annotations list.
+        """
+        current_row = self.current_frame_events_list.currentRow()
+        if current_row <= 0:
+            return  # Already at top or no selection
+
+        if self.current_frame_index not in self.annotations:
+            return
+
+        # Get all event annotations for this frame with their indices
+        frame_annotations = self.annotations[self.current_frame_index]
+        event_indices = [i for i, a in enumerate(frame_annotations) if a["category"] == "event"]
+
+        if current_row < len(event_indices):
+            # FIXED: Swap in the original frame_annotations list (not a filtered copy)
+            idx_current = event_indices[current_row]
+            idx_previous = event_indices[current_row - 1]
+
+            # Swap the annotations in the original list
+            frame_annotations[idx_current], frame_annotations[idx_previous] = \
+                frame_annotations[idx_previous], frame_annotations[idx_current]
+
+            # Update the display and maintain selection
+            self._update_annotation_list()
+            self.current_frame_events_list.setCurrentRow(current_row - 1)
+            self.statusBar().showMessage(f"Moved event up")
+
+    def _move_event_down(self):
+        """
+        Move selected event down in the sequence.
+
+        IMPROVEMENT: Allows reordering of multiple events on the same frame.
+        FIXED: Now properly swaps events in the original frame_annotations list.
+        """
+        current_row = self.current_frame_events_list.currentRow()
+        if current_row < 0:
+            return  # No selection
+
+        if self.current_frame_index not in self.annotations:
+            return
+
+        # Get all event annotations for this frame with their indices
+        frame_annotations = self.annotations[self.current_frame_index]
+        event_indices = [i for i, a in enumerate(frame_annotations) if a["category"] == "event"]
+
+        if current_row >= len(event_indices) - 1:
+            return  # Already at bottom
+
+        # FIXED: Swap in the original frame_annotations list (not a filtered copy)
+        idx_current = event_indices[current_row]
+        idx_next = event_indices[current_row + 1]
+
+        # Swap the annotations in the original list
+        frame_annotations[idx_current], frame_annotations[idx_next] = \
+            frame_annotations[idx_next], frame_annotations[idx_current]
+
+        # Update the display and maintain selection
+        self._update_annotation_list()
+        self.current_frame_events_list.setCurrentRow(current_row + 1)
+        self.statusBar().showMessage(f"Moved event down")
+
     def _add_phase_annotation(self):
         """Add independent phase annotations for each PSM with phase text."""
         phases_to_add = {}
@@ -1872,35 +2087,68 @@ class DataAnnotationGUI(QMainWindow):
     def _add_contact_annotation(self):
         """
         Add independent contact annotations for each PSM.
-        
+
+        FIXED: When no PSMs selected, adds non-contact states (all PSMs = 0) instead of removing.
+
         Creates individual contact annotations that can be added/removed independently:
         - Each PSM contact is a separate annotation
         - Can add/remove individual PSM contacts without affecting others
         - Still saves in combined JSON format for compatibility
-        
-        Display format: Shows individual lines for each PSM with contact:
-        ├── [contact] PSM1 contact
-        ├── [contact] PSM2 contact  
-        └── [contact] PSM3 contact
+
+        Behavior:
+        - No PSMs selected → Add non-contact states for ALL PSMs (contact = 0)
+        - Some PSMs selected → Add contact states (contact = 1) for selected, non-contact (0) for others
+
+        Display format: Shows individual lines for each PSM:
+        ├── [contact] PSM1: ✓ Contact  (if contact = 1)
+        ├── [contact] PSM2: ○ No Contact  (if contact = 0)
+        └── [contact] PSM3: ✓ Contact  (if contact = 1)
         """
+        # CRITICAL FIX: Validate that active_psms is not empty
+        # This prevents the bug where removing contacts without adding them back
+        if not self.active_psms:
+            QMessageBox.warning(
+                self,
+                "No PSMs Configured",
+                "No PSMs are configured. Please load a configuration file first.\n\n"
+                "File → Load Configuration"
+            )
+            print("ERROR: Cannot add contact annotation - no active PSMs configured")
+            return
+
+        # CRITICAL FIX: Validate that contact_checkboxes is properly initialized
+        if not self.contact_checkboxes:
+            QMessageBox.warning(
+                self,
+                "Contact Section Not Ready",
+                "Contact detection section is not properly initialized.\n\n"
+                "Please load a configuration file first: File → Load Configuration"
+            )
+            print("ERROR: Cannot add contact annotation - contact_checkboxes not initialized")
+            return
+
         # Get currently selected PSMs
         selected_psms = []
         for psm, checkbox in self.contact_checkboxes.items():
             if checkbox.isChecked():
                 selected_psms.append(psm)
-        
-        if not selected_psms:
-            # No PSMs selected - remove all existing contact labels
-            self._remove_contact_labels()
-        else:
-            # Remove existing contact labels first, then add new ones
-            self._remove_contact_labels()
-            
-            # Add individual contact annotation for each selected PSM
-            for psm in selected_psms:
-                contact_data = {psm: 1}  # Individual PSM contact
-                self._add_annotation(f"contact_{psm}", contact_data)
-        
+
+        # FIXED: Always remove existing contact labels first to ensure clean state
+        self._remove_contact_labels()
+
+        # FIXED: Add annotations for ALL active PSMs (not just selected ones)
+        # This ensures both contact and non-contact states are properly tracked
+        for psm in self.active_psms:
+            if psm in selected_psms:
+                # PSM is selected → Add contact (value = 1)
+                contact_data = {psm: 1}
+            else:
+                # PSM is NOT selected → Add non-contact (value = 0)
+                # FIXED: Previously, unselected PSMs were not added at all
+                contact_data = {psm: 0}
+
+            self._add_annotation(f"contact_{psm}", contact_data)
+
         # Clear checkboxes
         for checkbox in self.contact_checkboxes.values():
             checkbox.setChecked(False)
@@ -2064,37 +2312,80 @@ class DataAnnotationGUI(QMainWindow):
                         # Convert combined saved format back to individual PSM annotations for consistency
                         # This ensures loaded annotations display the same way as before saving
                         if category == "contact_detection":
+                            # ROBUST LOADING: Handle null values, 0 values, and validate data types
                             # Convert combined contact format to individual PSM annotations
+                            if not isinstance(annotation_data, dict):
+                                print(f"Warning: Invalid contact data in {json_file}, expected dict, got {type(annotation_data)}")
+                                continue
+
                             for psm, contact_value in annotation_data.items():
-                                if contact_value == 1:  # Only add contact annotations for PSMs with contact
-                                    individual_category = f"contact_{psm}"
-                                    individual_data = {psm: contact_value}
-                                    
-                                    annotation_entry = {
-                                        'category': individual_category,
-                                        'data': individual_data,
-                                        'timestamp': datetime.datetime.now().isoformat()
-                                    }
-                                    
-                                    # Check if this individual annotation already exists
-                                    existing_entry = None
-                                    for i, entry in enumerate(self.annotations[frame_index]):
-                                        if entry['category'] == individual_category:
-                                            existing_entry = i
-                                            break
-                                    
-                                    if existing_entry is not None:
-                                        # Replace existing annotation
-                                        self.annotations[frame_index][existing_entry] = annotation_entry
+                                # Validate and normalize contact value
+                                # Handles: int (0, 1), bool (False, True), string ("0", "1"), None, null
+                                try:
+                                    if contact_value is None:
+                                        contact_value = 0  # null → 0 (no contact, not annotated)
+                                    elif isinstance(contact_value, bool):
+                                        contact_value = 1 if contact_value else 0
+                                    elif isinstance(contact_value, str):
+                                        contact_value = int(contact_value)
                                     else:
-                                        # Add new annotation
-                                        self.annotations[frame_index].append(annotation_entry)
+                                        contact_value = int(contact_value)
+
+                                    # Clamp to valid range [0, 1] in case of invalid values like 2, -1
+                                    contact_value = max(0, min(1, contact_value))
+                                except (ValueError, TypeError) as e:
+                                    print(f"Warning: Invalid contact value '{contact_value}' for {psm} in {json_file}, defaulting to 0")
+                                    contact_value = 0
+
+                                # IMPROVEMENT: Load BOTH contact (1) and non-contact (0) states
+                                # This allows GUI to reflect both states in the label indicator
+                                individual_category = f"contact_{psm}"
+                                individual_data = {psm: contact_value}
+
+                                annotation_entry = {
+                                    'category': individual_category,
+                                    'data': individual_data,
+                                    'timestamp': datetime.datetime.now().isoformat()
+                                }
+
+                                # Check if this individual annotation already exists
+                                existing_entry = None
+                                for i, entry in enumerate(self.annotations[frame_index]):
+                                    if entry['category'] == individual_category:
+                                        existing_entry = i
+                                        break
+
+                                if existing_entry is not None:
+                                    # Replace existing annotation
+                                    self.annotations[frame_index][existing_entry] = annotation_entry
+                                else:
+                                    # Add new annotation
+                                    self.annotations[frame_index].append(annotation_entry)
                                         
                         elif category == "phase":
+                            # ROBUST LOADING: Handle null/None values and validate data types
                             # Convert combined phase format to individual PSM annotations
+                            if not isinstance(annotation_data, dict):
+                                print(f"Warning: Invalid phase data in {json_file}, expected dict, got {type(annotation_data)}")
+                                continue
+
                             phase_data = annotation_data.get("phase", {})
+                            if not isinstance(phase_data, dict):
+                                print(f"Warning: Invalid phase data structure in {json_file}, expected dict, got {type(phase_data)}")
+                                continue
+
                             for psm, phase_value in phase_data.items():
-                                if phase_value:  # Only add phase annotations for PSMs with phase text
+                                # Only load phase annotations for PSMs with actual phase text
+                                # Handles: None, null, empty string "", whitespace-only strings
+                                # Treats all as "not annotated" and skips loading them
+                                if phase_value is None:
+                                    continue  # null/None → not annotated, skip
+                                if not isinstance(phase_value, str):
+                                    phase_value = str(phase_value) if phase_value else None
+                                if not phase_value or not phase_value.strip():
+                                    continue  # Empty or whitespace-only → not annotated, skip
+
+                                if phase_value:  # Only add phase annotations for PSMs with actual phase text
                                     individual_category = f"phase_{psm}"
                                     individual_data = {"phase": {psm: phase_value}}
                                     
@@ -2121,22 +2412,39 @@ class DataAnnotationGUI(QMainWindow):
                         else:
                             # Handle other categories (like event) normally
                             if category == 'event':
+                                # ROBUST LOADING: Handle null/None values for events
                                 # Handle both old and new event JSON formats
                                 if isinstance(annotation_data, dict) and "events" in annotation_data:
                                     # New format: {"events": ["test1", "test2"]} - multiple events
-                                    for event_label in annotation_data["events"]:
+                                    events_list = annotation_data["events"]
+                                    if not isinstance(events_list, list):
+                                        print(f"Warning: Invalid events format in {json_file}, expected list, got {type(events_list)}")
+                                        continue
+
+                                    for event_label in events_list:
+                                        # Skip null, None, or empty event labels
+                                        if event_label is None or not str(event_label).strip():
+                                            continue  # null/None/empty → not annotated, skip
+
                                         annotation_entry = {
                                             'category': category,
-                                            'data': {'event': event_label},
+                                            'data': {'event': str(event_label).strip()},
                                             'timestamp': datetime.datetime.now().isoformat()
                                         }
                                         # Always add new event annotations - enable multiple event labels per frame
                                         self.annotations[frame_index].append(annotation_entry)
+
                                 elif isinstance(annotation_data, dict) and "event" in annotation_data:
                                     # Old format: {"event": "test1"} - single event
+                                    event_value = annotation_data["event"]
+
+                                    # Skip null, None, or empty event values
+                                    if event_value is None or not str(event_value).strip():
+                                        continue  # null/None/empty → not annotated, skip
+
                                     annotation_entry = {
                                         'category': category,
-                                        'data': annotation_data,
+                                        'data': {'event': str(event_value).strip()},
                                         'timestamp': datetime.datetime.now().isoformat()
                                     }
                                     # Always add new event annotations - enable multiple event labels per frame
@@ -2173,8 +2481,9 @@ class DataAnnotationGUI(QMainWindow):
                         
                         loaded_counts[category] += 1
                         
-                    except (ValueError, json.JSONDecodeError, KeyError) as e:
+                    except (ValueError, json.JSONDecodeError, KeyError, TypeError, AttributeError) as e:
                         print(f"Error loading annotation file {json_file}: {e}")
+                        print(f"Traceback: {traceback.format_exc()}")
                         continue
             
             # Update status with loaded annotation counts
@@ -2307,37 +2616,80 @@ class DataAnnotationGUI(QMainWindow):
                         # Convert combined saved format back to individual PSM annotations for consistency
                         # This ensures loaded annotations display the same way as before saving
                         if category == "contact_detection":
+                            # ROBUST LOADING: Handle null values, 0 values, and validate data types
                             # Convert combined contact format to individual PSM annotations
+                            if not isinstance(annotation_data, dict):
+                                print(f"Warning: Invalid contact data in {json_file}, expected dict, got {type(annotation_data)}")
+                                continue
+
                             for psm, contact_value in annotation_data.items():
-                                if contact_value == 1:  # Only add contact annotations for PSMs with contact
-                                    individual_category = f"contact_{psm}"
-                                    individual_data = {psm: contact_value}
-                                    
-                                    annotation_entry = {
-                                        'category': individual_category,
-                                        'data': individual_data,
-                                        'timestamp': datetime.datetime.now().isoformat()
-                                    }
-                                    
-                                    # Check if this individual annotation already exists
-                                    existing_entry = None
-                                    for i, entry in enumerate(self.annotations[frame_index]):
-                                        if entry['category'] == individual_category:
-                                            existing_entry = i
-                                            break
-                                    
-                                    if existing_entry is not None:
-                                        # Replace existing annotation
-                                        self.annotations[frame_index][existing_entry] = annotation_entry
+                                # Validate and normalize contact value
+                                # Handles: int (0, 1), bool (False, True), string ("0", "1"), None, null
+                                try:
+                                    if contact_value is None:
+                                        contact_value = 0  # null → 0 (no contact, not annotated)
+                                    elif isinstance(contact_value, bool):
+                                        contact_value = 1 if contact_value else 0
+                                    elif isinstance(contact_value, str):
+                                        contact_value = int(contact_value)
                                     else:
-                                        # Add new annotation
-                                        self.annotations[frame_index].append(annotation_entry)
+                                        contact_value = int(contact_value)
+
+                                    # Clamp to valid range [0, 1] in case of invalid values like 2, -1
+                                    contact_value = max(0, min(1, contact_value))
+                                except (ValueError, TypeError) as e:
+                                    print(f"Warning: Invalid contact value '{contact_value}' for {psm} in {json_file}, defaulting to 0")
+                                    contact_value = 0
+
+                                # IMPROVEMENT: Load BOTH contact (1) and non-contact (0) states
+                                # This allows GUI to reflect both states in the label indicator
+                                individual_category = f"contact_{psm}"
+                                individual_data = {psm: contact_value}
+
+                                annotation_entry = {
+                                    'category': individual_category,
+                                    'data': individual_data,
+                                    'timestamp': datetime.datetime.now().isoformat()
+                                }
+
+                                # Check if this individual annotation already exists
+                                existing_entry = None
+                                for i, entry in enumerate(self.annotations[frame_index]):
+                                    if entry['category'] == individual_category:
+                                        existing_entry = i
+                                        break
+
+                                if existing_entry is not None:
+                                    # Replace existing annotation
+                                    self.annotations[frame_index][existing_entry] = annotation_entry
+                                else:
+                                    # Add new annotation
+                                    self.annotations[frame_index].append(annotation_entry)
                                         
                         elif category == "phase":
+                            # ROBUST LOADING: Handle null/None values and validate data types
                             # Convert combined phase format to individual PSM annotations
+                            if not isinstance(annotation_data, dict):
+                                print(f"Warning: Invalid phase data in {json_file}, expected dict, got {type(annotation_data)}")
+                                continue
+
                             phase_data = annotation_data.get("phase", {})
+                            if not isinstance(phase_data, dict):
+                                print(f"Warning: Invalid phase data structure in {json_file}, expected dict, got {type(phase_data)}")
+                                continue
+
                             for psm, phase_value in phase_data.items():
-                                if phase_value:  # Only add phase annotations for PSMs with phase text
+                                # Only load phase annotations for PSMs with actual phase text
+                                # Handles: None, null, empty string "", whitespace-only strings
+                                # Treats all as "not annotated" and skips loading them
+                                if phase_value is None:
+                                    continue  # null/None → not annotated, skip
+                                if not isinstance(phase_value, str):
+                                    phase_value = str(phase_value) if phase_value else None
+                                if not phase_value or not phase_value.strip():
+                                    continue  # Empty or whitespace-only → not annotated, skip
+
+                                if phase_value:  # Only add phase annotations for PSMs with actual phase text
                                     individual_category = f"phase_{psm}"
                                     individual_data = {"phase": {psm: phase_value}}
                                     
@@ -2364,22 +2716,39 @@ class DataAnnotationGUI(QMainWindow):
                         else:
                             # Handle other categories (like event) normally
                             if category == 'event':
+                                # ROBUST LOADING: Handle null/None values for events
                                 # Handle both old and new event JSON formats
                                 if isinstance(annotation_data, dict) and "events" in annotation_data:
                                     # New format: {"events": ["test1", "test2"]} - multiple events
-                                    for event_label in annotation_data["events"]:
+                                    events_list = annotation_data["events"]
+                                    if not isinstance(events_list, list):
+                                        print(f"Warning: Invalid events format in {json_file}, expected list, got {type(events_list)}")
+                                        continue
+
+                                    for event_label in events_list:
+                                        # Skip null, None, or empty event labels
+                                        if event_label is None or not str(event_label).strip():
+                                            continue  # null/None/empty → not annotated, skip
+
                                         annotation_entry = {
                                             'category': category,
-                                            'data': {'event': event_label},
+                                            'data': {'event': str(event_label).strip()},
                                             'timestamp': datetime.datetime.now().isoformat()
                                         }
                                         # Always add new event annotations - enable multiple event labels per frame
                                         self.annotations[frame_index].append(annotation_entry)
+
                                 elif isinstance(annotation_data, dict) and "event" in annotation_data:
                                     # Old format: {"event": "test1"} - single event
+                                    event_value = annotation_data["event"]
+
+                                    # Skip null, None, or empty event values
+                                    if event_value is None or not str(event_value).strip():
+                                        continue  # null/None/empty → not annotated, skip
+
                                     annotation_entry = {
                                         'category': category,
-                                        'data': annotation_data,
+                                        'data': {'event': str(event_value).strip()},
                                         'timestamp': datetime.datetime.now().isoformat()
                                     }
                                     # Always add new event annotations - enable multiple event labels per frame
@@ -2416,8 +2785,9 @@ class DataAnnotationGUI(QMainWindow):
                         
                         loaded_counts[category] += 1
                         
-                    except (ValueError, json.JSONDecodeError, KeyError) as e:
+                    except (ValueError, json.JSONDecodeError, KeyError, TypeError, AttributeError) as e:
                         print(f"Error loading annotation file {json_file}: {e}")
+                        print(f"Traceback: {traceback.format_exc()}")
                         continue
             
             # Update status with loaded annotation counts
@@ -2457,9 +2827,17 @@ class DataAnnotationGUI(QMainWindow):
             QMessageBox.critical(self, "Annotation Loading Error", error_msg)
     
     def _update_annotation_list(self):
-        """Update the annotation list for current frame, similar to annotate_event.py."""
+        """
+        Update the annotation list for current frame.
+
+        IMPROVEMENT: Also updates the current frame events list for multi-event management.
+        """
         self.annotation_list.clear()
-        
+
+        # IMPROVEMENT: Update current frame events list for multi-event UI
+        if hasattr(self, 'current_frame_events_list'):
+            self.current_frame_events_list.clear()
+
         if self.current_frame_index in self.annotations:
             for annotation in self.annotations[self.current_frame_index]:
                 category = annotation["category"]
@@ -2467,7 +2845,12 @@ class DataAnnotationGUI(QMainWindow):
                 
                 # Create display text for individual annotations (since we now convert during loading)
                 if category == "event":
-                    display_text = f"[{category}] {data['event']}"
+                    event_name = data['event']
+                    display_text = f"[{category}] {event_name}"
+
+                    # IMPROVEMENT: Also add to current frame events list for multi-event management
+                    if hasattr(self, 'current_frame_events_list'):
+                        self.current_frame_events_list.addItem(event_name)
                 elif category.startswith("phase_"):
                     # Handle individual PSM phase annotations (phase_PSM1, phase_PSM2, etc.)
                     psm = category.replace("phase_", "")
@@ -2476,12 +2859,15 @@ class DataAnnotationGUI(QMainWindow):
                     else:
                         continue  # Skip if no phase text
                 elif category.startswith("contact_"):
+                    # IMPROVEMENT: Show BOTH contact and non-contact states
                     # Handle individual PSM contact annotations (contact_PSM1, contact_PSM2, etc.)
                     psm = category.replace("contact_", "")
-                    if psm in data and data[psm]:  # Only show if PSM has contact
-                        display_text = f"[contact] {psm} contact"
+                    contact_value = data.get(psm, 0)
+
+                    if contact_value == 1:
+                        display_text = f"[contact] {psm}: ✓ Contact"
                     else:
-                        continue  # Skip if no contact
+                        display_text = f"[contact] {psm}: ○ No Contact"
                 else:
                     display_text = f"[{category}] {str(data)}"
                 
@@ -2492,12 +2878,68 @@ class DataAnnotationGUI(QMainWindow):
                 if category == "event":
                     list_item.setBackground(QColor(220, 255, 220))  # Light green
                 elif category.startswith("phase_"):
-                    list_item.setBackground(QColor(220, 220, 255))  # Light blue  
+                    list_item.setBackground(QColor(220, 220, 255))  # Light blue
                 elif category.startswith("contact_"):
-                    list_item.setBackground(QColor(255, 220, 220))  # Light red
+                    # Different colors for contact vs non-contact
+                    psm = category.replace("contact_", "")
+                    contact_value = data.get(psm, 0)
+                    if contact_value == 1:
+                        list_item.setBackground(QColor(255, 200, 200))  # Light red (contact)
+                    else:
+                        list_item.setBackground(QColor(240, 240, 240))  # Light gray (no contact)
                 
                 self.annotation_list.addItem(list_item)
-    
+
+        # IMPROVEMENT: Update visual indicators when annotation list changes
+        self._update_visual_indicators()
+
+    def _update_visual_indicators(self):
+        """
+        Update all visual annotation indicators including progress bar and current frame status.
+
+        This method provides real-time visual feedback about annotation progress:
+        - Progress bar showing % of frames annotated
+        - Current frame status (annotated or not)
+        - Annotation progress label with count
+        """
+        if not self.frame_files:
+            return
+
+        total_frames = len(self.frame_files)
+        annotated_frames = len(self.annotations)
+        progress_percent = (annotated_frames / total_frames * 100) if total_frames > 0 else 0
+
+        # Update progress bar
+        if hasattr(self, 'annotation_progress_bar'):
+            self.annotation_progress_bar.setValue(int(progress_percent))
+
+        # Update progress label
+        if hasattr(self, 'annotation_progress_label'):
+            self.annotation_progress_label.setText(
+                f"{annotated_frames}/{total_frames} frames"
+            )
+
+        # Update current frame status indicator
+        if hasattr(self, 'current_frame_status_label'):
+            if self.current_frame_index in self.annotations:
+                # Frame has annotations - show green check mark
+                self.current_frame_status_label.setText("✓")
+                self.current_frame_status_label.setStyleSheet(
+                    "font-size: 16px; font-weight: bold; color: #4CAF50; padding: 3px;"
+                )
+                self.current_frame_status_label.setToolTip(
+                    f"Frame {self.current_frame_index + 1} has {len(self.annotations[self.current_frame_index])} annotation(s)"
+                )
+            else:
+                # Frame has no annotations - show empty circle
+                self.current_frame_status_label.setText("○")
+                self.current_frame_status_label.setStyleSheet(
+                    "font-size: 16px; font-weight: bold; color: #999; padding: 3px;"
+                )
+                self.current_frame_status_label.setToolTip(
+                    f"Frame {self.current_frame_index + 1} has no annotations"
+                )
+
     def _update_statistics(self):
         """Update statistics display, similar to annotate_event.py."""
         if not self.annotations:
@@ -2552,10 +2994,97 @@ By Category:"""
         self.statusBar().showMessage("Statistics refreshed")
     
     def _edit_annotation(self, item: QListWidgetItem):
-        """Handle annotation editing (double-click)."""
-        # For now, just show info - could implement full editing dialog
-        QMessageBox.information(self, "Edit Annotation", 
-                               "Annotation editing will be implemented in future version.")
+        """
+        Handle annotation editing (double-click).
+
+        IMPROVEMENT: Allows in-place editing of annotations for quick modifications.
+        """
+        if not item:
+            return
+
+        # Get the annotation index from the list
+        row = self.annotation_list.row(item)
+
+        if self.current_frame_index not in self.annotations:
+            return
+
+        frame_annotations = self.annotations[self.current_frame_index]
+        if row >= len(frame_annotations):
+            return
+
+        annotation = frame_annotations[row]
+        category = annotation["category"]
+        data = annotation["data"]
+
+        # Create edit dialog based on annotation type
+        if category == "event":
+            # Edit event name
+            current_event = data.get("event", "")
+            new_event, ok = self._show_input_dialog(
+                "Edit Event",
+                "Event name:",
+                current_event
+            )
+            if ok and new_event.strip():
+                data["event"] = new_event.strip()
+                self._update_annotation_list()
+                self.statusBar().showMessage(f"Updated event to '{new_event.strip()}'")
+
+        elif category.startswith("phase_"):
+            # Edit phase text for specific PSM
+            psm = category.replace("phase_", "")
+            current_phase = data.get("phase", {}).get(psm, "")
+            new_phase, ok = self._show_input_dialog(
+                f"Edit Phase for {psm}",
+                f"{psm} phase:",
+                current_phase
+            )
+            if ok:
+                if "phase" not in data:
+                    data["phase"] = {}
+                data["phase"][psm] = new_phase.strip() if new_phase.strip() else None
+                self._update_annotation_list()
+                self.statusBar().showMessage(f"Updated {psm} phase to '{new_phase.strip()}'")
+
+        elif category.startswith("contact_"):
+            # Contact is boolean - toggle it
+            psm = category.replace("contact_", "")
+            current_contact = data.get(psm, 0)
+            new_contact = 0 if current_contact == 1 else 1
+            data[psm] = new_contact
+            self._update_annotation_list()
+            status_text = "contact" if new_contact == 1 else "no contact"
+            self.statusBar().showMessage(f"Updated {psm} to '{status_text}'")
+
+        else:
+            QMessageBox.information(
+                self,
+                "Edit Not Supported",
+                f"Editing for category '{category}' is not yet supported."
+            )
+
+    def _show_input_dialog(self, title: str, label: str, default_value: str = "") -> Tuple[str, bool]:
+        """
+        Show an input dialog for text input.
+
+        Args:
+            title: Dialog title
+            label: Input label
+            default_value: Default value for the input
+
+        Returns:
+            Tuple of (input_text, ok_pressed)
+        """
+        from PyQt5.QtWidgets import QInputDialog
+
+        text, ok = QInputDialog.getText(
+            self,
+            title,
+            label,
+            QLineEdit.Normal,
+            default_value
+        )
+        return text, ok
     
     def _remove_selected_annotation(self):
         """Remove selected annotation from current frame or frame range if multi-frame mode is enabled."""
@@ -2760,40 +3289,93 @@ By Category:"""
             self.statusBar().showMessage(f"Save folder set to: {self.custom_save_folder}")
     
     def _update_video_display_size(self):
-        """Update video display size based on config image max sizes."""
+        """
+        Update video display size based on config image max sizes and available GUI space.
+
+        IMPROVEMENT: Smart adaptive sizing that:
+        1. Calculates available space from window dimensions and splitter proportions
+        2. Adapts to different image resolutions from config
+        3. Minimizes scrollbar usage by utilizing available space efficiently
+        4. Accounts for UI elements (menubar, statusbar, timeline, buttons, borders)
+        """
         if self.config and hasattr(self, 'video_display_label'):
             try:
                 # Get image size configuration
                 size_config = self.config_loader.get_image_size_config()
                 main_size = size_config.get('main_image_max_size')
                 side_size = size_config.get('side_image_max_size')
-                
-                # Calculate appropriate display size for 2x2 grid layout
+
+                # Get GUI configuration for window dimensions
+                gui_config = self.config_loader.get_gui_config()
+                window_width = gui_config.get('window_width', 1910)
+                window_height = gui_config.get('window_height', 1000)
+
+                # Calculate combined image dimensions
                 # Layout: [Left | Right] (top row)
                 #         [Side1 | Side2] (bottom row)
                 main_w, main_h = main_size[0], main_size[1]
                 side_w, side_h = side_size[0], side_size[1]
-                
-                # Total width: max of (main_width + main_width, side_width + side_width) + padding
-                top_row_width = main_w  # Already divided by 2 in combine_images, but we want full display
-                bottom_row_width = side_w + side_w  # Two side cameras side by side
-                total_width = max(top_row_width, bottom_row_width) + 50
-                
-                # Total height: main_height + side_height + padding  
-                total_height = main_h + side_h + 100
-                
-                # Ensure it fits in 1920x1080 screen with room for controls
-                max_display_width = min(total_width, 1200)
-                max_display_height = min(total_height, 700)
-                
+
+                # Combined image size (what ImageProcessor creates)
+                # Top row: main cameras side by side (width = main_w, already divided by 2 in combine_images)
+                # Bottom row: side cameras side by side (width = 2*side_w)
+                combined_image_width = max(main_w, 2 * side_w)
+                combined_image_height = main_h + side_h
+
+                # Calculate available space in video area
+                # Splitter proportion: video area gets ~72% of width (1300/1800 from line 766)
+                video_area_width_ratio = 0.72
+                available_width = int(window_width * video_area_width_ratio)
+
+                # Account for UI elements that take vertical space:
+                # - Menubar: ~25px
+                # - Status bar: ~25px
+                # - Groupbox title/border: ~40px
+                # - Camera buttons: ~60px
+                # - Timeline controls: ~120px
+                # Total: ~270px
+                ui_vertical_overhead = 270
+                available_height = window_height - ui_vertical_overhead
+
+                # Calculate optimal display size with padding for scrollarea borders
+                padding = 20  # Margins and borders
+                max_display_width = min(combined_image_width, available_width - padding)
+                max_display_height = min(combined_image_height, available_height - padding)
+
+                # Ensure minimum size for usability (don't make it too small)
+                min_width = 640  # Minimum reasonable width
+                min_height = 480  # Minimum reasonable height
+                display_width = max(max_display_width, min_width)
+                display_height = max(max_display_height, min_height)
+
+                # ADAPTIVE: If image is smaller than available space, use image size
+                # If image is larger, use available space (scrollbar will appear)
+                if combined_image_width < available_width:
+                    display_width = combined_image_width
+                if combined_image_height < available_height:
+                    display_height = combined_image_height
+
                 # Update video display size
-                self.video_display_label.setMinimumSize(max_display_width, max_display_height)
-                self.video_display_label.setMaximumSize(max_display_width + 100, max_display_height + 100)
-                
-                self.statusBar().showMessage(f"Video display sized for {main_size} main, {side_size} side cameras")
-                
+                # Set both minimum and maximum to same value to create fixed size
+                # This prevents the label from expanding/collapsing unexpectedly
+                self.video_display_label.setMinimumSize(display_width, display_height)
+                self.video_display_label.setMaximumSize(display_width, display_height)
+
+                # Log sizing decision for debugging
+                print(f"Video display sized: {display_width}x{display_height}")
+                print(f"  Combined image: {combined_image_width}x{combined_image_height}")
+                print(f"  Available space: {available_width}x{available_height}")
+                print(f"  Scrollbar needed: Width={combined_image_width > available_width}, "
+                      f"Height={combined_image_height > available_height}")
+
+                self.statusBar().showMessage(
+                    f"Video display: {display_width}x{display_height} "
+                    f"(images: {main_size} main, {side_size} side)"
+                )
+
             except Exception as e:
                 print(f"Warning: Could not update video display size: {e}")
+                print(f"Traceback: {traceback.format_exc()}")
     
     def get_save_folder(self) -> Path:
         """Get the current save folder (custom or from config)."""
@@ -2805,18 +3387,93 @@ By Category:"""
             return Path.home() / "dvrk_annotations"
     
     def save_annotations(self):
-        """Save all annotations to files."""
-        if not self.annotations:
-            QMessageBox.information(self, "No Data", "No annotations to save.")
+        """
+        Save annotations to files with optional backfilling of unlabeled frames.
+
+        IMPROVED BEHAVIOR: Asks user whether to backfill unlabeled frames.
+        - With backfill: Saves ALL frames for CONTACT ONLY (contact=0 for unlabeled)
+                         Phase/Event only saved if explicitly annotated (sparse)
+        - Without backfill: Only saves explicitly labeled frames
+
+        CRITICAL: Backfilling ONLY applies to contact detection, NOT phase/event.
+        This prevents generating meaningless default phase/event labels.
+        """
+        if not self.frame_files:
+            QMessageBox.information(self, "No Data", "No frame data loaded. Please load a configuration first.")
             return
-        
+
         try:
+            # Calculate statistics about labeled vs unlabeled frames
+            total_frames = len(self.frame_files)
+            annotated_frames = len(self.annotations)
+            unlabeled_frames = total_frames - annotated_frames
+
+            # USER CHOICE: Ask whether to backfill unlabeled frames
+            backfill_enabled = False
+
+            if unlabeled_frames > 0:
+                # Show detailed dialog explaining the choice
+                dialog = QMessageBox(self)
+                dialog.setIcon(QMessageBox.Question)
+                dialog.setWindowTitle("Backfill Unlabeled Frames?")
+
+                dialog_text = f"""<b>Labeling Status:</b><br>
+• Total frames: {total_frames}<br>
+• Labeled frames: {annotated_frames} ({annotated_frames/total_frames*100:.1f}%)<br>
+• Unlabeled frames: {unlabeled_frames} ({unlabeled_frames/total_frames*100:.1f}%)<br>
+<br>
+<b>Do you want to backfill unlabeled frames with default contact values?</b><br>
+<br>
+<b>YES</b> - Save all {total_frames} frames:<br>
+&nbsp;&nbsp;&nbsp;• Labeled frames: Use your annotations<br>
+&nbsp;&nbsp;&nbsp;• Unlabeled frames: Use defaults for <b>CONTACT ONLY</b> (contact=0)<br>
+&nbsp;&nbsp;&nbsp;• Phase/Event: Only saved if explicitly annotated (sparse)<br>
+&nbsp;&nbsp;&nbsp;→ Recommended if labeling is complete<br>
+<br>
+<b>NO</b> - Save only {annotated_frames} labeled frames:<br>
+&nbsp;&nbsp;&nbsp;• Only frames you explicitly annotated<br>
+&nbsp;&nbsp;&nbsp;• No automatic data generation<br>
+&nbsp;&nbsp;&nbsp;→ Recommended if labeling is still in progress<br>
+"""
+                dialog.setText(dialog_text)
+
+                yes_btn = dialog.addButton("Yes, Backfill", QMessageBox.YesRole)
+                no_btn = dialog.addButton("No, Only Labeled", QMessageBox.NoRole)
+                cancel_btn = dialog.addButton("Cancel", QMessageBox.RejectRole)
+
+                dialog.setDefaultButton(no_btn)  # Default to safer option
+                dialog.exec_()
+
+                clicked_button = dialog.clickedButton()
+
+                if clicked_button == cancel_btn:
+                    return  # User cancelled
+                elif clicked_button == yes_btn:
+                    backfill_enabled = True
+                    self.statusBar().showMessage(f"Saving with backfill: {total_frames} frames total")
+                else:  # no_btn
+                    backfill_enabled = False
+                    self.statusBar().showMessage(f"Saving without backfill: {annotated_frames} frames only")
+            else:
+                # All frames are labeled, no need to ask
+                backfill_enabled = True
+                self.statusBar().showMessage("All frames labeled - saving all")
+
             # Get save folder (custom or from config)
             base_folder = self.get_save_folder()
             categories_saved = set()
-            
-            # Process frames and combine contact and phase annotations
-            for frame_idx, frame_annotations in self.annotations.items():
+
+            # Determine which frames to save based on user choice
+            if backfill_enabled:
+                # Save ALL frames (labeled + backfilled)
+                frames_to_save = range(total_frames)
+            else:
+                # Save only explicitly labeled frames
+                frames_to_save = sorted(self.annotations.keys())
+
+            for frame_idx in frames_to_save:
+                # Get annotations for this frame (empty list if not annotated)
+                frame_annotations = self.annotations.get(frame_idx, [])
                 # Separate contact, phase, and other annotations
                 contact_annotations = [a for a in frame_annotations if a["category"].startswith("contact_")]
                 phase_annotations = [a for a in frame_annotations if a["category"].startswith("phase_")]
@@ -2824,39 +3481,41 @@ By Category:"""
                     a["category"].startswith("contact_") or a["category"].startswith("phase_")
                 )]
                 
-                # Combine individual contact annotations into expected JSON format
-                if contact_annotations:
-                    combined_contact_data = {}
-                    # Initialize all active PSMs to 0
-                    for psm in self.active_psms:
-                        combined_contact_data[psm] = 0
-                    
-                    # Set contacts for PSMs that have contact annotations
-                    for annotation in contact_annotations:
-                        category = annotation["category"]
-                        data = annotation["data"]
-                        psm = category.replace("contact_", "")
-                        if psm in data and data[psm]:
-                            combined_contact_data[psm] = 1
-                    
-                    # Save combined contact data
-                    contact_folder = base_folder / "annotation" / "contact_detection"
-                    if not contact_folder.exists():
-                        create_folder(contact_folder)
-                    
-                    frame_file = contact_folder / f"{frame_idx}.json"
-                    with open(frame_file, 'w', encoding='utf-8') as f:
-                        json.dump(combined_contact_data, f, indent=2, ensure_ascii=False)
-                    
-                    categories_saved.add("contact_detection")
-                
-                # Combine individual phase annotations into expected JSON format
+                # IMPORTANT FIX: Always save contact detection labels for ALL frames
+                # This ensures both contact and non-contact frames have labels
+                # Initialize all active PSMs to 0 (no contact by default)
+                combined_contact_data = {}
+                for psm in self.active_psms:
+                    combined_contact_data[psm] = 0
+
+                # Set contacts to 1 for PSMs that have contact annotations
+                for annotation in contact_annotations:
+                    category = annotation["category"]
+                    data = annotation["data"]
+                    psm = category.replace("contact_", "")
+                    if psm in data and data[psm]:
+                        combined_contact_data[psm] = 1
+
+                # Save contact detection data for this frame (always, even if no contact)
+                contact_folder = base_folder / "annotation" / "contact_detection"
+                if not contact_folder.exists():
+                    create_folder(contact_folder)
+
+                frame_file = contact_folder / f"{frame_idx}.json"
+                with open(frame_file, 'w', encoding='utf-8') as f:
+                    json.dump(combined_contact_data, f, indent=2, ensure_ascii=False)
+
+                categories_saved.add("contact_detection")
+
+                # CRITICAL FIX: Only save phase labels for frames that have phase annotations
+                # Do NOT backfill phase with null values - phase is sparse (only when annotated)
+                # This ensures we only save phase data when user explicitly added it
                 if phase_annotations:
+                    # Initialize phase data structure
                     combined_phase_data = {"phase": {}}
-                    # Initialize all active PSMs to None
                     for psm in self.active_psms:
                         combined_phase_data["phase"][psm] = None
-                    
+
                     # Set phases for PSMs that have phase annotations
                     for annotation in phase_annotations:
                         category = annotation["category"]
@@ -2864,16 +3523,16 @@ By Category:"""
                         psm = category.replace("phase_", "")
                         if "phase" in data and psm in data["phase"]:
                             combined_phase_data["phase"][psm] = data["phase"][psm]
-                    
-                    # Save combined phase data
+
+                    # Save phase data ONLY if this frame has phase annotations
                     phase_folder = base_folder / "annotation" / "phase"
                     if not phase_folder.exists():
                         create_folder(phase_folder)
-                    
+
                     frame_file = phase_folder / f"{frame_idx}.json"
                     with open(frame_file, 'w', encoding='utf-8') as f:
                         json.dump(combined_phase_data, f, indent=2, ensure_ascii=False)
-                    
+
                     categories_saved.add("phase")
                 
                 # Group other annotations by category to handle multiple events properly
@@ -2926,16 +3585,44 @@ By Category:"""
                     categories_saved.add(category)
             
             total_annotations = sum(len(annotations) for annotations in self.annotations.values())
-            self.statusBar().showMessage(
-                f"Saved {total_annotations} annotations across {len(self.annotations)} frames"
-            )
-            
-            QMessageBox.information(
-                self, 
-                "Save Complete", 
-                f"Saved annotations to categories: {', '.join(sorted(categories_saved))}\n"
-                f"Location: {base_folder / 'annotation'}"
-            )
+            annotated_frames_count = len(self.annotations)
+            frames_saved = len(frames_to_save)
+
+            # Update status message based on backfill choice
+            if backfill_enabled:
+                self.statusBar().showMessage(
+                    f"Saved {frames_saved} frames WITH backfill ({annotated_frames_count} annotated, "
+                    f"{frames_saved - annotated_frames_count} backfilled with defaults)"
+                )
+
+                QMessageBox.information(
+                    self,
+                    "Save Complete (With Backfill)",
+                    f"✓ Saved labels for ALL {frames_saved} frames\n"
+                    f"  • {annotated_frames_count} frames with your annotations\n"
+                    f"  • {frames_saved - annotated_frames_count} frames backfilled with defaults\n"
+                    f"    (CONTACT ONLY: contact=0 for unannotated frames)\n"
+                    f"  • Phase/Event: Only saved if explicitly annotated (sparse)\n"
+                    f"  • Categories: {', '.join(sorted(categories_saved))}\n\n"
+                    f"Location: {base_folder / 'annotation'}\n\n"
+                    f"✓ Contact label count = Frame count ({frames_saved} files)"
+                )
+            else:
+                self.statusBar().showMessage(
+                    f"Saved {frames_saved} frames WITHOUT backfill (only explicitly labeled frames)"
+                )
+
+                QMessageBox.information(
+                    self,
+                    "Save Complete (Without Backfill)",
+                    f"✓ Saved labels for {frames_saved} explicitly labeled frames\n"
+                    f"  • {annotated_frames_count} frames with annotations\n"
+                    f"  • {total_frames - frames_saved} frames NOT saved (unlabeled)\n"
+                    f"  • Categories: {', '.join(sorted(categories_saved))}\n\n"
+                    f"Location: {base_folder / 'annotation'}\n\n"
+                    f"NOTE: {total_frames - frames_saved} frames still need labeling.\n"
+                    f"Save again with backfill when labeling is complete."
+                )
             
         except Exception as e:
             error_msg = f"Error saving annotations: {str(e)}"
