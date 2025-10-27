@@ -395,7 +395,6 @@ p_config = project_root / 'config'
 if not p_config.exists():
     raise FileNotFoundError(f"Config directory not found: {p_config}")
 
-
 @hydra.main(
     version_base=None,
     config_path=str(p_config),

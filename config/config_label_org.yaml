@@ -1,0 +1,18 @@
+# Label Reorganization Configuration
+# Used to reorganize annotation labels from nested folder structures to flat indexed structure
+# based on data_organization_note.json mapping
+
+workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+
+# Input folder: raw labels with nested structure (data_<date>/<subfolders>/<int_number>/annotation)
+# This should point to the folder containing date-based data folders
+input_folder: "/media/jackzhy/Jack_SSD_4T/raw_label"
+
+# Output folder: reorganized labels with flat indexed structure (<int_number>/annotation)
+# Will be created if it doesn't exist
+output_folder: "/media/jackzhy/Jack_SSD_4T/contact_detection_dataset/raw_label"
+
+# Reorganization configuration file: JSON file mapping original paths to new indices
+# Format: each entry contains "original_data_path" and "new_data_path"
+# The script extracts the mapping between source folder and destination index
+reorg_config: "/media/jackzhy/Jack_SSD_4T/contact_detection_dataset/raw/data_organization_note.json"
