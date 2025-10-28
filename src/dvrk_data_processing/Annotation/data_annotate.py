@@ -3615,6 +3615,28 @@ By Category:"""
             annotated_frames_count = len(self.annotations)
             frames_saved = len(frames_to_save)
 
+            # IMPROVEMENT: Calculate detailed counts for each label type to show in backfill message
+            # This provides transparency about what was actually saved
+            contact_label_count = 0
+            event_label_count = 0
+            phase_label_count = 0
+
+            for frame_idx in range(total_frames):
+                if frame_idx in self.annotations:
+                    frame_annotations = self.annotations[frame_idx]
+                    # Count frames with contact annotations
+                    has_contact = any(a['category'].startswith('contact_') for a in frame_annotations)
+                    if has_contact:
+                        contact_label_count += 1
+                    # Count frames with event annotations
+                    has_event = any(a['category'] == 'event' for a in frame_annotations)
+                    if has_event:
+                        event_label_count += 1
+                    # Count frames with phase annotations
+                    has_phase = any(a['category'].startswith('phase_') for a in frame_annotations)
+                    if has_phase:
+                        phase_label_count += 1
+
             # Update status message based on backfill choice
             if backfill_enabled:
                 self.statusBar().showMessage(
@@ -3622,30 +3644,46 @@ By Category:"""
                     f"{frames_saved - annotated_frames_count} backfilled with defaults)"
                 )
 
+                # Build detailed label count message
+                label_details = f"Label counts by category:\n"
+                label_details += f"  • Contact Detection: {frames_saved} files ({contact_label_count} annotated, {frames_saved - contact_label_count} backfilled)\n"
+                if 'event' in categories_saved:
+                    label_details += f"  • Event: {event_label_count} files (sparse, only explicitly annotated)\n"
+                if 'phase' in categories_saved:
+                    label_details += f"  • Phase: {phase_label_count} files (sparse, only explicitly annotated)\n"
+
                 QMessageBox.information(
                     self,
                     "Save Complete (With Backfill)",
                     f"✓ Saved labels for ALL {frames_saved} frames\n"
                     f"  • {annotated_frames_count} frames with your annotations\n"
                     f"  • {frames_saved - annotated_frames_count} frames backfilled with defaults\n"
-                    f"    (CONTACT ONLY: contact=0 for unannotated frames)\n"
-                    f"  • Phase/Event: Only saved if explicitly annotated (sparse)\n"
-                    f"  • Categories: {', '.join(sorted(categories_saved))}\n\n"
+                    f"    (CONTACT ONLY: contact=0 for unannotated frames)\n\n"
+                    f"{label_details}\n"
                     f"Location: {base_folder / 'annotation'}\n\n"
-                    f"✓ Contact label count = Frame count ({frames_saved} files)"
+                    f"✓ Contact labels match frame count ({frames_saved} files)\n"
+                    f"✓ Event/Phase labels are sparse (only when annotated)"
                 )
             else:
                 self.statusBar().showMessage(
                     f"Saved {frames_saved} frames WITHOUT backfill (only explicitly labeled frames)"
                 )
 
+                # Build detailed label count message for without backfill case
+                label_details = f"Label counts by category:\n"
+                label_details += f"  • Contact Detection: {contact_label_count} files (only explicitly annotated)\n"
+                if 'event' in categories_saved:
+                    label_details += f"  • Event: {event_label_count} files (only explicitly annotated)\n"
+                if 'phase' in categories_saved:
+                    label_details += f"  • Phase: {phase_label_count} files (only explicitly annotated)\n"
+
                 QMessageBox.information(
                     self,
                     "Save Complete (Without Backfill)",
                     f"✓ Saved labels for {frames_saved} explicitly labeled frames\n"
                     f"  • {annotated_frames_count} frames with annotations\n"
-                    f"  • {total_frames - frames_saved} frames NOT saved (unlabeled)\n"
-                    f"  • Categories: {', '.join(sorted(categories_saved))}\n\n"
+                    f"  • {total_frames - frames_saved} frames NOT saved (unlabeled)\n\n"
+                    f"{label_details}\n"
                     f"Location: {base_folder / 'annotation'}\n\n"
                     f"NOTE: {total_frames - frames_saved} frames still need labeling.\n"
                     f"Save again with backfill when labeling is complete."
