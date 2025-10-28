@@ -3416,9 +3416,24 @@ By Category:"""
 
         try:
             # Calculate statistics about labeled vs unlabeled frames
+            # CRITICAL FIX: Only count frames with CONTACT DETECTION annotations for backfill check
+            # Phase/Event annotations don't affect backfill since backfilling only applies to contact
             total_frames = len(self.frame_files)
-            annotated_frames = len(self.annotations)
-            unlabeled_frames = total_frames - annotated_frames
+
+            # Count frames that have at least one contact annotation (contact_PSM1, contact_PSM2, etc.)
+            contact_annotated_frames = 0
+            for frame_idx in range(total_frames):
+                if frame_idx in self.annotations:
+                    # Check if this frame has any contact annotations
+                    has_contact = any(
+                        annotation['category'].startswith('contact_')
+                        for annotation in self.annotations[frame_idx]
+                    )
+                    if has_contact:
+                        contact_annotated_frames += 1
+
+            annotated_frames = contact_annotated_frames  # Use contact count for display
+            unlabeled_frames = total_frames - contact_annotated_frames
 
             # USER CHOICE: Ask whether to backfill unlabeled frames
             backfill_enabled = False
