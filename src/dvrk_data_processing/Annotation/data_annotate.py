@@ -2280,9 +2280,15 @@ class DataAnnotationGUI(QMainWindow):
             if not annotation_folder.exists():
                 print(f"No existing annotation folder found at: {annotation_folder}")
                 return
-            
+
             print(f"Loading existing annotations from: {annotation_folder}")
-            
+
+            # CRITICAL FIX: Clear all existing annotations before loading to avoid duplicates
+            # This ensures clean loading without mixing old and new annotations
+            previous_count = len(self.annotations)
+            self.annotations.clear()
+            print(f"Cleared {previous_count} existing annotation frames before loading")
+
             # Categories to load
             categories = ['contact_detection', 'event', 'phase']
             loaded_counts = {}
@@ -2584,9 +2590,15 @@ class DataAnnotationGUI(QMainWindow):
             if not annotation_folder.exists():
                 QMessageBox.warning(self, "Folder Not Found", f"Annotation folder not found: {annotation_folder}")
                 return
-            
+
             print(f"Loading existing annotations from: {annotation_folder}")
-            
+
+            # CRITICAL FIX: Clear all existing annotations before loading to avoid duplicates
+            # This ensures clean loading without mixing old and new annotations
+            previous_count = len(self.annotations)
+            self.annotations.clear()
+            print(f"Cleared {previous_count} existing annotation frames before loading")
+
             # Categories to load
             categories = ['contact_detection', 'event', 'phase']
             loaded_counts = {}
