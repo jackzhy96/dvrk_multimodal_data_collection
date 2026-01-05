@@ -3613,8 +3613,8 @@ By Category:"""
                 max_display_height = min(combined_image_height, available_height - padding)
 
                 # Ensure minimum size for usability (don't make it too small)
-                min_width = 640  # Minimum reasonable width
-                min_height = 480  # Minimum reasonable height
+                min_width = 512  # Minimum reasonable width
+                min_height = 288  # Minimum reasonable height
                 display_width = max(max_display_width, min_width)
                 display_height = max(max_display_height, min_height)
 
