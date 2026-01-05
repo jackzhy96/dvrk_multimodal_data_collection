@@ -198,7 +198,6 @@ class ConfigLoader:
         """Get GUI configuration parameters for better scalability."""
         if not self.config or not hasattr(self.config, 'gui_config'):
             # Return default GUI configuration optimized for 1080P (1920x1080)
-            # CRITICAL FIX: Ensure FULL window is visible (no parts cut off)
             # Window size must account for: taskbar (~40px) + decorations (~40px) = ~80px total
             # Available space: 1080 - 80 = 1000px maximum safe height
             return {
@@ -701,11 +700,17 @@ class DataAnnotationGUI(QMainWindow):
         
         # Event annotation controls
         self.event_input: Optional[QLineEdit] = None
-        
-        # Phase annotation controls
-        self.phase_inputs: Dict[str, QLineEdit] = {}
-        
-        # Contact annotation controls  
+
+        # Step annotation controls (manual text input)
+        self.step_input: Optional[QLineEdit] = None
+
+        # Gesture annotation controls (per-PSM inputs, was "phase")
+        self.gesture_inputs: Dict[str, QLineEdit] = {}
+
+        # Phase annotation controls (manual text input, new simple phase section)
+        self.phase_input: Optional[QLineEdit] = None
+
+        # Contact annotation controls
         self.contact_checkboxes: Dict[str, QCheckBox] = {}
         
         # Multi-frame controls
@@ -729,8 +734,7 @@ class DataAnnotationGUI(QMainWindow):
     def init_ui(self):
         """Initialize the user interface components."""
         self.setWindowTitle("dVRK Data Annotation Tool")
-        
-        # CRITICAL FIX: GUI optimized for 1080P with FULL visibility (no parts cut off)
+
         # Get GUI configuration parameters - using configurable values for better scalability
         gui_config = self.config_loader.get_gui_config() if hasattr(self, 'config_loader') else {
             'window_width': 1910, 'window_height': 1000
@@ -1085,10 +1089,7 @@ class DataAnnotationGUI(QMainWindow):
         
         config_group = self._create_config_section()
         left_column.addWidget(config_group)
-        
-        quick_actions_group = self._create_quick_actions_section()
-        left_column.addWidget(quick_actions_group)
-        
+
         event_group = self._create_event_section()
         left_column.addWidget(event_group)
         
@@ -1098,21 +1099,24 @@ class DataAnnotationGUI(QMainWindow):
         
         # Add stretch to push content to top of left column
         left_column.addStretch()
-        
-        # Right column: Current annotations, statistics, save
+
+        # Right column: Phase annotation, Current annotations, statistics, save
         right_column = QVBoxLayout()
         right_column_widget = QWidget()
         right_column_widget.setLayout(right_column)
-        
+
+        # Store reference for dynamic insertion (phase section will be added via _recreate_psm_dependent_sections)
+        self.right_column_layout = right_column
+
         current_group = self._create_current_annotations_section()
         right_column.addWidget(current_group)
-        
+
         stats_group = self._create_statistics_section()
         right_column.addWidget(stats_group)
-        
+
         save_group = self._create_save_section()
         right_column.addWidget(save_group)
-        
+
         # Add stretch to push content to top of right column
         right_column.addStretch()
         
@@ -1239,44 +1243,80 @@ class DataAnnotationGUI(QMainWindow):
 
         return event_group
     
-    def _create_phase_section(self) -> QGroupBox:
-        """Create phase annotation section with text inputs and PSM selection."""
-        phase_group = QGroupBox("Phase Annotation")
-        phase_layout = QFormLayout(phase_group)
-        
+    def _create_gesture_section(self) -> QGroupBox:
+        """Create gesture annotation section with text inputs and PSM selection (was phase)."""
+        gesture_group = QGroupBox("Gesture Annotation")
+        gesture_layout = QFormLayout(gesture_group)
+
         # Create text inputs for each active PSM
-        self.phase_inputs = {}
-        
+        self.gesture_inputs = {}
+
         for psm in self.active_psms:
-            phase_input = QLineEdit()
-            phase_input.setPlaceholderText(f"Enter phase for {psm}...")
-            self.phase_inputs[psm] = phase_input
-            phase_layout.addRow(f"{psm} Phase:", phase_input)
-        
+            gesture_input = QLineEdit()
+            gesture_input.setPlaceholderText(f"Enter gesture for {psm}...")
+            self.gesture_inputs[psm] = gesture_input
+            gesture_layout.addRow(f"{psm} Gesture:", gesture_input)
+
+        add_gesture_btn = QPushButton("Add Gesture")
+        add_gesture_btn.clicked.connect(self._add_gesture_annotation)
+        gesture_layout.addWidget(add_gesture_btn)
+
+        return gesture_group
+
+    def _create_step_section(self) -> QGroupBox:
+        """Create step annotation section with manual text input."""
+        step_group = QGroupBox("Step Annotation")
+        step_layout = QVBoxLayout(step_group)
+
+        # Manual text input for step
+        input_layout = QHBoxLayout()
+        input_layout.addWidget(QLabel("Step:"))
+        self.step_input = QLineEdit()
+        self.step_input.setPlaceholderText("Enter step description...")
+        self.step_input.returnPressed.connect(self._add_step_annotation)  # Add on Enter
+        input_layout.addWidget(self.step_input)
+        step_layout.addLayout(input_layout)
+
+        # Add step button
+        add_step_btn = QPushButton("Add Step")
+        add_step_btn.clicked.connect(self._add_step_annotation)
+        step_layout.addWidget(add_step_btn)
+
+        return step_group
+
+    def _create_phase_section(self) -> QGroupBox:
+        """Create phase annotation section with manual text input (new simple phase section)."""
+        phase_group = QGroupBox("Phase Annotation")
+        phase_layout = QVBoxLayout(phase_group)
+
+        # Manual text input for phase
+        input_layout = QHBoxLayout()
+        input_layout.addWidget(QLabel("Phase:"))
+        self.phase_input = QLineEdit()
+        self.phase_input.setPlaceholderText("Enter phase description...")
+        self.phase_input.returnPressed.connect(self._add_phase_annotation)  # Add on Enter
+        input_layout.addWidget(self.phase_input)
+        phase_layout.addLayout(input_layout)
+
+        # Add phase button
         add_phase_btn = QPushButton("Add Phase")
         add_phase_btn.clicked.connect(self._add_phase_annotation)
         phase_layout.addWidget(add_phase_btn)
-        
+
         return phase_group
-    
+
     def _create_contact_section(self) -> QGroupBox:
         """
         Create contact annotation section.
-
-        FIXED: Compact layout to fit 3 PSMs without requiring scroll.
-        Uses horizontal layout for checkboxes to save vertical space.
-
-        FIXED: Increased font sizes from 10px to 12px for better readability.
         """
         contact_group = QGroupBox("Contact Detection")
         contact_layout = QVBoxLayout(contact_group)  # Changed from QFormLayout for better control
 
         # Label with readable font size
         label = QLabel("Select PSMs with contact:")
-        label.setStyleSheet("font-size: 12px; margin-bottom: 2px;")  # FIXED: 10px → 12px
+        label.setStyleSheet("font-size: 12px; margin-bottom: 2px;")
         contact_layout.addWidget(label)
 
-        # FIXED: Use horizontal layout for checkboxes to save vertical space
         # This allows all 3 PSMs to fit without scrolling
         checkbox_layout = QHBoxLayout()
         checkbox_layout.setSpacing(8)  # Slightly more spacing for readability
@@ -1284,7 +1324,7 @@ class DataAnnotationGUI(QMainWindow):
         # Create checkboxes for each active PSM with readable font
         for psm in self.active_psms:
             checkbox = QCheckBox(psm)  # Just PSM name (compact)
-            checkbox.setStyleSheet("font-size: 12px;")  # FIXED: 10px → 12px for readability
+            checkbox.setStyleSheet("font-size: 12px;")
             self.contact_checkboxes[psm] = checkbox
             checkbox_layout.addWidget(checkbox)
 
@@ -1293,12 +1333,12 @@ class DataAnnotationGUI(QMainWindow):
 
         # Button with readable font
         add_contact_btn = QPushButton("Add Contact State")
-        add_contact_btn.setStyleSheet("font-size: 12px; padding: 5px;")  # FIXED: 10px → 12px, padding 3px → 5px
+        add_contact_btn.setStyleSheet("font-size: 12px; padding: 5px;")
         add_contact_btn.clicked.connect(self._add_contact_annotation)
         contact_layout.addWidget(add_contact_btn)
 
         # Minimize vertical spacing while maintaining readability
-        contact_layout.setSpacing(5)  # FIXED: 3px → 5px for better visual separation
+        contact_layout.setSpacing(5)
         contact_layout.setContentsMargins(5, 5, 5, 5)
 
         return contact_group
@@ -1408,33 +1448,61 @@ class DataAnnotationGUI(QMainWindow):
     
     def _recreate_psm_dependent_sections(self):
         """
-        Recreate phase and contact sections when PSM configuration changes.
-        
+        Recreate PSM-dependent sections when PSM configuration changes.
+
+        New layout order:
+        - Left column: Event → Contact Detection → Step Annotation → Gesture Annotation
+        - Right column: Phase Annotation → Current Frame Annotations → Statistics → Save
+
         This method is called when loading configuration to update the UI
         based on which PSMs are enabled in the config file.
         """
+        # Update left column sections
         if hasattr(self, 'left_column_layout'):
-            # Remove existing phase and contact sections from left column
+            # Remove existing gesture (old phase) and contact sections from left column
             for i in reversed(range(self.left_column_layout.count())):
                 item = self.left_column_layout.itemAt(i)
                 if item and item.widget():
                     widget = item.widget()
                     if isinstance(widget, QGroupBox):
-                        if widget.title() in ["Phase Annotation", "Contact Detection"]:
+                        # Remove old sections: "Gesture Annotation" (was "Phase Annotation"), "Contact Detection", "Step Annotation"
+                        if widget.title() in ["Phase Annotation", "Gesture Annotation", "Contact Detection", "Step Annotation"]:
                             self.left_column_layout.removeWidget(widget)
                             widget.deleteLater()
-            
-            # Insert phase and contact sections after event section (before stretch)
+
+            # Insert sections in the new order after event section (before stretch)
             # Find the stretch item and insert before it
             stretch_index = self.left_column_layout.count() - 1  # Last item should be stretch
-            
-            # Create and insert new phase section
-            phase_group = self._create_phase_section()
-            self.left_column_layout.insertWidget(stretch_index, phase_group)
-            
-            # Create and insert new contact section
+
+            # Order: Contact Detection → Step Annotation → Gesture Annotation
+            # Create and insert contact section first
             contact_group = self._create_contact_section()
-            self.left_column_layout.insertWidget(stretch_index + 1, contact_group)
+            self.left_column_layout.insertWidget(stretch_index, contact_group)
+
+            # Create and insert step section
+            step_group = self._create_step_section()
+            self.left_column_layout.insertWidget(stretch_index + 1, step_group)
+
+            # Create and insert gesture section (was phase)
+            gesture_group = self._create_gesture_section()
+            self.left_column_layout.insertWidget(stretch_index + 2, gesture_group)
+
+        # Update right column to add Phase Annotation above Current Frame Annotations
+        if hasattr(self, 'right_column_layout'):
+            # Remove existing Phase Annotation section from right column if it exists
+            for i in reversed(range(self.right_column_layout.count())):
+                item = self.right_column_layout.itemAt(i)
+                if item and item.widget():
+                    widget = item.widget()
+                    if isinstance(widget, QGroupBox):
+                        if widget.title() == "Phase Annotation":
+                            self.right_column_layout.removeWidget(widget)
+                            widget.deleteLater()
+
+            # Insert Phase Annotation section at the top (before Current Frame Annotations)
+            # Index 0 is the first position
+            phase_group = self._create_phase_section()
+            self.right_column_layout.insertWidget(0, phase_group)
     
     
     def load_configuration(self):
@@ -1970,7 +2038,6 @@ class DataAnnotationGUI(QMainWindow):
         Move selected event up in the sequence.
 
         IMPROVEMENT: Allows reordering of multiple events on the same frame.
-        FIXED: Now properly swaps events in the original frame_annotations list.
         """
         current_row = self.current_frame_events_list.currentRow()
         if current_row <= 0:
@@ -1984,7 +2051,6 @@ class DataAnnotationGUI(QMainWindow):
         event_indices = [i for i, a in enumerate(frame_annotations) if a["category"] == "event"]
 
         if current_row < len(event_indices):
-            # FIXED: Swap in the original frame_annotations list (not a filtered copy)
             idx_current = event_indices[current_row]
             idx_previous = event_indices[current_row - 1]
 
@@ -2002,7 +2068,6 @@ class DataAnnotationGUI(QMainWindow):
         Move selected event down in the sequence.
 
         IMPROVEMENT: Allows reordering of multiple events on the same frame.
-        FIXED: Now properly swaps events in the original frame_annotations list.
         """
         current_row = self.current_frame_events_list.currentRow()
         if current_row < 0:
@@ -2018,7 +2083,6 @@ class DataAnnotationGUI(QMainWindow):
         if current_row >= len(event_indices) - 1:
             return  # Already at bottom
 
-        # FIXED: Swap in the original frame_annotations list (not a filtered copy)
         idx_current = event_indices[current_row]
         idx_next = event_indices[current_row + 1]
 
@@ -2031,64 +2095,92 @@ class DataAnnotationGUI(QMainWindow):
         self.current_frame_events_list.setCurrentRow(current_row + 1)
         self.statusBar().showMessage(f"Moved event down")
 
-    def _add_phase_annotation(self):
-        """Add independent phase annotations for each PSM with phase text."""
-        phases_to_add = {}
-        
-        # Collect phase texts for each PSM
-        for psm, input_widget in self.phase_inputs.items():
-            phase_text = input_widget.text().strip()
-            if phase_text:  # Only add if there's actual text
-                phases_to_add[psm] = phase_text
-        
-        if not phases_to_add:
-            QMessageBox.warning(self, "Invalid Input", "Please enter at least one phase.")
+    def _add_gesture_annotation(self):
+        """Add independent gesture annotations for each PSM with gesture text (was phase)."""
+        gestures_to_add = {}
+
+        # Collect gesture texts for each PSM
+        for psm, input_widget in self.gesture_inputs.items():
+            gesture_text = input_widget.text().strip()
+            if gesture_text:  # Only add if there's actual text
+                gestures_to_add[psm] = gesture_text
+
+        if not gestures_to_add:
+            QMessageBox.warning(self, "Invalid Input", "Please enter at least one gesture.")
             return
-        
-        # Remove existing phase labels first, then add new ones
-        self._remove_phase_labels()
-        
-        # Add individual phase annotation for each PSM with text
-        for psm, phase_text in phases_to_add.items():
-            phase_data = {"phase": {psm: phase_text}}
-            self._add_annotation(f"phase_{psm}", phase_data)
-        
+
+        # Remove existing gesture labels first, then add new ones
+        self._remove_gesture_labels()
+
+        # Add individual gesture annotation for each PSM with text
+        for psm, gesture_text in gestures_to_add.items():
+            gesture_data = {"gesture": {psm: gesture_text}}
+            self._add_annotation(f"gesture_{psm}", gesture_data)
+
         # Clear text inputs
-        for input_widget in self.phase_inputs.values():
+        for input_widget in self.gesture_inputs.values():
             input_widget.clear()
-    
-    def _remove_phase_labels(self):
-        """Remove all existing phase labels for the current frame(s)."""
+
+    def _remove_gesture_labels(self):
+        """Remove all existing gesture labels for the current frame(s) (was phase)."""
         # Validate multi-frame range before proceeding to prevent crashes
         if not self._validate_multi_frame_range():
             return  # Validation failed, show warning and abort operation
-        
+
         if self.multi_frame_mode and self.frame_range_start is not None and self.frame_range_end is not None:
             frames_to_process = list(range(self.frame_range_start, self.frame_range_end + 1))
         else:
             frames_to_process = [self.current_frame_index]
-        
+
         for frame_idx in frames_to_process:
             if frame_idx in self.annotations:
-                # Remove all phase-related annotations (phase and phase_PSMx)
+                # Remove all gesture-related annotations (gesture and gesture_PSMx)
                 self.annotations[frame_idx] = [
-                    annotation for annotation in self.annotations[frame_idx] 
-                    if not (annotation["category"] == "phase" or 
-                           annotation["category"].startswith("phase_"))
+                    annotation for annotation in self.annotations[frame_idx]
+                    if not (annotation["category"] == "gesture" or
+                           annotation["category"].startswith("gesture_"))
                 ]
                 # If no annotations left for this frame, remove the frame entry
                 if not self.annotations[frame_idx]:
                     del self.annotations[frame_idx]
-        
+
         # Update display
         self._update_annotation_list()
         self._update_statistics()
+
+    def _add_step_annotation(self):
+        """Add step annotation with manual text input."""
+        step_text = self.step_input.text().strip()
+
+        if not step_text:
+            QMessageBox.warning(self, "Invalid Input", "Please enter a step description.")
+            return
+
+        # Add step annotation
+        step_data = {"step": step_text}
+        self._add_annotation("step", step_data)
+
+        # Clear text input
+        self.step_input.clear()
+
+    def _add_phase_annotation(self):
+        """Add phase annotation with manual text input (new simple phase section)."""
+        phase_text = self.phase_input.text().strip()
+
+        if not phase_text:
+            QMessageBox.warning(self, "Invalid Input", "Please enter a phase description.")
+            return
+
+        # Add phase annotation
+        phase_data = {"phase": phase_text}
+        self._add_annotation("phase", phase_data)
+
+        # Clear text input
+        self.phase_input.clear()
     
     def _add_contact_annotation(self):
         """
         Add independent contact annotations for each PSM.
-
-        FIXED: When no PSMs selected, adds non-contact states (all PSMs = 0) instead of removing.
 
         Creates individual contact annotations that can be added/removed independently:
         - Each PSM contact is a separate annotation
@@ -2104,7 +2196,6 @@ class DataAnnotationGUI(QMainWindow):
         ├── [contact] PSM2: ○ No Contact  (if contact = 0)
         └── [contact] PSM3: ✓ Contact  (if contact = 1)
         """
-        # CRITICAL FIX: Validate that active_psms is not empty
         # This prevents the bug where removing contacts without adding them back
         if not self.active_psms:
             QMessageBox.warning(
@@ -2116,7 +2207,6 @@ class DataAnnotationGUI(QMainWindow):
             print("ERROR: Cannot add contact annotation - no active PSMs configured")
             return
 
-        # CRITICAL FIX: Validate that contact_checkboxes is properly initialized
         if not self.contact_checkboxes:
             QMessageBox.warning(
                 self,
@@ -2133,10 +2223,8 @@ class DataAnnotationGUI(QMainWindow):
             if checkbox.isChecked():
                 selected_psms.append(psm)
 
-        # FIXED: Always remove existing contact labels first to ensure clean state
         self._remove_contact_labels()
 
-        # FIXED: Add annotations for ALL active PSMs (not just selected ones)
         # This ensures both contact and non-contact states are properly tracked
         for psm in self.active_psms:
             if psm in selected_psms:
@@ -2144,7 +2232,7 @@ class DataAnnotationGUI(QMainWindow):
                 contact_data = {psm: 1}
             else:
                 # PSM is NOT selected → Add non-contact (value = 0)
-                # FIXED: Previously, unselected PSMs were not added at all
+
                 contact_data = {psm: 0}
 
             self._add_annotation(f"contact_{psm}", contact_data)
@@ -2283,14 +2371,13 @@ class DataAnnotationGUI(QMainWindow):
 
             print(f"Loading existing annotations from: {annotation_folder}")
 
-            # CRITICAL FIX: Clear all existing annotations before loading to avoid duplicates
             # This ensures clean loading without mixing old and new annotations
             previous_count = len(self.annotations)
             self.annotations.clear()
             print(f"Cleared {previous_count} existing annotation frames before loading")
 
-            # Categories to load
-            categories = ['contact_detection', 'event', 'phase']
+            # Categories to load (updated: gesture instead of old phase, plus new step and phase)
+            categories = ['contact_detection', 'event', 'step', 'gesture', 'phase']
             loaded_counts = {}
             
             for category in categories:
@@ -2368,52 +2455,116 @@ class DataAnnotationGUI(QMainWindow):
                                     # Add new annotation
                                     self.annotations[frame_index].append(annotation_entry)
                                         
-                        elif category == "phase":
+                        elif category == "gesture":
                             # ROBUST LOADING: Handle null/None values and validate data types
-                            # Convert combined phase format to individual PSM annotations
+                            # Convert combined gesture format to individual PSM annotations (was phase)
                             if not isinstance(annotation_data, dict):
-                                print(f"Warning: Invalid phase data in {json_file}, expected dict, got {type(annotation_data)}")
+                                print(f"Warning: Invalid gesture data in {json_file}, expected dict, got {type(annotation_data)}")
                                 continue
 
-                            phase_data = annotation_data.get("phase", {})
-                            if not isinstance(phase_data, dict):
-                                print(f"Warning: Invalid phase data structure in {json_file}, expected dict, got {type(phase_data)}")
+                            gesture_data = annotation_data.get("gesture", {})
+                            if not isinstance(gesture_data, dict):
+                                print(f"Warning: Invalid gesture data structure in {json_file}, expected dict, got {type(gesture_data)}")
                                 continue
 
-                            for psm, phase_value in phase_data.items():
-                                # Only load phase annotations for PSMs with actual phase text
+                            for psm, gesture_value in gesture_data.items():
+                                # Only load gesture annotations for PSMs with actual gesture text
                                 # Handles: None, null, empty string "", whitespace-only strings
                                 # Treats all as "not annotated" and skips loading them
-                                if phase_value is None:
+                                if gesture_value is None:
                                     continue  # null/None → not annotated, skip
-                                if not isinstance(phase_value, str):
-                                    phase_value = str(phase_value) if phase_value else None
-                                if not phase_value or not phase_value.strip():
+                                if not isinstance(gesture_value, str):
+                                    gesture_value = str(gesture_value) if gesture_value else None
+                                if not gesture_value or not gesture_value.strip():
                                     continue  # Empty or whitespace-only → not annotated, skip
 
-                                if phase_value:  # Only add phase annotations for PSMs with actual phase text
-                                    individual_category = f"phase_{psm}"
-                                    individual_data = {"phase": {psm: phase_value}}
-                                    
+                                if gesture_value:  # Only add gesture annotations for PSMs with actual gesture text
+                                    individual_category = f"gesture_{psm}"
+                                    individual_data = {"gesture": {psm: gesture_value}}
+
                                     annotation_entry = {
                                         'category': individual_category,
                                         'data': individual_data,
                                         'timestamp': datetime.datetime.now().isoformat()
                                     }
-                                    
+
                                     # Check if this individual annotation already exists
                                     existing_entry = None
                                     for i, entry in enumerate(self.annotations[frame_index]):
                                         if entry['category'] == individual_category:
                                             existing_entry = i
                                             break
-                                    
+
                                     if existing_entry is not None:
                                         # Replace existing annotation
                                         self.annotations[frame_index][existing_entry] = annotation_entry
                                     else:
                                         # Add new annotation
                                         self.annotations[frame_index].append(annotation_entry)
+
+                        elif category == "phase":
+                            # ROBUST LOADING: Handle new simple phase format (manual text input)
+                            if not isinstance(annotation_data, dict):
+                                print(f"Warning: Invalid phase data in {json_file}, expected dict, got {type(annotation_data)}")
+                                continue
+
+                            phase_value = annotation_data.get("phase", "")
+
+                            # Skip null, None, or empty phase values
+                            if phase_value is None or not str(phase_value).strip():
+                                continue  # null/None/empty → not annotated, skip
+
+                            annotation_entry = {
+                                'category': 'phase',
+                                'data': {'phase': str(phase_value).strip()},
+                                'timestamp': datetime.datetime.now().isoformat()
+                            }
+
+                            # Check if phase annotation already exists
+                            existing_entry = None
+                            for i, entry in enumerate(self.annotations[frame_index]):
+                                if entry['category'] == 'phase':
+                                    existing_entry = i
+                                    break
+
+                            if existing_entry is not None:
+                                # Replace existing annotation
+                                self.annotations[frame_index][existing_entry] = annotation_entry
+                            else:
+                                # Add new annotation
+                                self.annotations[frame_index].append(annotation_entry)
+
+                        elif category == "step":
+                            # ROBUST LOADING: Handle new step format (manual text input)
+                            if not isinstance(annotation_data, dict):
+                                print(f"Warning: Invalid step data in {json_file}, expected dict, got {type(annotation_data)}")
+                                continue
+
+                            step_value = annotation_data.get("step", "")
+
+                            # Skip null, None, or empty step values
+                            if step_value is None or not str(step_value).strip():
+                                continue  # null/None/empty → not annotated, skip
+
+                            annotation_entry = {
+                                'category': 'step',
+                                'data': {'step': str(step_value).strip()},
+                                'timestamp': datetime.datetime.now().isoformat()
+                            }
+
+                            # Check if step annotation already exists
+                            existing_entry = None
+                            for i, entry in enumerate(self.annotations[frame_index]):
+                                if entry['category'] == 'step':
+                                    existing_entry = i
+                                    break
+
+                            if existing_entry is not None:
+                                # Replace existing annotation
+                                self.annotations[frame_index][existing_entry] = annotation_entry
+                            else:
+                                # Add new annotation
+                                self.annotations[frame_index].append(annotation_entry)
                         
                         else:
                             # Handle other categories (like event) normally
@@ -2536,8 +2687,8 @@ class DataAnnotationGUI(QMainWindow):
             annotation_path = Path(annotation_folder)
             
             # Check if this looks like a valid annotation folder
-            # It should contain at least one of: contact_detection, event, phase subfolders
-            expected_subfolders = ['contact_detection', 'event', 'phase']
+            # It should contain at least one of: contact_detection, event, step, gesture, phase subfolders
+            expected_subfolders = ['contact_detection', 'event', 'step', 'gesture', 'phase']
             found_subfolders = []
             
             for subfolder in expected_subfolders:
@@ -2593,14 +2744,13 @@ class DataAnnotationGUI(QMainWindow):
 
             print(f"Loading existing annotations from: {annotation_folder}")
 
-            # CRITICAL FIX: Clear all existing annotations before loading to avoid duplicates
             # This ensures clean loading without mixing old and new annotations
             previous_count = len(self.annotations)
             self.annotations.clear()
             print(f"Cleared {previous_count} existing annotation frames before loading")
 
-            # Categories to load
-            categories = ['contact_detection', 'event', 'phase']
+            # Categories to load (updated: gesture instead of old phase, plus new step and phase)
+            categories = ['contact_detection', 'event', 'step', 'gesture', 'phase']
             loaded_counts = {}
             
             for category in categories:
@@ -2678,52 +2828,116 @@ class DataAnnotationGUI(QMainWindow):
                                     # Add new annotation
                                     self.annotations[frame_index].append(annotation_entry)
                                         
-                        elif category == "phase":
+                        elif category == "gesture":
                             # ROBUST LOADING: Handle null/None values and validate data types
-                            # Convert combined phase format to individual PSM annotations
+                            # Convert combined gesture format to individual PSM annotations (was phase)
                             if not isinstance(annotation_data, dict):
-                                print(f"Warning: Invalid phase data in {json_file}, expected dict, got {type(annotation_data)}")
+                                print(f"Warning: Invalid gesture data in {json_file}, expected dict, got {type(annotation_data)}")
                                 continue
 
-                            phase_data = annotation_data.get("phase", {})
-                            if not isinstance(phase_data, dict):
-                                print(f"Warning: Invalid phase data structure in {json_file}, expected dict, got {type(phase_data)}")
+                            gesture_data = annotation_data.get("gesture", {})
+                            if not isinstance(gesture_data, dict):
+                                print(f"Warning: Invalid gesture data structure in {json_file}, expected dict, got {type(gesture_data)}")
                                 continue
 
-                            for psm, phase_value in phase_data.items():
-                                # Only load phase annotations for PSMs with actual phase text
+                            for psm, gesture_value in gesture_data.items():
+                                # Only load gesture annotations for PSMs with actual gesture text
                                 # Handles: None, null, empty string "", whitespace-only strings
                                 # Treats all as "not annotated" and skips loading them
-                                if phase_value is None:
+                                if gesture_value is None:
                                     continue  # null/None → not annotated, skip
-                                if not isinstance(phase_value, str):
-                                    phase_value = str(phase_value) if phase_value else None
-                                if not phase_value or not phase_value.strip():
+                                if not isinstance(gesture_value, str):
+                                    gesture_value = str(gesture_value) if gesture_value else None
+                                if not gesture_value or not gesture_value.strip():
                                     continue  # Empty or whitespace-only → not annotated, skip
 
-                                if phase_value:  # Only add phase annotations for PSMs with actual phase text
-                                    individual_category = f"phase_{psm}"
-                                    individual_data = {"phase": {psm: phase_value}}
-                                    
+                                if gesture_value:  # Only add gesture annotations for PSMs with actual gesture text
+                                    individual_category = f"gesture_{psm}"
+                                    individual_data = {"gesture": {psm: gesture_value}}
+
                                     annotation_entry = {
                                         'category': individual_category,
                                         'data': individual_data,
                                         'timestamp': datetime.datetime.now().isoformat()
                                     }
-                                    
+
                                     # Check if this individual annotation already exists
                                     existing_entry = None
                                     for i, entry in enumerate(self.annotations[frame_index]):
                                         if entry['category'] == individual_category:
                                             existing_entry = i
                                             break
-                                    
+
                                     if existing_entry is not None:
                                         # Replace existing annotation
                                         self.annotations[frame_index][existing_entry] = annotation_entry
                                     else:
                                         # Add new annotation
                                         self.annotations[frame_index].append(annotation_entry)
+
+                        elif category == "phase":
+                            # ROBUST LOADING: Handle new simple phase format (manual text input)
+                            if not isinstance(annotation_data, dict):
+                                print(f"Warning: Invalid phase data in {json_file}, expected dict, got {type(annotation_data)}")
+                                continue
+
+                            phase_value = annotation_data.get("phase", "")
+
+                            # Skip null, None, or empty phase values
+                            if phase_value is None or not str(phase_value).strip():
+                                continue  # null/None/empty → not annotated, skip
+
+                            annotation_entry = {
+                                'category': 'phase',
+                                'data': {'phase': str(phase_value).strip()},
+                                'timestamp': datetime.datetime.now().isoformat()
+                            }
+
+                            # Check if phase annotation already exists
+                            existing_entry = None
+                            for i, entry in enumerate(self.annotations[frame_index]):
+                                if entry['category'] == 'phase':
+                                    existing_entry = i
+                                    break
+
+                            if existing_entry is not None:
+                                # Replace existing annotation
+                                self.annotations[frame_index][existing_entry] = annotation_entry
+                            else:
+                                # Add new annotation
+                                self.annotations[frame_index].append(annotation_entry)
+
+                        elif category == "step":
+                            # ROBUST LOADING: Handle new step format (manual text input)
+                            if not isinstance(annotation_data, dict):
+                                print(f"Warning: Invalid step data in {json_file}, expected dict, got {type(annotation_data)}")
+                                continue
+
+                            step_value = annotation_data.get("step", "")
+
+                            # Skip null, None, or empty step values
+                            if step_value is None or not str(step_value).strip():
+                                continue  # null/None/empty → not annotated, skip
+
+                            annotation_entry = {
+                                'category': 'step',
+                                'data': {'step': str(step_value).strip()},
+                                'timestamp': datetime.datetime.now().isoformat()
+                            }
+
+                            # Check if step annotation already exists
+                            existing_entry = None
+                            for i, entry in enumerate(self.annotations[frame_index]):
+                                if entry['category'] == 'step':
+                                    existing_entry = i
+                                    break
+
+                            if existing_entry is not None:
+                                # Replace existing annotation
+                                self.annotations[frame_index][existing_entry] = annotation_entry
+                            else:
+                                # Add new annotation
+                                self.annotations[frame_index].append(annotation_entry)
                         
                         else:
                             # Handle other categories (like event) normally
@@ -2830,7 +3044,7 @@ class DataAnnotationGUI(QMainWindow):
                     self,
                     "No Annotations Found",
                     f"No valid annotation files were found in:\n{annotation_folder}\n\n"
-                    f"Expected subfolders: contact_detection, event, phase"
+                    f"Expected subfolders: contact_detection, event, step, gesture, phase"
                 )
                 
         except Exception as e:
@@ -2863,11 +3077,25 @@ class DataAnnotationGUI(QMainWindow):
                     # IMPROVEMENT: Also add to current frame events list for multi-event management
                     if hasattr(self, 'current_frame_events_list'):
                         self.current_frame_events_list.addItem(event_name)
-                elif category.startswith("phase_"):
-                    # Handle individual PSM phase annotations (phase_PSM1, phase_PSM2, etc.)
-                    psm = category.replace("phase_", "")
-                    if "phase" in data and psm in data["phase"] and data["phase"][psm]:
-                        display_text = f"[phase] {psm}: {data['phase'][psm]}"
+                elif category == "step":
+                    # Handle new step annotation (manual text input)
+                    step_text = data.get('step', '')
+                    if step_text:
+                        display_text = f"[step] {step_text}"
+                    else:
+                        continue  # Skip if no step text
+                elif category.startswith("gesture_"):
+                    # Handle individual PSM gesture annotations (gesture_PSM1, gesture_PSM2, etc.) (was phase)
+                    psm = category.replace("gesture_", "")
+                    if "gesture" in data and psm in data["gesture"] and data["gesture"][psm]:
+                        display_text = f"[gesture] {psm}: {data['gesture'][psm]}"
+                    else:
+                        continue  # Skip if no gesture text
+                elif category == "phase":
+                    # Handle new phase annotation (manual text input)
+                    phase_text = data.get('phase', '')
+                    if phase_text:
+                        display_text = f"[phase] {phase_text}"
                     else:
                         continue  # Skip if no phase text
                 elif category.startswith("contact_"):
@@ -2889,8 +3117,12 @@ class DataAnnotationGUI(QMainWindow):
                 # Add category-based color coding
                 if category == "event":
                     list_item.setBackground(QColor(220, 255, 220))  # Light green
-                elif category.startswith("phase_"):
+                elif category == "step":
+                    list_item.setBackground(QColor(255, 240, 200))  # Light yellow
+                elif category.startswith("gesture_"):
                     list_item.setBackground(QColor(220, 220, 255))  # Light blue
+                elif category == "phase":
+                    list_item.setBackground(QColor(240, 200, 255))  # Light purple
                 elif category.startswith("contact_"):
                     # Different colors for contact vs non-contact
                     psm = category.replace("contact_", "")
@@ -3042,21 +3274,47 @@ By Category:"""
                 self._update_annotation_list()
                 self.statusBar().showMessage(f"Updated event to '{new_event.strip()}'")
 
-        elif category.startswith("phase_"):
-            # Edit phase text for specific PSM
-            psm = category.replace("phase_", "")
-            current_phase = data.get("phase", {}).get(psm, "")
-            new_phase, ok = self._show_input_dialog(
-                f"Edit Phase for {psm}",
-                f"{psm} phase:",
-                current_phase
+        elif category == "step":
+            # Edit step text
+            current_step = data.get("step", "")
+            new_step, ok = self._show_input_dialog(
+                "Edit Step",
+                "Step description:",
+                current_step
+            )
+            if ok and new_step.strip():
+                data["step"] = new_step.strip()
+                self._update_annotation_list()
+                self.statusBar().showMessage(f"Updated step to '{new_step.strip()}'")
+
+        elif category.startswith("gesture_"):
+            # Edit gesture text for specific PSM (was phase)
+            psm = category.replace("gesture_", "")
+            current_gesture = data.get("gesture", {}).get(psm, "")
+            new_gesture, ok = self._show_input_dialog(
+                f"Edit Gesture for {psm}",
+                f"{psm} gesture:",
+                current_gesture
             )
             if ok:
-                if "phase" not in data:
-                    data["phase"] = {}
-                data["phase"][psm] = new_phase.strip() if new_phase.strip() else None
+                if "gesture" not in data:
+                    data["gesture"] = {}
+                data["gesture"][psm] = new_gesture.strip() if new_gesture.strip() else None
                 self._update_annotation_list()
-                self.statusBar().showMessage(f"Updated {psm} phase to '{new_phase.strip()}'")
+                self.statusBar().showMessage(f"Updated {psm} gesture to '{new_gesture.strip()}'")
+
+        elif category == "phase":
+            # Edit phase text (new simple phase)
+            current_phase = data.get("phase", "")
+            new_phase, ok = self._show_input_dialog(
+                "Edit Phase",
+                "Phase description:",
+                current_phase
+            )
+            if ok and new_phase.strip():
+                data["phase"] = new_phase.strip()
+                self._update_annotation_list()
+                self.statusBar().showMessage(f"Updated phase to '{new_phase.strip()}'")
 
         elif category.startswith("contact_"):
             # Contact is boolean - toggle it
@@ -3416,7 +3674,6 @@ By Category:"""
 
         try:
             # Calculate statistics about labeled vs unlabeled frames
-            # CRITICAL FIX: Only count frames with CONTACT DETECTION annotations for backfill check
             # Phase/Event annotations don't affect backfill since backfilling only applies to contact
             total_frames = len(self.frame_files)
 
@@ -3501,14 +3758,13 @@ By Category:"""
             for frame_idx in frames_to_save:
                 # Get annotations for this frame (empty list if not annotated)
                 frame_annotations = self.annotations.get(frame_idx, [])
-                # Separate contact, phase, and other annotations
+                # Separate contact, gesture (was phase), and other annotations
                 contact_annotations = [a for a in frame_annotations if a["category"].startswith("contact_")]
-                phase_annotations = [a for a in frame_annotations if a["category"].startswith("phase_")]
+                gesture_annotations = [a for a in frame_annotations if a["category"].startswith("gesture_")]
                 other_annotations = [a for a in frame_annotations if not (
-                    a["category"].startswith("contact_") or a["category"].startswith("phase_")
+                    a["category"].startswith("contact_") or a["category"].startswith("gesture_")
                 )]
-                
-                # IMPORTANT FIX: Always save contact detection labels for ALL frames
+
                 # This ensures both contact and non-contact frames have labels
                 # Initialize all active PSMs to 0 (no contact by default)
                 combined_contact_data = {}
@@ -3534,44 +3790,43 @@ By Category:"""
 
                 categories_saved.add("contact_detection")
 
-                # CRITICAL FIX: Only save phase labels for frames that have phase annotations
-                # Do NOT backfill phase with null values - phase is sparse (only when annotated)
-                # This ensures we only save phase data when user explicitly added it
-                if phase_annotations:
-                    # Initialize phase data structure
-                    combined_phase_data = {"phase": {}}
+                # Do NOT backfill gesture with null values - gesture is sparse (only when annotated)
+                # This ensures we only save gesture data when user explicitly added it
+                if gesture_annotations:
+                    # Initialize gesture data structure
+                    combined_gesture_data = {"gesture": {}}
                     for psm in self.active_psms:
-                        combined_phase_data["phase"][psm] = None
+                        combined_gesture_data["gesture"][psm] = None
 
-                    # Set phases for PSMs that have phase annotations
-                    for annotation in phase_annotations:
+                    # Set gestures for PSMs that have gesture annotations
+                    for annotation in gesture_annotations:
                         category = annotation["category"]
                         data = annotation["data"]
-                        psm = category.replace("phase_", "")
-                        if "phase" in data and psm in data["phase"]:
-                            combined_phase_data["phase"][psm] = data["phase"][psm]
+                        psm = category.replace("gesture_", "")
+                        if "gesture" in data and psm in data["gesture"]:
+                            combined_gesture_data["gesture"][psm] = data["gesture"][psm]
 
-                    # Save phase data ONLY if this frame has phase annotations
-                    phase_folder = base_folder / "annotation" / "phase"
-                    if not phase_folder.exists():
-                        create_folder(phase_folder)
+                    # Save gesture data ONLY if this frame has gesture annotations
+                    gesture_folder = base_folder / "annotation" / "gesture"
+                    if not gesture_folder.exists():
+                        create_folder(gesture_folder)
 
-                    frame_file = phase_folder / f"{frame_idx}.json"
+                    frame_file = gesture_folder / f"{frame_idx}.json"
                     with open(frame_file, 'w', encoding='utf-8') as f:
-                        json.dump(combined_phase_data, f, indent=2, ensure_ascii=False)
+                        json.dump(combined_gesture_data, f, indent=2, ensure_ascii=False)
 
-                    categories_saved.add("phase")
+                    categories_saved.add("gesture")
                 
                 # Group other annotations by category to handle multiple events properly
                 category_annotations = {}
                 for annotation in other_annotations:
                     category = annotation["category"]
                     data = annotation["data"]
-                    
+
                     # Skip individual PSM categories - they're already handled as combined files above
-                    if category.startswith("contact_") or category.startswith("phase_"):
+                    if category.startswith("contact_") or category.startswith("gesture_"):
                         continue
-                    
+
                     if category not in category_annotations:
                         category_annotations[category] = []
                     category_annotations[category].append(data)
@@ -3619,6 +3874,8 @@ By Category:"""
             # This provides transparency about what was actually saved
             contact_label_count = 0
             event_label_count = 0
+            step_label_count = 0
+            gesture_label_count = 0
             phase_label_count = 0
 
             for frame_idx in range(total_frames):
@@ -3632,8 +3889,16 @@ By Category:"""
                     has_event = any(a['category'] == 'event' for a in frame_annotations)
                     if has_event:
                         event_label_count += 1
-                    # Count frames with phase annotations
-                    has_phase = any(a['category'].startswith('phase_') for a in frame_annotations)
+                    # Count frames with step annotations
+                    has_step = any(a['category'] == 'step' for a in frame_annotations)
+                    if has_step:
+                        step_label_count += 1
+                    # Count frames with gesture annotations (was phase)
+                    has_gesture = any(a['category'].startswith('gesture_') for a in frame_annotations)
+                    if has_gesture:
+                        gesture_label_count += 1
+                    # Count frames with phase annotations (new simple phase)
+                    has_phase = any(a['category'] == 'phase' for a in frame_annotations)
                     if has_phase:
                         phase_label_count += 1
 
@@ -3649,6 +3914,10 @@ By Category:"""
                 label_details += f"  • Contact Detection: {frames_saved} files ({contact_label_count} annotated, {frames_saved - contact_label_count} backfilled)\n"
                 if 'event' in categories_saved:
                     label_details += f"  • Event: {event_label_count} files (sparse, only explicitly annotated)\n"
+                if 'step' in categories_saved:
+                    label_details += f"  • Step: {step_label_count} files (sparse, only explicitly annotated)\n"
+                if 'gesture' in categories_saved:
+                    label_details += f"  • Gesture: {gesture_label_count} files (sparse, only explicitly annotated)\n"
                 if 'phase' in categories_saved:
                     label_details += f"  • Phase: {phase_label_count} files (sparse, only explicitly annotated)\n"
 
