@@ -1,0 +1,28 @@
+# Configuration for Time Synchronization Data Reorganization
+#
+# This configuration file controls the time synchronization data reorganization process.
+# The script finds folders containing <camera_name>_sync_test.json files in the input folder,
+# then uses data_reorganization_note.json to map the original data paths to new data paths
+# and copies the data accordingly.
+
+# Workspace directory (root of dvrk_multimodal_data_collection repository)
+workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+
+# Input folder containing the time synchronization test results
+# This folder should contain subfolders with *_sync_test.json files
+input_folder: "/home/jackzhy/dvrk_multimodal_data_collection/data/test_sync"
+
+# Output folder where reorganized data will be copied
+output_folder: "/home/jackzhy/dvrk_multimodal_data_collection/data/test_sync_reorg"
+
+# Path to the data organization note JSON file
+# This file contains the mapping from original_data_path to new_data_path
+data_org_note: "/home/jackzhy/dvrk_multimodal_data_collection/data/data_organization_note.json"
+
+# Folder initialization: whether to clear the output folder before processing
+# Set to true to remove existing output (WARNING: destructive operation)
+# Set to false to keep existing output (recommended)
+folder_initialize: false
+
+# Verbose mode: print detailed processing information
+verbose: true

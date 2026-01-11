@@ -2,13 +2,14 @@ workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
 
 # Input/Output folders
 #input_folder: "${workspace}/data"      # Raw data with nested structure
-input_folder: "/media/jackzhy/Jack_SSD_4T/multi_modal_data/JHU"
+#input_folder: "/media/jackzhy/Jack_SSD_4T/multi_modal_data/JHU"
+input_folder: "/media/jackzhy/Jack_SSD_4T/new_data_set"
 #output_folder: "${workspace}/raw_data" # Organized output with flat structure
-output_folder: "/media/jackzhy/Jack_SSD_4T/raw_data_jhu"
+output_folder: "/media/jackzhy/Extreme Pro/data_open_h_new/raw"
 
 # Camera selection: which camera views to copy
 # Options: "left", "right", "side"
-copy_image_name: ["left", "right", "side"]
+copy_image_name: ["left", "right", "side1"]
 
 # Data modality flags: control which data types to copy
 enable_kinematic_copy: true   # Copy kinematic data (robot joint/pose information)
