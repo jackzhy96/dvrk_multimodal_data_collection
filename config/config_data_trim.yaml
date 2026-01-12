@@ -1,0 +1,47 @@
+# Configuration for Data Trimming Script
+#
+# This configuration file controls the data trimming process to ensure all subfolders
+# in a dataset have the same number of files. The script finds subset folders and trims
+# files until all subfolders match the minimum file count.
+
+# Workspace directory (root of dvrk_multimodal_data_collection repository)
+workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+
+# Data folder containing subset folders to trim
+# Each subset should have image/, kinematic/, time_syn/, and optionally annotation/
+data_folder: "/media/jackzhy/Extreme Pro/data_open_h_new"
+
+# Trim mode: determines which image folders to check for minimum file count
+# - "stereo": Only check image/left and image/right (default for stereo camera setups)
+# - "all": Check all subfolders in image/ (left, right, side1, etc.)
+trim_mode: "all"
+
+# Remove from end: controls which files to remove when trimming
+# - -1: Remove from end (keep indices 0 to n-1, remove files with index >= n)
+# -  0: Remove from front (keep latest files, not recommended - breaks temporal order)
+# -  n > 0: Remove first n files, then keep the rest
+#           Example: If need to remove 100 files and remove_from_end=50
+#                    Remove files 0-49, keep files 50 onwards
+#           If n is larger than required removal amount, script will raise error
+remove_from_end: -1
+
+# Remove files: whether to actually remove files or just show what would be removed
+# - true: Actually delete files (USE WITH CAUTION)
+# - false: Dry run mode - only report what would be removed without deleting
+remove_files: true
+
+# Verbose mode: print detailed processing information
+verbose: true
+
+# Require confirmation: whether to prompt for confirmation before trimming
+# - true: Ask for user confirmation before deleting files (recommended)
+# - false: Skip confirmation (use with caution)
+require_confirmation: true
+
+# Target folders to trim (must all have same number of files after trimming)
+# These are the standard dVRK data collection folders
+target_folders:
+  - "image"          # Camera images (subfolders: left, right, side1, etc.)
+  - "kinematic"      # Robot kinematic data (subfolders: ECM, PSM1, PSM2, etc.)
+  - "time_syn"       # Time synchronization data
+  - "annotation"     # Optional: Contact detection or other annotations
