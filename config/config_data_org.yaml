@@ -3,7 +3,7 @@ workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
 # Input/Output folders
 #input_folder: "${workspace}/data"      # Raw data with nested structure
 #input_folder: "/media/jackzhy/Jack_SSD_4T/multi_modal_data/JHU"
-input_folder: "/media/jackzhy/Jack_SSD_4T/new_data_set"
+input_folder: "/media/jackzhy/Jack_SSD_4T/open_h_new_data"
 #output_folder: "${workspace}/raw_data" # Organized output with flat structure
 output_folder: "/media/jackzhy/Extreme Pro/data_open_h_new/raw"
 

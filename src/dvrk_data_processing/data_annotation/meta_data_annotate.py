@@ -337,7 +337,7 @@ class MetaDataAnnotationGUI(QMainWindow):
         self.metadata = {
             'user_id': '',
             'operator_skill_level': '',
-            'data_type': '',
+            'case_type': '',
             'tool': {},  # Dictionary of PSM tools, e.g., {'PSM1': 'Large_Needle_Driver', 'PSM2': 'Prograsp_Forceps'}
             'failure': [],  # List of tuples (start_idx, end_idx)
             'recovery': []  # List of tuples (start_idx, end_idx)
@@ -346,6 +346,7 @@ class MetaDataAnnotationGUI(QMainWindow):
         # GUI state
         self.current_frame_index = 0
         self.image_processor: Optional[ImageProcessor] = None
+        self.has_unsaved_changes = False  # Track unsaved modifications
 
         # Auto-play state (EXACT same as data_annotate.py)
         self.is_playing = False
@@ -368,8 +369,8 @@ class MetaDataAnnotationGUI(QMainWindow):
         self.user_id_input: Optional[QLineEdit] = None
         self.skill_level_dropdown: Optional[QComboBox] = None
         self.skill_level_custom_input: Optional[QLineEdit] = None
-        self.data_type_dropdown: Optional[QComboBox] = None
-        self.data_type_custom_input: Optional[QLineEdit] = None
+        self.case_type_dropdown: Optional[QComboBox] = None
+        self.case_type_custom_input: Optional[QLineEdit] = None
 
         # PSM Tool annotation controls - dynamically created based on config
         self.psm_tool_dropdowns: Dict[str, QComboBox] = {}  # e.g., {'PSM1': QComboBox, 'PSM2': QComboBox}
@@ -867,34 +868,39 @@ class MetaDataAnnotationGUI(QMainWindow):
         # User ID input
         self.user_id_input = QLineEdit()
         self.user_id_input.setPlaceholderText("Enter user ID...")
+        self.user_id_input.textChanged.connect(lambda: self._mark_unsaved_changes())
         metadata_layout.addRow("User ID:", self.user_id_input)
 
         # Operator Skill Level dropdown
         self.skill_level_dropdown = QComboBox()
         self.skill_level_dropdown.addItems(["Expert", "Intermediate", "Novice", "Others"])
         self.skill_level_dropdown.currentTextChanged.connect(self._on_skill_level_changed)
+        self.skill_level_dropdown.currentTextChanged.connect(lambda: self._mark_unsaved_changes())
         metadata_layout.addRow("Operator Skill Level:", self.skill_level_dropdown)
 
         # Custom skill level input (hidden by default)
         self.skill_level_custom_input = QLineEdit()
         self.skill_level_custom_input.setPlaceholderText("Enter custom skill level...")
+        self.skill_level_custom_input.textChanged.connect(lambda: self._mark_unsaved_changes())
         self.skill_level_custom_input.setVisible(False)
         metadata_layout.addRow("", self.skill_level_custom_input)
 
-        # Data Type dropdown
-        self.data_type_dropdown = QComboBox()
-        self.data_type_dropdown.addItems([
+        # Case Type dropdown
+        self.case_type_dropdown = QComboBox()
+        self.case_type_dropdown.addItems([
             "Clinical", "Ex-vivo", "Table-Top Phantom",
             "Digital Simulation", "Physical Simulation", "Others"
         ])
-        self.data_type_dropdown.currentTextChanged.connect(self._on_data_type_changed)
-        metadata_layout.addRow("Data Type:", self.data_type_dropdown)
+        self.case_type_dropdown.currentTextChanged.connect(self._on_case_type_changed)
+        self.case_type_dropdown.currentTextChanged.connect(lambda: self._mark_unsaved_changes())
+        metadata_layout.addRow("Case Type:", self.case_type_dropdown)
 
-        # Custom data type input (hidden by default)
-        self.data_type_custom_input = QLineEdit()
-        self.data_type_custom_input.setPlaceholderText("Enter custom data type...")
-        self.data_type_custom_input.setVisible(False)
-        metadata_layout.addRow("", self.data_type_custom_input)
+        # Custom case type input (hidden by default)
+        self.case_type_custom_input = QLineEdit()
+        self.case_type_custom_input.setPlaceholderText("Enter custom case type...")
+        self.case_type_custom_input.textChanged.connect(lambda: self._mark_unsaved_changes())
+        self.case_type_custom_input.setVisible(False)
+        metadata_layout.addRow("", self.case_type_custom_input)
 
         # PSM Tool dropdowns - will be populated after configuration is loaded
         # We create placeholders here and populate them in load_configuration()
@@ -903,7 +909,7 @@ class MetaDataAnnotationGUI(QMainWindow):
         return metadata_group
 
     def _create_current_annotations_section(self) -> QGroupBox:
-        """Create current annotations display section."""
+        """Create current annotations display section with management buttons."""
         current_group = QGroupBox("Current Annotations")
         current_layout = QVBoxLayout(current_group)
 
@@ -911,10 +917,26 @@ class MetaDataAnnotationGUI(QMainWindow):
         self.annotation_list.setMaximumHeight(150)
         current_layout.addWidget(self.annotation_list)
 
+        # Annotation management buttons (similar to data_annotate.py)
+        annotation_btn_layout = QHBoxLayout()
+
+        self.remove_selected_btn = QPushButton("Remove Selected")
+        self.remove_selected_btn.clicked.connect(self._remove_selected_annotation)
+        self.remove_selected_btn.setStyleSheet("background-color: #f44336; color: white;")
+        annotation_btn_layout.addWidget(self.remove_selected_btn)
+
+        # Add "Clear All" button to clear all failure and recovery labels
+        self.clear_all_btn = QPushButton("Clear All")
+        self.clear_all_btn.clicked.connect(self._clear_all_annotations)
+        self.clear_all_btn.setStyleSheet("background-color: #ff6b6b; color: white; font-weight: bold;")
+        annotation_btn_layout.addWidget(self.clear_all_btn)
+
+        current_layout.addLayout(annotation_btn_layout)
+
         return current_group
 
     def _create_statistics_section(self) -> QGroupBox:
-        """Create statistics section."""
+        """Create statistics section with reset/reload button."""
         stats_group = QGroupBox("Statistics")
         stats_layout = QVBoxLayout(stats_group)
 
@@ -922,6 +944,12 @@ class MetaDataAnnotationGUI(QMainWindow):
         self.stats_label.setStyleSheet("font-family: monospace; font-size: 11px; padding: 5px;")
         self.stats_label.setWordWrap(True)
         stats_layout.addWidget(self.stats_label)
+
+        # Add reset/reload button for statistics (similar to data_annotate.py)
+        reset_stats_btn = QPushButton("Reset/Reload Stats")
+        reset_stats_btn.clicked.connect(self._reset_statistics)
+        reset_stats_btn.setStyleSheet("font-size: 12px; padding: 5px;")
+        stats_layout.addWidget(reset_stats_btn)
 
         return stats_group
 
@@ -953,14 +981,66 @@ class MetaDataAnnotationGUI(QMainWindow):
         """Handle skill level dropdown change."""
         self.skill_level_custom_input.setVisible(text == "Others")
 
-    def _on_data_type_changed(self, text: str):
-        """Handle data type dropdown change."""
-        self.data_type_custom_input.setVisible(text == "Others")
+    def _on_case_type_changed(self, text: str):
+        """Handle case type dropdown change."""
+        self.case_type_custom_input.setVisible(text == "Others")
 
     def _on_psm_tool_changed(self, psm_name: str, text: str):
         """Handle PSM tool dropdown change."""
         if psm_name in self.psm_tool_custom_inputs:
             self.psm_tool_custom_inputs[psm_name].setVisible(text == "Others")
+        self._mark_unsaved_changes()
+
+    def _mark_unsaved_changes(self):
+        """Mark that there are unsaved changes."""
+        self.has_unsaved_changes = True
+
+    def _clear_psm_tool_controls(self):
+        """
+        Safely clear all existing PSM tool controls from the layout.
+
+        This method removes PSM tool dropdowns and custom inputs from the
+        QFormLayout and cleans up the tracking dictionaries. It's safe to
+        call multiple times and handles cases where widgets may not exist.
+        """
+        # Get the metadata group's layout (FormLayout)
+        metadata_group = None
+        for widget in self.findChildren(QGroupBox):
+            if widget.title() == "Meta Data Annotation":
+                metadata_group = widget
+                break
+
+        if not metadata_group:
+            # Clear dictionaries even if we can't find the layout
+            self.psm_tool_dropdowns.clear()
+            self.psm_tool_custom_inputs.clear()
+            return
+
+        metadata_layout = metadata_group.layout()
+        if not isinstance(metadata_layout, QFormLayout):
+            # Clear dictionaries even if layout is wrong type
+            self.psm_tool_dropdowns.clear()
+            self.psm_tool_custom_inputs.clear()
+            return
+
+        # Remove all PSM-related rows from the layout
+        # Iterate backwards to avoid index issues when removing rows
+        i = metadata_layout.rowCount() - 1
+        while i >= 0:
+            # Get the label item for this row
+            label_item = metadata_layout.itemAt(i, QFormLayout.LabelRole)
+            if label_item and label_item.widget():
+                label_text = label_item.widget().text()
+                # Check if this row is for a PSM tool (e.g., "PSM1 Tool:", "PSM2 Tool:")
+                if label_text and ("PSM" in label_text) and ("Tool" in label_text):
+                    # Remove this row completely (both label and field)
+                    metadata_layout.removeRow(i)
+            i -= 1
+
+        # Now safely clear the dictionaries
+        # Don't try to access the widgets, just clear the references
+        self.psm_tool_dropdowns.clear()
+        self.psm_tool_custom_inputs.clear()
 
     def _create_psm_tool_controls(self):
         """
@@ -971,6 +1051,9 @@ class MetaDataAnnotationGUI(QMainWindow):
         """
         if not self.config:
             return
+
+        # First, safely clear any existing PSM tool controls
+        self._clear_psm_tool_controls()
 
         # Get the metadata group's layout (FormLayout)
         metadata_group = None
@@ -985,15 +1068,6 @@ class MetaDataAnnotationGUI(QMainWindow):
         metadata_layout = metadata_group.layout()
         if not isinstance(metadata_layout, QFormLayout):
             return
-
-        # Clear any existing PSM tool controls
-        for psm_name in list(self.psm_tool_dropdowns.keys()):
-            if psm_name in self.psm_tool_dropdowns:
-                self.psm_tool_dropdowns[psm_name].deleteLater()
-                del self.psm_tool_dropdowns[psm_name]
-            if psm_name in self.psm_tool_custom_inputs:
-                self.psm_tool_custom_inputs[psm_name].deleteLater()
-                del self.psm_tool_custom_inputs[psm_name]
 
         # Define tool options
         tool_options = [
@@ -1024,6 +1098,7 @@ class MetaDataAnnotationGUI(QMainWindow):
                 # Create custom input field (hidden by default)
                 psm_custom_input = QLineEdit()
                 psm_custom_input.setPlaceholderText(f"Enter custom tool name for {psm_name}...")
+                psm_custom_input.textChanged.connect(lambda: self._mark_unsaved_changes())
                 psm_custom_input.setVisible(False)
                 metadata_layout.addRow("", psm_custom_input)
                 self.psm_tool_custom_inputs[psm_name] = psm_custom_input
@@ -1071,7 +1146,8 @@ class MetaDataAnnotationGUI(QMainWindow):
 
         if self.current_frame_index < self.frame_range_start:
             QMessageBox.warning(self, "Invalid Range",
-                              "End frame must be after start frame.")
+                              "End frame must be after or equal to start frame. "
+                              "The range must be positive (at least 1 frame).")
             return
 
         self.frame_range_end = self.current_frame_index
@@ -1084,6 +1160,36 @@ class MetaDataAnnotationGUI(QMainWindow):
         self.frame_range_end = None
         self._update_range_display()
         self.statusBar().showMessage("Frame range cleared")
+
+    def _validate_multi_frame_range(self) -> bool:
+        """
+        Validate that the multi-frame range is valid and positive.
+
+        Returns:
+            True if range is valid, False otherwise (with warning message shown)
+        """
+        if not self.multi_frame_mode:
+            return True  # Not in multi-frame mode, so no validation needed
+
+        if self.frame_range_start is None or self.frame_range_end is None:
+            QMessageBox.warning(
+                self,
+                "Invalid Range",
+                "Please set both start and end frames for multi-frame labeling."
+            )
+            return False
+
+        # Check that range is positive (end >= start)
+        if self.frame_range_end < self.frame_range_start:
+            QMessageBox.warning(
+                self,
+                "Invalid Range",
+                "End frame must be after or equal to start frame. "
+                "The range must be positive (at least 1 frame)."
+            )
+            return False
+
+        return True
 
     def _update_range_display(self):
         """Update the range display label."""
@@ -1112,18 +1218,15 @@ class MetaDataAnnotationGUI(QMainWindow):
             )
             return
 
-        if self.frame_range_start is None or self.frame_range_end is None:
-            QMessageBox.warning(
-                self,
-                "Frame Range Not Set",
-                "Please set both start and end frames using multi-frame labeling."
-            )
-            return
+        # Validate multi-frame range (ensures it's positive and properly set)
+        if not self._validate_multi_frame_range():
+            return  # Validation failed, warning already shown
 
         # Add tuple to failure list
         failure_range = (self.frame_range_start, self.frame_range_end)
         self.metadata['failure'].append(failure_range)
 
+        self._mark_unsaved_changes()
         self.statusBar().showMessage(
             f"Failure label added: frames {self.frame_range_start} - {self.frame_range_end}"
         )
@@ -1142,6 +1245,7 @@ class MetaDataAnnotationGUI(QMainWindow):
 
             if reply == QMessageBox.Yes:
                 self.metadata['failure'] = []
+                self._mark_unsaved_changes()
                 self.statusBar().showMessage("All failure labels cleared")
                 self._update_annotation_list()
                 self._update_statistics()
@@ -1163,18 +1267,15 @@ class MetaDataAnnotationGUI(QMainWindow):
             )
             return
 
-        if self.frame_range_start is None or self.frame_range_end is None:
-            QMessageBox.warning(
-                self,
-                "Frame Range Not Set",
-                "Please set both start and end frames using multi-frame labeling."
-            )
-            return
+        # Validate multi-frame range (ensures it's positive and properly set)
+        if not self._validate_multi_frame_range():
+            return  # Validation failed, warning already shown
 
         # Add tuple to recovery list
         recovery_range = (self.frame_range_start, self.frame_range_end)
         self.metadata['recovery'].append(recovery_range)
 
+        self._mark_unsaved_changes()
         self.statusBar().showMessage(
             f"Recovery label added: frames {self.frame_range_start} - {self.frame_range_end}"
         )
@@ -1193,11 +1294,101 @@ class MetaDataAnnotationGUI(QMainWindow):
 
             if reply == QMessageBox.Yes:
                 self.metadata['recovery'] = []
+                self._mark_unsaved_changes()
                 self.statusBar().showMessage("All recovery labels cleared")
                 self._update_annotation_list()
                 self._update_statistics()
         else:
             self.statusBar().showMessage("No recovery labels to clear")
+
+    def _remove_selected_annotation(self):
+        """
+        Remove selected annotation from the list.
+
+        Works for both multi-frame mode and single annotation removal.
+        Removes the selected failure or recovery label from the metadata.
+        """
+        current_item = self.annotation_list.currentItem()
+        if not current_item:
+            QMessageBox.information(self, "No Selection", "Please select an annotation to remove.")
+            return
+
+        # Get the selected row
+        item_index = self.annotation_list.currentRow()
+        item_text = current_item.text()
+
+        # Determine if it's a failure or recovery annotation
+        if item_text.startswith("Failure"):
+            # Extract the failure number from the text (e.g., "Failure 1: Frames 10 - 20")
+            failure_count = len(self.metadata['failure'])
+            if item_index < failure_count:
+                removed_range = self.metadata['failure'][item_index]
+                self.metadata['failure'].pop(item_index)
+                self.statusBar().showMessage(
+                    f"Failure label removed: frames {removed_range[0]} - {removed_range[1]}"
+                )
+            else:
+                QMessageBox.warning(self, "Error", "Failed to remove failure annotation.")
+                return
+        elif item_text.startswith("Recovery"):
+            # Calculate the recovery index (offset by number of failures)
+            failure_count = len(self.metadata['failure'])
+            recovery_index = item_index - failure_count
+            if 0 <= recovery_index < len(self.metadata['recovery']):
+                removed_range = self.metadata['recovery'][recovery_index]
+                self.metadata['recovery'].pop(recovery_index)
+                self.statusBar().showMessage(
+                    f"Recovery label removed: frames {removed_range[0]} - {removed_range[1]}"
+                )
+            else:
+                QMessageBox.warning(self, "Error", "Failed to remove recovery annotation.")
+                return
+        else:
+            QMessageBox.warning(self, "Unknown Annotation", "Cannot determine annotation type.")
+            return
+
+        # Update the display
+        self._mark_unsaved_changes()
+        self._update_annotation_list()
+        self._update_statistics()
+
+    def _clear_all_annotations(self):
+        """
+        Clear all failure and recovery annotations from the metadata.
+
+        Similar to data_annotate.py's clear_all functionality, but adapted
+        for metadata (failure and recovery lists).
+        """
+        # Count total annotations
+        total_failure = len(self.metadata['failure'])
+        total_recovery = len(self.metadata['recovery'])
+        total_annotations = total_failure + total_recovery
+
+        if total_annotations == 0:
+            QMessageBox.information(self, "No Annotations", "No failure or recovery labels found.")
+            return
+
+        # Confirm with user
+        reply = QMessageBox.question(
+            self,
+            "Clear All Annotations",
+            f"Remove ALL {total_annotations} annotations?\n"
+            f"  - {total_failure} failure label(s)\n"
+            f"  - {total_recovery} recovery label(s)\n\n"
+            "This action cannot be undone!",
+            QMessageBox.Yes | QMessageBox.No
+        )
+
+        if reply == QMessageBox.Yes:
+            # Clear all annotations
+            self.metadata['failure'] = []
+            self.metadata['recovery'] = []
+
+            # Update display
+            self._mark_unsaved_changes()
+            self._update_annotation_list()
+            self._update_statistics()
+            self.statusBar().showMessage(f"Cleared all {total_annotations} annotations")
 
     def _update_annotation_list(self):
         """Update the current annotations display."""
@@ -1233,8 +1424,8 @@ Metadata:"""
             stats_text += f"\n  User ID: {self.metadata['user_id']}"
         if self.metadata['operator_skill_level']:
             stats_text += f"\n  Skill Level: {self.metadata['operator_skill_level']}"
-        if self.metadata['data_type']:
-            stats_text += f"\n  Data Type: {self.metadata['data_type']}"
+        if self.metadata['case_type']:
+            stats_text += f"\n  Case Type: {self.metadata['case_type']}"
         if self.metadata.get('tool'):
             stats_text += "\n  tool:"
             for psm_name, tool_name in self.metadata['tool'].items():
@@ -1252,9 +1443,104 @@ Metadata:"""
 
         self.stats_label.setText(stats_text)
 
+    def _reset_statistics(self):
+        """
+        Reset/reload statistics display based on current status.
+
+        Recalculates and updates the statistics display to reflect the current
+        state of all metadata (user_id, skill level, data type, tool, failure, recovery).
+        Useful when you want to refresh the display after making changes.
+        """
+        self._update_statistics()
+        self.statusBar().showMessage("Statistics reloaded")
+
+    def _reset_all_parameters(self):
+        """
+        Reset all parameters when loading a new configuration.
+
+        Clears all metadata, UI fields, multi-frame state, and annotations
+        to ensure a clean slate when switching between different datasets.
+        """
+        # Reset metadata to initial state
+        self.metadata = {
+            'user_id': '',
+            'operator_skill_level': '',
+            'case_type': '',
+            'tool': {},
+            'failure': [],
+            'recovery': []
+        }
+
+        # Reset multi-frame labeling state
+        self.frame_range_start = None
+        self.frame_range_end = None
+        if hasattr(self, 'multi_frame_checkbox'):
+            self.multi_frame_checkbox.setChecked(False)
+        self._update_range_display()
+
+        # Clear UI input fields
+        if hasattr(self, 'user_id_input'):
+            self.user_id_input.clear()
+
+        if hasattr(self, 'skill_level_dropdown'):
+            self.skill_level_dropdown.setCurrentIndex(0)  # Reset to first option (Expert)
+
+        if hasattr(self, 'skill_level_custom_input'):
+            self.skill_level_custom_input.clear()
+            self.skill_level_custom_input.setVisible(False)
+
+        if hasattr(self, 'case_type_dropdown'):
+            self.case_type_dropdown.setCurrentIndex(0)  # Reset to first option (Clinical)
+
+        if hasattr(self, 'case_type_custom_input'):
+            self.case_type_custom_input.clear()
+            self.case_type_custom_input.setVisible(False)
+
+        # Clear PSM tool controls safely
+        # This removes all PSM tool dropdowns and custom inputs from the layout
+        # They will be recreated by _create_psm_tool_controls() after this method
+        self._clear_psm_tool_controls()
+
+        # Clear annotation list display
+        if hasattr(self, 'annotation_list'):
+            self.annotation_list.clear()
+
+        # Reset custom save folder (will use config default)
+        self.custom_save_folder = None
+
+        # Reset current frame index
+        self.current_frame_index = 0
+
+        # Stop auto-play if running
+        if hasattr(self, 'is_playing') and self.is_playing:
+            self.toggle_auto_play()
+
+        # Update displays
+        self._update_annotation_list()
+        self._update_statistics()
+
+        # Clear unsaved changes flag after reset
+        self.has_unsaved_changes = False
+
+        self.statusBar().showMessage("All parameters reset for new configuration")
+
     def load_configuration(self):
         """Load configuration and initialize data paths."""
         try:
+            # Check for unsaved changes before loading new configuration
+            if self.has_unsaved_changes:
+                reply = QMessageBox.question(
+                    self,
+                    "Unsaved Changes",
+                    "You have unsaved changes. Do you want to save before loading new configuration?",
+                    QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
+                )
+
+                if reply == QMessageBox.Save:
+                    self.save_metadata()
+                elif reply == QMessageBox.Cancel:
+                    return  # Don't load new configuration
+
             # Load configuration
             config_file, _ = QFileDialog.getOpenFileName(
                 self,
@@ -1267,6 +1553,9 @@ Metadata:"""
                 return
 
             self.config = self.config_loader.load_config(Path(config_file))
+
+            # Reset all parameters when loading new configuration
+            self._reset_all_parameters()
 
             # Get image paths from configuration
             self.image_paths = self.config_loader.get_image_paths()
@@ -1371,7 +1660,7 @@ Metadata:"""
                 loaded_metadata = json.load(f)
 
             # Validate required fields (Tools is optional for backward compatibility)
-            required_fields = ['user_id', 'operator_skill_level', 'data_type', 'failure', 'recovery']
+            required_fields = ['user_id', 'operator_skill_level', 'case_type', 'failure', 'recovery']
             for field in required_fields:
                 if field not in loaded_metadata:
                     raise ValueError(f"Missing required field: {field}")
@@ -1408,13 +1697,13 @@ Metadata:"""
                 self.skill_level_dropdown.setCurrentText("Others")
                 self.skill_level_custom_input.setText(skill_level)
 
-            # Data type
-            data_type = self.metadata['data_type']
-            if data_type in ["Clinical", "Ex-vivo", "Table-Top Phantom", "Digital Simulation", "Physical Simulation"]:
-                self.data_type_dropdown.setCurrentText(data_type)
+            # Case type
+            case_type = self.metadata['case_type']
+            if case_type in ["Clinical", "Ex-vivo", "Table-Top Phantom", "Digital Simulation", "Physical Simulation"]:
+                self.case_type_dropdown.setCurrentText(case_type)
             else:
-                self.data_type_dropdown.setCurrentText("Others")
-                self.data_type_custom_input.setText(data_type)
+                self.case_type_dropdown.setCurrentText("Others")
+                self.case_type_custom_input.setText(case_type)
 
             # PSM tool - populate dropdowns if they exist
             if 'tool' in self.metadata and self.metadata['tool']:
@@ -1435,6 +1724,9 @@ Metadata:"""
             # Update displays
             self._update_annotation_list()
             self._update_statistics()
+
+            # Clear unsaved changes flag after loading
+            self.has_unsaved_changes = False
 
             self.statusBar().showMessage(f"Metadata loaded from {Path(json_file).name}")
 
@@ -1478,11 +1770,11 @@ Metadata:"""
             else:
                 self.metadata['operator_skill_level'] = self.skill_level_dropdown.currentText()
 
-            # Data type
-            if self.data_type_dropdown.currentText() == "Others":
-                self.metadata['data_type'] = self.data_type_custom_input.text().strip()
+            # Case type
+            if self.case_type_dropdown.currentText() == "Others":
+                self.metadata['case_type'] = self.case_type_custom_input.text().strip()
             else:
-                self.metadata['data_type'] = self.data_type_dropdown.currentText()
+                self.metadata['case_type'] = self.case_type_dropdown.currentText()
 
             # PSM tool - collect from dropdowns
             self.metadata['tool'] = {}
@@ -1517,6 +1809,9 @@ Metadata:"""
 
             self.statusBar().showMessage(f"Metadata saved to {meta_data_file}")
 
+            # Clear unsaved changes flag after saving
+            self.has_unsaved_changes = False
+
             # Build summary message
             failure_summary = "Not set"
             if self.metadata['failure']:
@@ -1541,7 +1836,7 @@ Metadata:"""
                 f"Metadata successfully saved to:\n{meta_data_file}\n\n"
                 f"User ID: {self.metadata['user_id']}\n"
                 f"Skill Level: {self.metadata['operator_skill_level']}\n"
-                f"Data Type: {self.metadata['data_type']}\n"
+                f"Case Type: {self.metadata['case_type']}\n"
                 f"tool: {tool_summary}\n"
                 f"Failure: {failure_summary}\n"
                 f"Recovery: {recovery_summary}"
@@ -1832,7 +2127,22 @@ Metadata:"""
         self.statusBar().showMessage(f"Error: {error_message}")
 
     def closeEvent(self, event):
-        """Handle window close event (EXACT same as data_annotate.py)."""
+        """Handle window close event with unsaved changes warning."""
+        # Check for unsaved changes
+        if self.has_unsaved_changes:
+            reply = QMessageBox.question(
+                self,
+                "Unsaved Changes",
+                "You have unsaved changes. Do you want to save before closing?",
+                QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
+            )
+
+            if reply == QMessageBox.Save:
+                self.save_metadata()
+            elif reply == QMessageBox.Cancel:
+                event.ignore()
+                return
+
         # Stop image processor thread
         if self.image_processor:
             self.image_processor.stop()
