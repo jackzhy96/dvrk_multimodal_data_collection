@@ -338,6 +338,7 @@ class MetaDataAnnotationGUI(QMainWindow):
             'user_id': '',
             'operator_skill_level': '',
             'data_type': '',
+            'tool': {},  # Dictionary of PSM tools, e.g., {'PSM1': 'Large_Needle_Driver', 'PSM2': 'Prograsp_Forceps'}
             'failure': [],  # List of tuples (start_idx, end_idx)
             'recovery': []  # List of tuples (start_idx, end_idx)
         }
@@ -369,6 +370,10 @@ class MetaDataAnnotationGUI(QMainWindow):
         self.skill_level_custom_input: Optional[QLineEdit] = None
         self.data_type_dropdown: Optional[QComboBox] = None
         self.data_type_custom_input: Optional[QLineEdit] = None
+
+        # PSM Tool annotation controls - dynamically created based on config
+        self.psm_tool_dropdowns: Dict[str, QComboBox] = {}  # e.g., {'PSM1': QComboBox, 'PSM2': QComboBox}
+        self.psm_tool_custom_inputs: Dict[str, QLineEdit] = {}  # e.g., {'PSM1': QLineEdit, 'PSM2': QLineEdit}
 
 
         # Multi-frame controls
@@ -845,10 +850,6 @@ class MetaDataAnnotationGUI(QMainWindow):
         self.set_end_btn.setEnabled(False)
         range_layout.addWidget(self.set_end_btn)
 
-        clear_range_btn = QPushButton("Clear Range")
-        clear_range_btn.clicked.connect(self._clear_frame_range)
-        range_layout.addWidget(clear_range_btn)
-
         multi_frame_layout.addLayout(range_layout)
 
         # Range display
@@ -894,6 +895,10 @@ class MetaDataAnnotationGUI(QMainWindow):
         self.data_type_custom_input.setPlaceholderText("Enter custom data type...")
         self.data_type_custom_input.setVisible(False)
         metadata_layout.addRow("", self.data_type_custom_input)
+
+        # PSM Tool dropdowns - will be populated after configuration is loaded
+        # We create placeholders here and populate them in load_configuration()
+        self.psm_tool_section_start_index = metadata_layout.rowCount()
 
         return metadata_group
 
@@ -951,6 +956,81 @@ class MetaDataAnnotationGUI(QMainWindow):
     def _on_data_type_changed(self, text: str):
         """Handle data type dropdown change."""
         self.data_type_custom_input.setVisible(text == "Others")
+
+    def _on_psm_tool_changed(self, psm_name: str, text: str):
+        """Handle PSM tool dropdown change."""
+        if psm_name in self.psm_tool_custom_inputs:
+            self.psm_tool_custom_inputs[psm_name].setVisible(text == "Others")
+
+    def _create_psm_tool_controls(self):
+        """
+        Create PSM tool dropdown controls dynamically based on configuration.
+
+        This method is called after configuration is loaded to add tool selection
+        dropdowns for each enabled PSM (PSM1, PSM2, PSM3).
+        """
+        if not self.config:
+            return
+
+        # Get the metadata group's layout (FormLayout)
+        metadata_group = None
+        for widget in self.findChildren(QGroupBox):
+            if widget.title() == "Meta Data Annotation":
+                metadata_group = widget
+                break
+
+        if not metadata_group:
+            return
+
+        metadata_layout = metadata_group.layout()
+        if not isinstance(metadata_layout, QFormLayout):
+            return
+
+        # Clear any existing PSM tool controls
+        for psm_name in list(self.psm_tool_dropdowns.keys()):
+            if psm_name in self.psm_tool_dropdowns:
+                self.psm_tool_dropdowns[psm_name].deleteLater()
+                del self.psm_tool_dropdowns[psm_name]
+            if psm_name in self.psm_tool_custom_inputs:
+                self.psm_tool_custom_inputs[psm_name].deleteLater()
+                del self.psm_tool_custom_inputs[psm_name]
+
+        # Define tool options
+        tool_options = [
+            "Large_Needle_Driver",
+            "Prograsp_Forceps",
+            "Maryland_Bipolar_Forceps",
+            "Curved_Scissors",
+            "Others"
+        ]
+
+        # Check which PSMs are enabled and create dropdowns for each
+        for psm_num in [1, 2, 3]:
+            psm_name = f"PSM{psm_num}"
+            enable_attr = f"enable_{psm_name}"
+
+            # Check if this PSM is enabled in config
+            if hasattr(self.config, enable_attr) and getattr(self.config, enable_attr):
+                # Create dropdown for this PSM
+                psm_dropdown = QComboBox()
+                psm_dropdown.addItems(tool_options)
+                # Connect to handler with lambda to pass psm_name
+                psm_dropdown.currentTextChanged.connect(
+                    lambda text, name=psm_name: self._on_psm_tool_changed(name, text)
+                )
+                metadata_layout.addRow(f"{psm_name} Tool:", psm_dropdown)
+                self.psm_tool_dropdowns[psm_name] = psm_dropdown
+
+                # Create custom input field (hidden by default)
+                psm_custom_input = QLineEdit()
+                psm_custom_input.setPlaceholderText(f"Enter custom tool name for {psm_name}...")
+                psm_custom_input.setVisible(False)
+                metadata_layout.addRow("", psm_custom_input)
+                self.psm_tool_custom_inputs[psm_name] = psm_custom_input
+
+                # Initialize metadata tool section for this PSM if not already present
+                if psm_name not in self.metadata['tool']:
+                    self.metadata['tool'][psm_name] = ""
 
     def _toggle_multi_frame_mode(self, state):
         """Toggle multi-frame labeling mode."""
@@ -1050,9 +1130,6 @@ class MetaDataAnnotationGUI(QMainWindow):
         self._update_annotation_list()
         self._update_statistics()
 
-        # Clear the frame range after adding
-        self._clear_frame_range()
-
     def _clear_failure_labels(self):
         """Clear all failure labels."""
         if self.metadata['failure']:
@@ -1103,9 +1180,6 @@ class MetaDataAnnotationGUI(QMainWindow):
         )
         self._update_annotation_list()
         self._update_statistics()
-
-        # Clear the frame range after adding
-        self._clear_frame_range()
 
     def _clear_recovery_labels(self):
         """Clear all recovery labels."""
@@ -1161,6 +1235,10 @@ Metadata:"""
             stats_text += f"\n  Skill Level: {self.metadata['operator_skill_level']}"
         if self.metadata['data_type']:
             stats_text += f"\n  Data Type: {self.metadata['data_type']}"
+        if self.metadata.get('tool'):
+            stats_text += "\n  tool:"
+            for psm_name, tool_name in self.metadata['tool'].items():
+                stats_text += f"\n    {psm_name}: {tool_name}"
 
         stats_text += "\n\nLabels:"
         if self.metadata['failure']:
@@ -1244,6 +1322,9 @@ Metadata:"""
             # Initialize statistics display
             self._update_statistics()
 
+            # Create PSM tool controls based on configuration
+            self._create_psm_tool_controls()
+
             # Update save folder display if no custom folder is set
             if not self.custom_save_folder:
                 config_save_folder = self.config_loader.get_save_folder()
@@ -1272,15 +1353,32 @@ Metadata:"""
             if not json_file:
                 return
 
+            # Clear all existing annotations before loading new metadata
+            self.metadata['failure'] = []
+            self.metadata['recovery'] = []
+            self.metadata['tool'] = {}
+
+            # Clear multi-frame labeling state
+            self.frame_range_start = None
+            self.frame_range_end = None
+            self._update_range_display()
+
+            # Clear annotation list display
+            self.annotation_list.clear()
+
             # Load JSON file
             with open(json_file, 'r', encoding='utf-8') as f:
                 loaded_metadata = json.load(f)
 
-            # Validate required fields
+            # Validate required fields (Tools is optional for backward compatibility)
             required_fields = ['user_id', 'operator_skill_level', 'data_type', 'failure', 'recovery']
             for field in required_fields:
                 if field not in loaded_metadata:
                     raise ValueError(f"Missing required field: {field}")
+
+            # Ensure tool field exists (for backward compatibility with old files)
+            if 'tool' not in loaded_metadata:
+                loaded_metadata['tool'] = {}
 
             # Ensure failure and recovery are lists (for backward compatibility)
             if not isinstance(loaded_metadata['failure'], list):
@@ -1317,6 +1415,22 @@ Metadata:"""
             else:
                 self.data_type_dropdown.setCurrentText("Others")
                 self.data_type_custom_input.setText(data_type)
+
+            # PSM tool - populate dropdowns if they exist
+            if 'tool' in self.metadata and self.metadata['tool']:
+                for psm_name, tool_name in self.metadata['tool'].items():
+                    if psm_name in self.psm_tool_dropdowns:
+                        dropdown = self.psm_tool_dropdowns[psm_name]
+                        # Check if tool_name is one of the predefined options
+                        tool_options = ["Large_Needle_Driver", "Prograsp_Forceps",
+                                      "Maryland_Bipolar_Forceps", "Curved_Scissors"]
+                        if tool_name in tool_options:
+                            dropdown.setCurrentText(tool_name)
+                        else:
+                            # Custom tool name
+                            dropdown.setCurrentText("Others")
+                            if psm_name in self.psm_tool_custom_inputs:
+                                self.psm_tool_custom_inputs[psm_name].setText(tool_name)
 
             # Update displays
             self._update_annotation_list()
@@ -1370,6 +1484,19 @@ Metadata:"""
             else:
                 self.metadata['data_type'] = self.data_type_dropdown.currentText()
 
+            # PSM tool - collect from dropdowns
+            self.metadata['tool'] = {}
+            for psm_name, dropdown in self.psm_tool_dropdowns.items():
+                if dropdown.currentText() == "Others":
+                    # Use custom input if "Others" is selected
+                    if psm_name in self.psm_tool_custom_inputs:
+                        tool_name = self.psm_tool_custom_inputs[psm_name].text().strip()
+                        if tool_name:  # Only add if non-empty
+                            self.metadata['tool'][psm_name] = tool_name
+                else:
+                    # Use dropdown selection
+                    self.metadata['tool'][psm_name] = dropdown.currentText()
+
             # Get save folder
             if self.custom_save_folder:
                 save_folder = self.custom_save_folder
@@ -1403,6 +1530,11 @@ Metadata:"""
                     [f"({start}-{end})" for start, end in self.metadata['recovery']]
                 )
 
+            # tool summary
+            tool_summary = "Not set"
+            if self.metadata['tool']:
+                tool_summary = ", ".join([f"{psm}: {tool}" for psm, tool in self.metadata['tool'].items()])
+
             QMessageBox.information(
                 self,
                 "Save Complete",
@@ -1410,6 +1542,7 @@ Metadata:"""
                 f"User ID: {self.metadata['user_id']}\n"
                 f"Skill Level: {self.metadata['operator_skill_level']}\n"
                 f"Data Type: {self.metadata['data_type']}\n"
+                f"tool: {tool_summary}\n"
                 f"Failure: {failure_summary}\n"
                 f"Recovery: {recovery_summary}"
             )
