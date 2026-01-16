@@ -14,17 +14,17 @@ workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
 #
 #save_folder: "${path_config.data_dir}/output/${path_config.data_name}/${path_config.data_index}"
 
-index: 0
+index: 58
 
-left_image_path: "/media/jackzhy/Jack_SSD_4T/contact_detection_dataset/raw/${index}/image/left"
-right_image_path: "/media/jackzhy/Jack_SSD_4T/contact_detection_dataset/raw/${index}/image/right"
-side_camera_1_path: "/media/jackzhy/Jack_SSD_4T/contact_detection_dataset/raw/${index}/image/side"
+left_image_path: "/media/jackzhy/Extreme Pro/data_open_h_new/raw/${index}/image/left"
+right_image_path: "/media/jackzhy/Extreme Pro/data_open_h_new/raw/${index}/image/right"
+side_camera_1_path: "/media/jackzhy/Extreme Pro/data_open_h_new/raw/${index}/image/side1"
 #side_camera_1_path: None
-side_camera_2_path: "/media/jackzhy/Jack_SSD_4T/contact_detection_dataset/preprocess/${index}/depth_estimation/disparity_image"
+#side_camera_2_path: "/media/jackzhy/Jack_SSD_4T/contact_detection_dataset/preprocess/${index}/depth_estimation/disparity_image"
 
-#side_camera_2_path: None
+side_camera_2_path: None
 
-save_folder: "/media/jackzhy/Jack_SSD_4T/contact_detection_dataset/raw_label_new/${index}"
+save_folder: "/media/jackzhy/Extreme Pro/data_open_h_new/raw/${index}"
 
 resize_max_size: False
 
