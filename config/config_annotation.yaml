@@ -14,17 +14,17 @@ workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
 #
 #save_folder: "${path_config.data_dir}/output/${path_config.data_name}/${path_config.data_index}"
 
-index: 58
+index: 12
 
-left_image_path: "/media/jackzhy/Extreme Pro/data_open_h_new/raw/${index}/image/left"
-right_image_path: "/media/jackzhy/Extreme Pro/data_open_h_new/raw/${index}/image/right"
-side_camera_1_path: "/media/jackzhy/Extreme Pro/data_open_h_new/raw/${index}/image/side1"
+left_image_path: "/media/jackzhy/Extreme Pro/data_2026_icra/raw/${index}/image/left"
+right_image_path: "/media/jackzhy/Extreme Pro/data_2026_icra/raw/${index}/image/right"
+side_camera_1_path: "/media/jackzhy/Extreme Pro/data_2026_icra/raw/${index}/image/side"
 #side_camera_1_path: None
 #side_camera_2_path: "/media/jackzhy/Jack_SSD_4T/contact_detection_dataset/preprocess/${index}/depth_estimation/disparity_image"
 
 side_camera_2_path: None
 
-save_folder: "/media/jackzhy/Extreme Pro/data_open_h_new/raw/${index}"
+save_folder: "/media/jackzhy/Extreme Pro/data_2026_icra/raw/${index}"
 
 resize_max_size: False
 

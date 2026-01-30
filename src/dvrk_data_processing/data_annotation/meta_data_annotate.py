@@ -871,12 +871,12 @@ class MetaDataAnnotationGUI(QMainWindow):
         self.user_id_input.textChanged.connect(lambda: self._mark_unsaved_changes())
         metadata_layout.addRow("User ID:", self.user_id_input)
 
-        # Operator Skill Level dropdown
+        # Operator Skill Level dropdown (split into two lines to save space)
         self.skill_level_dropdown = QComboBox()
         self.skill_level_dropdown.addItems(["Expert", "Intermediate", "Novice", "Others"])
         self.skill_level_dropdown.currentTextChanged.connect(self._on_skill_level_changed)
         self.skill_level_dropdown.currentTextChanged.connect(lambda: self._mark_unsaved_changes())
-        metadata_layout.addRow("Operator Skill Level:", self.skill_level_dropdown)
+        metadata_layout.addRow("Operator\nSkill Level:", self.skill_level_dropdown)
 
         # Custom skill level input (hidden by default)
         self.skill_level_custom_input = QLineEdit()
@@ -1023,19 +1023,42 @@ class MetaDataAnnotationGUI(QMainWindow):
             self.psm_tool_custom_inputs.clear()
             return
 
-        # Remove all PSM-related rows from the layout
-        # Iterate backwards to avoid index issues when removing rows
+        # First, collect all widgets that need to be removed to avoid reference issues
+        widgets_to_remove = []
+
+        # Iterate backwards to safely identify PSM-related rows
         i = metadata_layout.rowCount() - 1
         while i >= 0:
             # Get the label item for this row
             label_item = metadata_layout.itemAt(i, QFormLayout.LabelRole)
+            field_item = metadata_layout.itemAt(i, QFormLayout.FieldRole)
+
+            should_remove = False
+
             if label_item and label_item.widget():
                 label_text = label_item.widget().text()
                 # Check if this row is for a PSM tool (e.g., "PSM1 Tool:", "PSM2 Tool:")
                 if label_text and ("PSM" in label_text) and ("Tool" in label_text):
-                    # Remove this row completely (both label and field)
-                    metadata_layout.removeRow(i)
+                    should_remove = True
+                # Also check for rows with empty labels that contain PSM custom input widgets
+                elif label_text == "" and field_item and field_item.widget():
+                    # Check if this is a PSM tool custom input by checking if it's in our tracking dict
+                    field_widget = field_item.widget()
+                    if isinstance(field_widget, QLineEdit):
+                        # Check if this widget is one of our PSM tool custom inputs
+                        for psm_custom_input in self.psm_tool_custom_inputs.values():
+                            if field_widget is psm_custom_input:
+                                should_remove = True
+                                break
+
+            if should_remove:
+                widgets_to_remove.append(i)
+
             i -= 1
+
+        # Now remove all identified rows
+        for row_index in widgets_to_remove:
+            metadata_layout.removeRow(row_index)
 
         # Now safely clear the dictionaries
         # Don't try to access the widgets, just clear the references
