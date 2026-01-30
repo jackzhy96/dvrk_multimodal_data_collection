@@ -1544,23 +1544,49 @@ Metadata:"""
             self.multi_frame_checkbox.setChecked(False)
         self._update_range_display()
 
-        # Clear UI input fields
+        # Block signals while resetting UI to prevent handlers from interfering
         if hasattr(self, 'user_id_input'):
-            self.user_id_input.clear()
-
+            self.user_id_input.blockSignals(True)
         if hasattr(self, 'skill_level_dropdown'):
-            self.skill_level_dropdown.setCurrentIndex(0)  # Reset to first option (Expert)
-
+            self.skill_level_dropdown.blockSignals(True)
         if hasattr(self, 'skill_level_custom_input'):
-            self.skill_level_custom_input.clear()
-            self.skill_level_custom_input.setVisible(False)
-
+            self.skill_level_custom_input.blockSignals(True)
         if hasattr(self, 'case_type_dropdown'):
-            self.case_type_dropdown.setCurrentIndex(0)  # Reset to first option (Clinical)
-
+            self.case_type_dropdown.blockSignals(True)
         if hasattr(self, 'case_type_custom_input'):
-            self.case_type_custom_input.clear()
-            self.case_type_custom_input.setVisible(False)
+            self.case_type_custom_input.blockSignals(True)
+
+        try:
+            # Clear UI input fields
+            if hasattr(self, 'user_id_input'):
+                self.user_id_input.clear()
+
+            if hasattr(self, 'skill_level_dropdown'):
+                self.skill_level_dropdown.setCurrentIndex(0)  # Reset to first option (Expert)
+
+            if hasattr(self, 'skill_level_custom_input'):
+                self.skill_level_custom_input.clear()
+                self.skill_level_custom_input.setVisible(False)
+
+            if hasattr(self, 'case_type_dropdown'):
+                self.case_type_dropdown.setCurrentIndex(0)  # Reset to first option (Clinical)
+
+            if hasattr(self, 'case_type_custom_input'):
+                self.case_type_custom_input.clear()
+                self.case_type_custom_input.setVisible(False)
+
+        finally:
+            # Always unblock signals
+            if hasattr(self, 'user_id_input'):
+                self.user_id_input.blockSignals(False)
+            if hasattr(self, 'skill_level_dropdown'):
+                self.skill_level_dropdown.blockSignals(False)
+            if hasattr(self, 'skill_level_custom_input'):
+                self.skill_level_custom_input.blockSignals(False)
+            if hasattr(self, 'case_type_dropdown'):
+                self.case_type_dropdown.blockSignals(False)
+            if hasattr(self, 'case_type_custom_input'):
+                self.case_type_custom_input.blockSignals(False)
 
         # Clear PSM tool controls safely
         # This removes all PSM tool dropdowns and custom inputs from the layout
@@ -1752,40 +1778,101 @@ Metadata:"""
             # Update metadata
             self.metadata = loaded_metadata
 
-            # Update UI fields
-            self.user_id_input.setText(str(self.metadata['user_id']))
+            # Block signals while updating UI to prevent _update_metadata_from_ui() from being called
+            # and overwriting the loaded metadata before all UI fields are set
+            self.user_id_input.blockSignals(True)
+            self.skill_level_dropdown.blockSignals(True)
+            self.skill_level_custom_input.blockSignals(True)
+            self.case_type_dropdown.blockSignals(True)
+            self.case_type_custom_input.blockSignals(True)
+            for dropdown in self.psm_tool_dropdowns.values():
+                dropdown.blockSignals(True)
+            for custom_input in self.psm_tool_custom_inputs.values():
+                custom_input.blockSignals(True)
 
-            # Skill level
-            skill_level = self.metadata['operator_skill_level']
-            if skill_level in ["Expert", "Intermediate", "Novice"]:
-                self.skill_level_dropdown.setCurrentText(skill_level)
-            else:
-                self.skill_level_dropdown.setCurrentText("Others")
-                self.skill_level_custom_input.setText(skill_level)
+            try:
+                # Update UI fields
+                self.user_id_input.setText(self.metadata['user_id'] if self.metadata['user_id'] else '')
 
-            # Case type
-            case_type = self.metadata['case_type']
-            if case_type in ["Clinical", "Ex-vivo", "Table-Top Phantom", "Digital Simulation", "Physical Simulation"]:
-                self.case_type_dropdown.setCurrentText(case_type)
-            else:
-                self.case_type_dropdown.setCurrentText("Others")
-                self.case_type_custom_input.setText(case_type)
+                # Skill level
+                skill_level = self.metadata['operator_skill_level']
+                if skill_level in ["Expert", "Intermediate", "Novice", "Others"]:
+                    self.skill_level_dropdown.setCurrentText(skill_level)
+                    # Show custom input if "Others" was previously saved as a dropdown value
+                    if skill_level == "Others":
+                        self.skill_level_custom_input.setVisible(True)
+                    else:
+                        # Hide custom input for predefined values
+                        self.skill_level_custom_input.clear()
+                        self.skill_level_custom_input.setVisible(False)
+                else:
+                    # Custom skill level value (not "Others" dropdown option)
+                    self.skill_level_dropdown.setCurrentText("Others")
+                    self.skill_level_custom_input.setText(skill_level)
+                    self.skill_level_custom_input.setVisible(True)
 
-            # PSM tool - populate dropdowns if they exist
-            if 'tool' in self.metadata and self.metadata['tool']:
-                for psm_name, tool_name in self.metadata['tool'].items():
+                # Case type
+                case_type = self.metadata['case_type']
+                if case_type in ["Clinical", "Ex-vivo", "Table-Top Phantom", "Digital Simulation", "Physical Simulation", "Others"]:
+                    self.case_type_dropdown.setCurrentText(case_type)
+                    # Show custom input if "Others" was previously saved as a dropdown value
+                    if case_type == "Others":
+                        self.case_type_custom_input.setVisible(True)
+                    else:
+                        # Hide custom input for predefined values
+                        self.case_type_custom_input.clear()
+                        self.case_type_custom_input.setVisible(False)
+                else:
+                    # Custom case type value (not "Others" dropdown option)
+                    self.case_type_dropdown.setCurrentText("Others")
+                    self.case_type_custom_input.setText(case_type)
+                    self.case_type_custom_input.setVisible(True)
+
+                # PSM tool - populate dropdowns if they exist and reset all custom inputs first
+                # First, reset all PSM tool controls to default state
+                for psm_name in self.psm_tool_dropdowns:
                     if psm_name in self.psm_tool_dropdowns:
-                        dropdown = self.psm_tool_dropdowns[psm_name]
-                        # Check if tool_name is one of the predefined options
-                        tool_options = ["Large_Needle_Driver", "Prograsp_Forceps",
-                                      "Maryland_Bipolar_Forceps", "Curved_Scissors"]
-                        if tool_name in tool_options:
-                            dropdown.setCurrentText(tool_name)
-                        else:
-                            # Custom tool name
-                            dropdown.setCurrentText("Others")
-                            if psm_name in self.psm_tool_custom_inputs:
-                                self.psm_tool_custom_inputs[psm_name].setText(tool_name)
+                        self.psm_tool_dropdowns[psm_name].setCurrentIndex(0)  # Reset to first option
+                    if psm_name in self.psm_tool_custom_inputs:
+                        self.psm_tool_custom_inputs[psm_name].clear()
+                        self.psm_tool_custom_inputs[psm_name].setVisible(False)
+
+                # Then populate with loaded metadata
+                if 'tool' in self.metadata and self.metadata['tool']:
+                    for psm_name, tool_name in self.metadata['tool'].items():
+                        if psm_name in self.psm_tool_dropdowns:
+                            dropdown = self.psm_tool_dropdowns[psm_name]
+                            # Check if tool_name is one of the predefined options (including "Others")
+                            tool_options = ["Large_Needle_Driver", "Prograsp_Forceps",
+                                          "Maryland_Bipolar_Forceps", "Curved_Scissors", "Others"]
+                            if tool_name in tool_options:
+                                dropdown.setCurrentText(tool_name)
+                                # Show custom input if "Others" was previously saved as a dropdown value
+                                if tool_name == "Others" and psm_name in self.psm_tool_custom_inputs:
+                                    self.psm_tool_custom_inputs[psm_name].setVisible(True)
+                                else:
+                                    # Hide custom input for predefined values
+                                    if psm_name in self.psm_tool_custom_inputs:
+                                        self.psm_tool_custom_inputs[psm_name].clear()
+                                        self.psm_tool_custom_inputs[psm_name].setVisible(False)
+                            else:
+                                # Custom tool name (not "Others" dropdown option)
+                                dropdown.setCurrentText("Others")
+                                if psm_name in self.psm_tool_custom_inputs:
+                                    self.psm_tool_custom_inputs[psm_name].setText(tool_name)
+                                    self.psm_tool_custom_inputs[psm_name].setVisible(True)
+
+            finally:
+                # Always unblock signals, even if an error occurred
+                self.user_id_input.blockSignals(False)
+                self.skill_level_dropdown.blockSignals(False)
+                self.skill_level_custom_input.blockSignals(False)
+                self.case_type_dropdown.blockSignals(False)
+                self.case_type_custom_input.blockSignals(False)
+                for dropdown in self.psm_tool_dropdowns.values():
+                    dropdown.blockSignals(False)
+                for custom_input in self.psm_tool_custom_inputs.values():
+                    custom_input.blockSignals(False)
 
             # Update displays
             self._update_annotation_list()
