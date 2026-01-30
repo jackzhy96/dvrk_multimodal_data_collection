@@ -920,7 +920,7 @@ class MetaDataAnnotationGUI(QMainWindow):
         # Annotation management buttons (similar to data_annotate.py)
         annotation_btn_layout = QHBoxLayout()
 
-        self.remove_selected_btn = QPushButton("Remove Selected")
+        self.remove_selected_btn = QPushButton("Remove\nSelected")
         self.remove_selected_btn.clicked.connect(self._remove_selected_annotation)
         self.remove_selected_btn.setStyleSheet("background-color: #f44336; color: white;")
         annotation_btn_layout.addWidget(self.remove_selected_btn)
