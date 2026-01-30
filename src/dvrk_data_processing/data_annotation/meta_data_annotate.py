@@ -869,6 +869,7 @@ class MetaDataAnnotationGUI(QMainWindow):
         self.user_id_input = QLineEdit()
         self.user_id_input.setPlaceholderText("Enter user ID...")
         self.user_id_input.textChanged.connect(lambda: self._mark_unsaved_changes())
+        self.user_id_input.textChanged.connect(lambda: self._update_metadata_from_ui())
         metadata_layout.addRow("User ID:", self.user_id_input)
 
         # Operator Skill Level dropdown (split into two lines to save space)
@@ -882,6 +883,7 @@ class MetaDataAnnotationGUI(QMainWindow):
         self.skill_level_custom_input = QLineEdit()
         self.skill_level_custom_input.setPlaceholderText("Enter custom skill level...")
         self.skill_level_custom_input.textChanged.connect(lambda: self._mark_unsaved_changes())
+        self.skill_level_custom_input.textChanged.connect(lambda: self._update_metadata_from_ui())
         self.skill_level_custom_input.setVisible(False)
         metadata_layout.addRow("", self.skill_level_custom_input)
 
@@ -899,6 +901,7 @@ class MetaDataAnnotationGUI(QMainWindow):
         self.case_type_custom_input = QLineEdit()
         self.case_type_custom_input.setPlaceholderText("Enter custom case type...")
         self.case_type_custom_input.textChanged.connect(lambda: self._mark_unsaved_changes())
+        self.case_type_custom_input.textChanged.connect(lambda: self._update_metadata_from_ui())
         self.case_type_custom_input.setVisible(False)
         metadata_layout.addRow("", self.case_type_custom_input)
 
@@ -980,20 +983,59 @@ class MetaDataAnnotationGUI(QMainWindow):
     def _on_skill_level_changed(self, text: str):
         """Handle skill level dropdown change."""
         self.skill_level_custom_input.setVisible(text == "Others")
+        self._update_metadata_from_ui()
 
     def _on_case_type_changed(self, text: str):
         """Handle case type dropdown change."""
         self.case_type_custom_input.setVisible(text == "Others")
+        self._update_metadata_from_ui()
 
     def _on_psm_tool_changed(self, psm_name: str, text: str):
         """Handle PSM tool dropdown change."""
         if psm_name in self.psm_tool_custom_inputs:
             self.psm_tool_custom_inputs[psm_name].setVisible(text == "Others")
         self._mark_unsaved_changes()
+        self._update_metadata_from_ui()
 
     def _mark_unsaved_changes(self):
         """Mark that there are unsaved changes."""
         self.has_unsaved_changes = True
+
+    def _update_metadata_from_ui(self):
+        """Update metadata dictionary from current UI input values and refresh statistics display."""
+        if not hasattr(self, 'user_id_input') or self.user_id_input is None:
+            return  # UI not initialized yet
+
+        # User ID
+        self.metadata['user_id'] = self.user_id_input.text().strip()
+
+        # Skill level
+        if self.skill_level_dropdown.currentText() == "Others":
+            self.metadata['operator_skill_level'] = self.skill_level_custom_input.text().strip()
+        else:
+            self.metadata['operator_skill_level'] = self.skill_level_dropdown.currentText()
+
+        # Case type
+        if self.case_type_dropdown.currentText() == "Others":
+            self.metadata['case_type'] = self.case_type_custom_input.text().strip()
+        else:
+            self.metadata['case_type'] = self.case_type_dropdown.currentText()
+
+        # PSM tool - collect from dropdowns
+        self.metadata['tool'] = {}
+        for psm_name, dropdown in self.psm_tool_dropdowns.items():
+            if dropdown.currentText() == "Others":
+                # Use custom input if "Others" is selected
+                if psm_name in self.psm_tool_custom_inputs:
+                    tool_name = self.psm_tool_custom_inputs[psm_name].text().strip()
+                    if tool_name:  # Only add if non-empty
+                        self.metadata['tool'][psm_name] = tool_name
+            else:
+                # Use dropdown selection
+                self.metadata['tool'][psm_name] = dropdown.currentText()
+
+        # Update statistics display in real-time
+        self._update_statistics()
 
     def _clear_psm_tool_controls(self):
         """
@@ -1122,6 +1164,7 @@ class MetaDataAnnotationGUI(QMainWindow):
                 psm_custom_input = QLineEdit()
                 psm_custom_input.setPlaceholderText(f"Enter custom tool name for {psm_name}...")
                 psm_custom_input.textChanged.connect(lambda: self._mark_unsaved_changes())
+                psm_custom_input.textChanged.connect(lambda: self._update_metadata_from_ui())
                 psm_custom_input.setVisible(False)
                 metadata_layout.addRow("", psm_custom_input)
                 self.psm_tool_custom_inputs[psm_name] = psm_custom_input
@@ -1784,33 +1827,8 @@ Metadata:"""
     def save_metadata(self):
         """Save metadata to meta_data.json file."""
         try:
-            # Get current metadata from UI
-            self.metadata['user_id'] = self.user_id_input.text().strip()
-
-            # Skill level
-            if self.skill_level_dropdown.currentText() == "Others":
-                self.metadata['operator_skill_level'] = self.skill_level_custom_input.text().strip()
-            else:
-                self.metadata['operator_skill_level'] = self.skill_level_dropdown.currentText()
-
-            # Case type
-            if self.case_type_dropdown.currentText() == "Others":
-                self.metadata['case_type'] = self.case_type_custom_input.text().strip()
-            else:
-                self.metadata['case_type'] = self.case_type_dropdown.currentText()
-
-            # PSM tool - collect from dropdowns
-            self.metadata['tool'] = {}
-            for psm_name, dropdown in self.psm_tool_dropdowns.items():
-                if dropdown.currentText() == "Others":
-                    # Use custom input if "Others" is selected
-                    if psm_name in self.psm_tool_custom_inputs:
-                        tool_name = self.psm_tool_custom_inputs[psm_name].text().strip()
-                        if tool_name:  # Only add if non-empty
-                            self.metadata['tool'][psm_name] = tool_name
-                else:
-                    # Use dropdown selection
-                    self.metadata['tool'][psm_name] = dropdown.currentText()
+            # Get current metadata from UI (this also updates statistics display)
+            self._update_metadata_from_ui()
 
             # Get save folder
             if self.custom_save_folder:
