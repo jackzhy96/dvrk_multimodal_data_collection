@@ -112,6 +112,10 @@ class ConversionConfig:
     robot: Dict[str, Any] = field(default_factory=dict)
     video_name_mapping: Dict[str, str] = field(default_factory=dict)
 
+    def get_include_setpoint_cp(self) -> bool:
+        """Get include_setpoint_cp flag from processing config (default: False)"""
+        return self.processing.get('include_setpoint_cp', False)
+
 
 def validate_dataset_folder(folder: Path) -> bool:
     """
@@ -415,13 +419,18 @@ def read_annotation_data(annotation_folder: Path, frame_id: int,
     return data.get(annotation_type)
 
 
-def calculate_time_tolerance_ms(time_sync_data: Dict, base_timestamp: Dict) -> float:
+def calculate_time_tolerance_ms(time_sync_data: Dict, base_timestamp: Dict,
+                                kinematic_data_dict: Optional[Dict] = None,
+                                include_setpoint_cp: bool = False) -> float:
     """
     Calculate maximum time difference between timestamps in milliseconds.
 
     Args:
         time_sync_data: Time synchronization data dictionary
         base_timestamp: Base timestamp dict with 'sec' and 'nsec'
+        kinematic_data_dict: Dictionary of kinematic data for all arms (optional)
+                             Format: {arm_name: kinematic_data}
+        include_setpoint_cp: If True, also consider setpoint_cp_stamp from kinematic data
 
     Returns:
         Maximum time difference in milliseconds
@@ -429,7 +438,7 @@ def calculate_time_tolerance_ms(time_sync_data: Dict, base_timestamp: Dict) -> f
     base_time_s = base_timestamp['sec'] + base_timestamp['nsec'] / 1e9
     max_diff = 0.0
 
-    # Recursively find all timestamps ending with '_stamp'
+    # Recursively find all timestamps ending with '_stamp' in time_sync_data
     def find_timestamps(data, prefix=''):
         nonlocal max_diff
         if isinstance(data, dict):
@@ -443,6 +452,19 @@ def calculate_time_tolerance_ms(time_sync_data: Dict, base_timestamp: Dict) -> f
                     find_timestamps(value, f"{prefix}{key}.")
 
     find_timestamps(time_sync_data)
+
+    # If include_setpoint_cp is True, also check setpoint_cp_stamp from kinematic data
+    if include_setpoint_cp and kinematic_data_dict:
+        for arm_name, kin_data in kinematic_data_dict.items():
+            if kin_data:
+                arm_data = kin_data.get('arm', {})
+                setpoint_data = arm_data.get('setpoint_data', {})
+                setpoint_cp_stamp = setpoint_data.get('setpoint_cp_stamp', {})
+
+                if setpoint_cp_stamp and 'sec' in setpoint_cp_stamp and 'nsec' in setpoint_cp_stamp:
+                    curr_time_s = setpoint_cp_stamp['sec'] + setpoint_cp_stamp['nsec'] / 1e9
+                    diff_s = abs(curr_time_s - base_time_s)
+                    max_diff = max(max_diff, diff_s)
 
     return max_diff * 1000  # Convert to milliseconds
 
@@ -602,7 +624,7 @@ def extract_observation_state(kinematic_data: Dict, arm_name: str,
 
 
 def extract_action_state(kinematic_data: Dict, arm_name: str,
-                         is_psm: bool = True) -> Dict[str, List[float]]:
+                         is_psm: bool = True, include_setpoint_cp: bool = False) -> Dict[str, List[float]]:
     """
     Extract action state data from kinematic JSON for one arm.
 
@@ -610,6 +632,7 @@ def extract_action_state(kinematic_data: Dict, arm_name: str,
         kinematic_data: Kinematic data dictionary
         arm_name: Name of the arm (for dictionary keys)
         is_psm: True if PSM arm, False if ECM
+        include_setpoint_cp: If True, include setpoint_cp cartesian pose data
 
     Returns:
         Dictionary with action data
@@ -631,11 +654,33 @@ def extract_action_state(kinematic_data: Dict, arm_name: str,
         gripper_pos = jaw_data.get('position', [])
         action[f'action.{arm_name}.gripper'] = np.array([gripper_pos[0] if gripper_pos else 0.0])
 
+    # Cartesian setpoint pose (if enabled)
+    # Extract setpoint_cp from setpoint_data / setpoint_cp
+    if include_setpoint_cp:
+        setpoint_cp = setpoint.get('setpoint_cp', {})
+        pos = setpoint_cp.get('position', [])
+        orient = setpoint_cp.get('orientation', [])
+        if pos and orient:
+            action[f'action.{arm_name}.pose.position.x'] = np.array([pos[0]])
+            action[f'action.{arm_name}.pose.position.y'] = np.array([pos[1]])
+            action[f'action.{arm_name}.pose.position.z'] = np.array([pos[2]])
+            action[f'action.{arm_name}.pose.orientation.x'] = np.array([orient[0]])
+            action[f'action.{arm_name}.pose.orientation.y'] = np.array([orient[1]])
+            action[f'action.{arm_name}.pose.orientation.z'] = np.array([orient[2]])
+            action[f'action.{arm_name}.pose.orientation.w'] = np.array([orient[3]])
+        else:
+            # Data is missing - log this for debugging
+            # Note: This is expected if the kinematic data was collected without setpoint_cp
+            logger.debug(f"setpoint_cp data missing for {arm_name} "
+                        f"(include_setpoint_cp=True but no data in kinematic file)")
+
     return action
 
 
 def extract_metadata(time_sync_data: Dict, frame_id: int,
-                     episode_start_frame: int, arm_names: List[str]) -> Dict[str, Any]:
+                     episode_start_frame: int, arm_names: List[str],
+                     kinematic_data_dict: Optional[Dict] = None,
+                     include_setpoint_cp: bool = False) -> Dict[str, Any]:
     """
     Extract metadata from time synchronization data.
 
@@ -644,6 +689,8 @@ def extract_metadata(time_sync_data: Dict, frame_id: int,
         frame_id: Current frame ID
         episode_start_frame: First frame ID of the episode
         arm_names: List of arm names (PSM1, PSM2, etc.)
+        kinematic_data_dict: Dictionary of kinematic data for all arms (optional)
+        include_setpoint_cp: If True, include setpoint_cp_stamp in time_tolerance calculation
 
     Returns:
         Dictionary with metadata
@@ -666,7 +713,7 @@ def extract_metadata(time_sync_data: Dict, frame_id: int,
         'observation.meta.ros_time_sec': np.array([image_timestamp.get('sec', 0)]),
         'observation.meta.ros_time_nsec': np.array([image_timestamp.get('nsec', 0)]),
         'observation.meta.time_tolerance_ms': np.array([calculate_time_tolerance_ms(
-            time_sync_data, image_timestamp
+            time_sync_data, image_timestamp, kinematic_data_dict, include_setpoint_cp
         )])
     }
 
@@ -728,11 +775,18 @@ def compute_episode_statistics(parquet_file: Path, video_folders: Dict[str, Path
             'observation.meta.time_tolerance_ms'
         ]
 
-        # Patterns for quaternion orientation fields (only count is meaningful)
+        # Patterns for quaternion orientation fields (excluded - quaternion stats are meaningless)
+        # This applies to both observation.cartesian_state and action pose fields
         orientation_patterns = [
             '.pose.orientation.',
             '.local_pose.orientation.'
         ]
+
+        # Patterns for all pose position fields that need explicit handling
+        # Both observation and action pose positions are stored as single-element arrays
+        # and need special processing since their dtype is 'object' not numeric
+        pose_position_pattern = '.pose.position.'  # All fields containing this pattern
+        local_pose_position_pattern = '.local_pose.position.'  # Local pose positions too
 
         # Patterns for joint array fields that should preserve shape
         joint_array_patterns = [
@@ -755,21 +809,60 @@ def compute_episode_statistics(parquet_file: Path, video_folders: Dict[str, Path
                         data = np.array(raw_values, dtype=float)
 
                     if len(data) > 0:
+                        # Use .item() to extract scalar from 0-d array (avoids NumPy 1.25 deprecation warning)
                         stats[field] = {
-                            "min": [float(np.min(data))],
-                            "max": [float(np.max(data))],
-                            "mean": [float(np.mean(data))],
-                            "std": [float(np.std(data))],
+                            "min": [float(np.min(data).item() if hasattr(np.min(data), 'item') else np.min(data))],
+                            "max": [float(np.max(data).item() if hasattr(np.max(data), 'item') else np.max(data))],
+                            "mean": [float(np.mean(data).item() if hasattr(np.mean(data), 'item') else np.mean(data))],
+                            "std": [float(np.std(data).item() if hasattr(np.std(data), 'item') else np.std(data))],
                             "count": [int(len(data))]
                         }
                 except Exception as e:
                     # Log but continue if this field can't be processed
                     pass
 
+        # Explicitly process ALL pose position fields (both observation and action)
+        # Examples:
+        #   - observation.cartesian_state.<arm>.pose.position.x/y/z
+        #   - observation.cartesian_state.<arm>.local_pose.position.x/y/z
+        #   - action.<arm>.pose.position.x/y/z (when include_setpoint_cp is True)
+        # These are stored as single-element arrays in parquet, so dtype is 'object' not numeric
+        # We need to handle them explicitly before the general column processing
+        pose_position_fields = [col for col in df.columns
+                               if pose_position_pattern in col or local_pose_position_pattern in col]
+
+        for field in pose_position_fields:
+            try:
+                # Extract values - stored as np.array([value]) in parquet
+                raw_values = df[field].values
+                # Flatten single-element arrays to scalars
+                if hasattr(raw_values[0], '__len__') and not isinstance(raw_values[0], str):
+                    data = np.array([v[0] if len(v) > 0 else 0.0 for v in raw_values])
+                else:
+                    data = np.array(raw_values, dtype=float)
+
+                if len(data) > 0:
+                    # Use .item() to extract scalar from 0-d array (avoids NumPy 1.25 deprecation warning)
+                    stats[field] = {
+                        "min": [float(np.min(data).item() if hasattr(np.min(data), 'item') else np.min(data))],
+                        "max": [float(np.max(data).item() if hasattr(np.max(data), 'item') else np.max(data))],
+                        "mean": [float(np.mean(data).item() if hasattr(np.mean(data), 'item') else np.mean(data))],
+                        "std": [float(np.std(data).item() if hasattr(np.std(data), 'item') else np.std(data))],
+                        "count": [int(len(data))]
+                    }
+            except Exception as e:
+                # Log but continue if this field can't be processed
+                logger.debug(f"Failed to compute stats for {field}: {e}")
+                pass
+
         # Compute stats for all other columns
         for col in df.columns:
             # Skip if already processed as important metadata field
             if col in important_metadata_fields:
+                continue
+
+            # Skip if already processed as pose position field
+            if col in pose_position_fields:
                 continue
 
             # Skip excluded fields
@@ -805,20 +898,33 @@ def compute_episode_statistics(parquet_file: Path, video_folders: Dict[str, Path
                             "count": [len(data_array)]  # Must be list for LeRobot compatibility
                         }
                 else:
-                    # Handle scalar numeric data
+                    # Handle scalar numeric data (including action pose position fields from setpoint_cp)
                     # Use np.issubdtype() instead of direct dtype comparison to avoid deprecation warning
                     # np.issubdtype checks if dtype is a subtype of np.number (includes int, float, etc.)
                     if np.issubdtype(df[col].dtype, np.number):
-                        data = df[col].values
-                        if len(data) > 0:
-                            # Wrap all values in arrays for LeRobot compatibility
-                            stats[col] = {
-                                "min": [float(np.min(data))],
-                                "max": [float(np.max(data))],
-                                "mean": [float(np.mean(data))],
-                                "std": [float(np.std(data))],
-                                "count": [int(len(data))]
-                            }
+                        raw_values = df[col].values
+
+                        # Handle both direct scalars and single-element arrays
+                        # Position fields from action pose (setpoint_cp) are stored as np.array([value])
+                        if len(raw_values) > 0:
+                            # Check if values are stored as arrays (common for position fields)
+                            if hasattr(raw_values[0], '__len__') and not isinstance(raw_values[0], str):
+                                # Flatten single-element arrays to scalars
+                                data = np.array([v[0] if len(v) > 0 else 0.0 for v in raw_values])
+                            else:
+                                # Already scalar values
+                                data = np.array(raw_values, dtype=float)
+
+                            if len(data) > 0:
+                                # Wrap all values in arrays for LeRobot compatibility
+                                # Use .item() to extract scalar from 0-d array (avoids NumPy 1.25 deprecation warning)
+                                stats[col] = {
+                                    "min": [float(np.min(data).item() if hasattr(np.min(data), 'item') else np.min(data))],
+                                    "max": [float(np.max(data).item() if hasattr(np.max(data), 'item') else np.max(data))],
+                                    "mean": [float(np.mean(data).item() if hasattr(np.mean(data), 'item') else np.mean(data))],
+                                    "std": [float(np.std(data).item() if hasattr(np.std(data), 'item') else np.std(data))],
+                                    "count": [int(len(data))]
+                                }
             except Exception as e:
                 # Skip columns that can't be processed
                 continue
@@ -911,11 +1017,17 @@ def compute_duration_statistics(episode_durations: List[float]) -> Dict:
 
         durations_array = np.array(episode_durations)
         # Wrap all values in arrays for LeRobot compatibility
+        # Use .item() to extract scalar from 0-d array (avoids NumPy 1.25 deprecation warning)
+        min_val = np.min(durations_array)
+        max_val = np.max(durations_array)
+        mean_val = np.mean(durations_array)
+        std_val = np.std(durations_array)
+
         return {
-            "min": [float(np.min(durations_array))],
-            "max": [float(np.max(durations_array))],
-            "mean": [float(np.mean(durations_array))],
-            "std": [float(np.std(durations_array))],
+            "min": [float(min_val.item() if hasattr(min_val, 'item') else min_val)],
+            "max": [float(max_val.item() if hasattr(max_val, 'item') else max_val)],
+            "mean": [float(mean_val.item() if hasattr(mean_val, 'item') else mean_val)],
+            "std": [float(std_val.item() if hasattr(std_val, 'item') else std_val)],
             "count": [int(len(durations_array))]
         }
 
@@ -928,7 +1040,7 @@ def compute_duration_statistics(episode_durations: List[float]) -> Dict:
 def create_episode_parquet(dataset_folder: Path, episode_frames: List[int],
                            output_file: Path, arm_names: List[str],
                            parquet_settings: Dict, episode_index: int,
-                           task_index: int) -> Tuple[float, float]:
+                           task_index: int, include_setpoint_cp: bool = False) -> Tuple[float, float]:
     """
     Create parquet file for one episode.
 
@@ -940,6 +1052,7 @@ def create_episode_parquet(dataset_folder: Path, episode_frames: List[int],
         parquet_settings: Parquet compression settings
         episode_index: Index of this episode (required by LeRobot)
         task_index: Index of the task/phase (required by LeRobot)
+        include_setpoint_cp: If True, include setpoint_cp cartesian pose in action data
 
     Returns:
         Tuple of (start_timestamp, end_timestamp) in seconds
@@ -993,13 +1106,14 @@ def create_episode_parquet(dataset_folder: Path, episode_frames: List[int],
         for arm_name, kin_data in kinematic_data_all.items():
             is_psm = arm_name.startswith('PSM')
             obs_state = extract_observation_state(kin_data, arm_name.lower(), is_psm)
-            action_state = extract_action_state(kin_data, arm_name.lower(), is_psm)
+            action_state = extract_action_state(kin_data, arm_name.lower(), is_psm, include_setpoint_cp)
             row.update(obs_state)
             row.update(action_state)
 
         # Extract metadata
         psm_names = [name for name in arm_names if name.startswith('PSM')]
-        metadata = extract_metadata(time_sync_data, frame_id, episode_frames[0], psm_names)
+        metadata = extract_metadata(time_sync_data, frame_id, episode_frames[0], psm_names,
+                                   kinematic_data_all, include_setpoint_cp)
 
         # Calculate actual timestamp relative to episode start
         curr_timestamp_dict = time_sync_data.get('image_left_stamp', {})
@@ -1181,7 +1295,8 @@ def _convert_images_to_video_opencv(image_folder: Path, output_video: Path,
 
 
 def generate_features_schema(available_arms: List[str], available_videos: Dict[str, Path],
-                             video_resolution: Tuple[int, int]) -> Dict:
+                             video_resolution: Tuple[int, int],
+                             include_setpoint_cp: bool = False) -> Dict:
     """
     Generate features schema for info.json based on available data.
 
@@ -1189,6 +1304,7 @@ def generate_features_schema(available_arms: List[str], available_videos: Dict[s
         available_arms: List of arm names (e.g., ['ECM', 'PSM1', 'PSM2'])
         available_videos: Dictionary mapping video names to folders
         video_resolution: Video resolution (width, height)
+        include_setpoint_cp: If True, include action pose setpoint features (action.<arm>.pose.*)
 
     Returns:
         Dictionary with features schema
@@ -1360,6 +1476,38 @@ def generate_features_schema(available_arms: List[str], available_videos: Dict[s
                 "info": "Gripper angle setpoint in radians"
             }
 
+        # Action cartesian setpoint pose (if include_setpoint_cp is enabled)
+        if include_setpoint_cp:
+            action_position_info = "Setpoint position in meters (world frame)"
+            features[f"action.{arm_lower}.pose.position.x"] = {
+                "dtype": "float32",
+                "shape": (1,),
+                "names": ["x"],
+                "info": action_position_info
+            }
+            features[f"action.{arm_lower}.pose.position.y"] = {
+                "dtype": "float32",
+                "shape": (1,),
+                "names": ["y"],
+                "info": action_position_info
+            }
+            features[f"action.{arm_lower}.pose.position.z"] = {
+                "dtype": "float32",
+                "shape": (1,),
+                "names": ["z"],
+                "info": action_position_info
+            }
+
+            # Action cartesian orientation (quaternion) - all components share same info
+            action_orientation_info = "Setpoint orientation as quaternion (x, y, z, w)"
+            for component in ['x', 'y', 'z', 'w']:
+                features[f"action.{arm_lower}.pose.orientation.{component}"] = {
+                    "dtype": "float32",
+                    "shape": (1,),
+                    "names": [component],
+                    "info": action_orientation_info
+                }
+
     # Add metadata features
     features["frame_id"] = {
         "dtype": "int64",
@@ -1421,7 +1569,8 @@ def create_lerobot_metadata(output_folder: Path, phase_name: str, case_index: in
                             dataset_config: Dict[str, Any] = None,
                             case_time_stats: Dict[str, Any] = None,
                             phase_time_stats: Dict[str, Any] = None,
-                            is_append_mode: bool = True) -> None:
+                            is_append_mode: bool = True,
+                            include_setpoint_cp: bool = False) -> None:
     """
     Create LeRobot v2.1 metadata files (info.json, episodes.jsonl, tasks.jsonl, episodes_stats.jsonl).
 
@@ -1441,8 +1590,11 @@ def create_lerobot_metadata(output_folder: Path, phase_name: str, case_index: in
         video_resolution: Video resolution (width, height)
         video_encoding: Video encoding configuration (codec, crf, preset, etc.)
         dataset_config: Dataset configuration (repo_id, etc.)
+        case_time_stats: Case-level time statistics
+        phase_time_stats: Phase-level time statistics
         is_append_mode: If True, append to existing JSONL files (unknown chunk).
                         If False, remove existing entries for this chunk and rewrite (known chunk).
+        include_setpoint_cp: If True, include action pose setpoint features (action.<arm>.pose.*)
     """
     if video_encoding is None:
         video_encoding = {}
@@ -1456,7 +1608,8 @@ def create_lerobot_metadata(output_folder: Path, phase_name: str, case_index: in
     info_file = meta_folder / 'info.json'
 
     # Generate features schema
-    features = generate_features_schema(available_arms, available_videos, video_resolution)
+    features = generate_features_schema(available_arms, available_videos, video_resolution,
+                                       include_setpoint_cp)
 
     # Prepare encoding information with video encoder details
     encoding_info = {
@@ -1826,6 +1979,9 @@ def process_single_dataset(dataset_folder: Path, output_folder: Path,
             'total_duration_s': 0.0
         }
 
+        # Track time_tolerance values for reporting (episode_index, max_time_tolerance)
+        time_tolerance_tracker = []
+
         # chunks_size is fixed at 100 - used to calculate global episode_index
         # Formula: global_episode_index = chunks_size * episode_chunk + local_ep_idx
         chunks_size = 100
@@ -1844,10 +2000,67 @@ def process_single_dataset(dataset_folder: Path, output_folder: Path,
             parquet_file = data_output / f"{episode_id}.parquet"
             start_ts, end_ts = create_episode_parquet(
                 dataset_folder, episode_frames, parquet_file,
-                available_arms, config.parquet_settings, episode_index, phase_idx
+                available_arms, config.parquet_settings, episode_index, phase_idx,
+                config.get_include_setpoint_cp()
             )
 
             duration_s = end_ts - start_ts
+
+            # Check if setpoint_cp data was actually included (only check first episode)
+            if local_ep_idx == 0 and config.get_include_setpoint_cp() and HAS_PYARROW:
+                try:
+                    import pyarrow.parquet as pq
+                    pq_table = pq.read_table(parquet_file)
+                    # Check if any action pose columns exist
+                    has_setpoint_cp = any(col.startswith('action.') and '.pose.' in col
+                                         for col in pq_table.column_names)
+                    if not has_setpoint_cp:
+                        error_msg = (
+                            f"\n{'='*70}\n"
+                            f"ERROR: include_setpoint_cp is True but no setpoint_cp data found!\n"
+                            f"{'='*70}\n"
+                            f"Dataset: {dataset_folder}\n"
+                            f"Case: {case_id}\n\n"
+                            f"The kinematic JSON files do not contain 'setpoint_cp' data.\n"
+                            f"Expected structure in kinematic/<ARM>/*.json:\n"
+                            f"  {{\n"
+                            f"    \"arm\": {{\n"
+                            f"      \"setpoint_data\": {{\n"
+                            f"        \"setpoint_cp\": {{\n"
+                            f"          \"position\": [x, y, z],\n"
+                            f"          \"orientation\": [x, y, z, w]\n"
+                            f"        }}\n"
+                            f"      }}\n"
+                            f"    }}\n"
+                            f"  }}\n\n"
+                            f"Solutions:\n"
+                            f"  1. Set 'include_setpoint_cp: false' in your config if you don't need this data\n"
+                            f"  2. Update your data collection to record setpoint_cp in kinematic files\n"
+                            f"  3. Check that your kinematic JSON files have the correct structure\n"
+                            f"{'='*70}\n"
+                        )
+                        print(error_msg)
+                        raise RuntimeError("Missing required setpoint_cp data when include_setpoint_cp=True")
+                except RuntimeError:
+                    # Re-raise our own error
+                    raise
+                except Exception as e:
+                    logger.debug(f"Failed to check for setpoint_cp columns: {e}")
+
+            # Track max time_tolerance for this episode
+            # Read time_tolerance_ms column from parquet file to find max value
+            if HAS_PYARROW:
+                try:
+                    import pyarrow.parquet as pq
+                    parquet_table = pq.read_table(parquet_file, columns=['observation.meta.time_tolerance_ms'])
+                    if 'observation.meta.time_tolerance_ms' in parquet_table.column_names:
+                        tolerance_values = parquet_table['observation.meta.time_tolerance_ms'].to_numpy()
+                        # Use .item() to extract scalar from 0-d array (avoids NumPy 1.25 deprecation warning)
+                        max_val = np.max(tolerance_values)
+                        max_tolerance = float(max_val.item() if hasattr(max_val, 'item') else max_val)
+                        time_tolerance_tracker.append((episode_index, max_tolerance))
+                except Exception as e:
+                    logger.debug(f"Failed to read time_tolerance for episode {episode_index}: {e}")
 
             # Create videos for each camera
             for video_name, video_folder in available_videos.items():
@@ -1920,6 +2133,17 @@ def process_single_dataset(dataset_folder: Path, output_folder: Path,
         # Helps manage memory when processing phases with many episodes
         gc.collect()
 
+        # Print top 3 highest time_tolerance values for this case
+        # This helps identify episodes that may need manual review due to timing issues
+        if time_tolerance_tracker:
+            # Sort by time_tolerance (descending) to get highest values first
+            sorted_tolerances = sorted(time_tolerance_tracker, key=lambda x: x[1], reverse=True)
+            top_3 = sorted_tolerances[:3]
+
+            print(f"\n    Top 3 highest time_tolerance values for {case_id}:")
+            for rank, (ep_idx, tolerance_ms) in enumerate(top_3, 1):
+                print(f"      #{rank}: Episode {ep_idx:06d} - {tolerance_ms:.3f} ms")
+
         # Compute case-level duration statistics (statistics of episode durations in this case)
         case_time_stats = None
         if config.statistics.get('compute_case_level', True):
@@ -1975,12 +2199,14 @@ def process_single_dataset(dataset_folder: Path, output_folder: Path,
             config.robot, config.fps,
             available_arms, available_videos, video_resolution,
             config.video_encoding, config.dataset, case_time_stats, phase_time_stats,
-            is_append_mode
+            is_append_mode, config.get_include_setpoint_cp()
         )
 
         # Copy calibration files
         copy_calibration_files(dataset_folder, output_folder, case_index)
 
+        # Store time_tolerance data in stats for global aggregation
+        phase_stats['time_tolerance_tracker'] = time_tolerance_tracker
         stats['phases'][phase_name] = phase_stats
 
     return stats
@@ -2332,6 +2558,34 @@ def convert_datasets(config: ConversionConfig) -> Dict:
         with open(total_time_file, 'w') as f:
             json.dump(complete_stats, f, indent=2)
         print(f"\nTotal time statistics saved to: {total_time_file}")
+
+    # Aggregate and print overall top 3 time_tolerance values across all episodes
+    # Collect time_tolerance data from all phases across all datasets
+    all_time_tolerances = []
+    for phase_name, phase_data in all_stats.get('phases', {}).items():
+        for case_data in phase_data.get('cases', []):
+            # Check if we have time_tolerance_tracker in the original phase_stats
+            # Note: We stored it when building all_stats from stats
+            pass
+
+    # Alternative: Collect from datasets -> stats -> phases
+    for dataset_info in all_stats.get('datasets', []):
+        dataset_stats = dataset_info.get('stats', {})
+        for phase_name, phase_stats in dataset_stats.get('phases', {}).items():
+            time_tolerance_data = phase_stats.get('time_tolerance_tracker', [])
+            all_time_tolerances.extend(time_tolerance_data)
+
+    # Print overall top 3 highest time_tolerance values
+    if all_time_tolerances:
+        sorted_all = sorted(all_time_tolerances, key=lambda x: x[1], reverse=True)
+        top_3_overall = sorted_all[:3]
+
+        print(f"\n{'='*70}")
+        print("Overall Top 3 Highest time_tolerance Values (All Episodes):")
+        print(f"{'='*70}")
+        for rank, (ep_idx, tolerance_ms) in enumerate(top_3_overall, 1):
+            print(f"  #{rank}: Episode {ep_idx:06d} - {tolerance_ms:.3f} ms")
+        print(f"{'='*70}")
 
     print(f"\n{'='*70}")
     print("Conversion Complete!")
