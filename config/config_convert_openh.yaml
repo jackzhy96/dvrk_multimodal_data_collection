@@ -17,7 +17,7 @@ data_folder: "/media/jackzhy/Extreme Pro/data_2026_icra"
 # Example for single mode: "/home/jackzhy/dvrk_multimodal_data_collection/data/test_data/raw/6"
 
 # Output folder: where the converted LeRobot v2.1 format data will be saved
-output_folder: "/media/jackzhy/Extreme SSD/online_data"
+output_folder: "/media/jackzhy/Extreme SSD/online_data_part4"
 
 # Task description folder: contains idx-to-text mapping files
 # Expected files: phase_description.json, step_description.json, user_id_info.json
@@ -36,7 +36,7 @@ task_description_folder: "/media/jackzhy/Extreme Pro/meta_descriptions"
 #     - >= 0: start from start_idx, increment for each dataset
 #             (e.g., start_idx=6 with 3 datasets -> case-006, case-007, case-008)
 #             ERROR and STOP if any existing case index >= start_idx
-start_idx: -1
+start_idx: 122
 
 # FPS: Frames per second for video conversion
 # This determines the frame rate of the output MP4 videos
