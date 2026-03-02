@@ -109,7 +109,7 @@ p_config = Path.cwd().parents[2] / 'config'
 @hydra.main(
     version_base=None,
     config_path= str(p_config),
-    config_name="config_kp_jack_ubc"
+    config_name="config_kp_jack"
 )
 def main(cfg: AppCfg):
     camera_calibration_path = Path(cfg.camera_calibration_path)

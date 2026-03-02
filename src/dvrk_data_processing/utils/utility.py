@@ -148,37 +148,71 @@ def load_mono_camera_param_yaml(path: Union[Path, str])->MonoCameraInfoProcessed
     return camera_params
 
 
+def _normalize_kinematic_json(data: Union[list, dict]) -> dict:
+    '''
+    Normalize raw kinematic JSON to a canonical dict structure.
+    Handles two issues:
+      1. List wrapping: both old and new formats wrap data in a list [{ ... }]
+      2. Old format placement: jaw and measured_frequency are at the top level
+         in the old format but inside 'arm' in the new format — move them into arm.
+    data: raw JSON data (list or dict)
+    output: normalized dict with structure matching the new format
+    '''
+    # Unwrap list if needed (both old and new formats are list-wrapped)
+    if isinstance(data, list):
+        if len(data) == 0:
+            raise ValueError("Kinematic JSON list is empty")
+        data = data[0]
+
+    # Detect old format: jaw and measured_frequency at top level (siblings of arm)
+    # In new format, they are inside arm already
+    if 'arm' in data:
+        if 'jaw' in data:
+            data['arm']['jaw'] = data.pop('jaw')
+        if 'measured_frequency' in data:
+            data['arm']['measured_frequency'] = data.pop('measured_frequency')
+
+    return data
+
+
 def load_json_cp(path: Union[Path, str], arm_name: str) -> Union[PSMCPInfo, ECMCPInfo, None]:
     '''
-    Load the json file including both measured_cp, measured_cv (only for PSM), local_cp and measured_js data.
+    Load the json file including both measured_cp, measured_cv (only for PSM), local_measured_cp
+    and measured_js data. Supports both old and new kinematic JSON formats:
+      - Old format: list-wrapped, jaw/measured_frequency at top level
+      - New format: list-wrapped, jaw/measured_frequency inside arm
     path: path to the json file
-    arm_name: name of the arm
+    arm_name: name of the arm (ECM, PSM1, PSM2, PSM3)
     output: loaded data class instance of PSMCPInfo or ECMCPInfo
     '''
     file_path = convert_pathlib_type(path)
     with open(file_path, "r") as f:
-        data = json.load(f)
+        raw_data = json.load(f)
+
+    # Normalize to canonical dict structure (unwrap list, move old-format fields)
+    data = _normalize_kinematic_json(raw_data)
+
     arm_info = dict()
     if arm_name.upper() == 'ECM':
         kin_info = datacls_from_dict(ECMInfo, data)
-        rot_world = R.from_quat(kin_info.arm.measured_data.cp.orientation)
+        rot_world = R.from_quat(kin_info.arm.measured_data.measured_cp.orientation)
         arm_info["R"] = rot_world.as_matrix()
-        arm_info["t"] = np.array(kin_info.arm.measured_data.cp.position)
+        arm_info["t"] = np.array(kin_info.arm.measured_data.measured_cp.position)
     elif 'PSM' in arm_name.upper():
         kin_info = datacls_from_dict(PSMInfo, data)
         # -------- measured_cp (world coordinates) --------
-        rot_world = R.from_quat(kin_info.arm.measured_data.cp.orientation)
+        rot_world = R.from_quat(kin_info.arm.measured_data.measured_cp.orientation)
         arm_info["R"] = rot_world.as_matrix()
-        arm_info["t"] = np.array(kin_info.arm.measured_data.cp.position)
-        arm_info["w"] = np.array(kin_info.arm.measured_data.cp.velocity)[0:3]
-        arm_info["v"] = np.array(kin_info.arm.measured_data.cp.velocity)[3:6]
-        arm_info['measured_frequency'] = kin_info.measured_frequency
+        arm_info["t"] = np.array(kin_info.arm.measured_data.measured_cp.position)
+        arm_info["w"] = np.array(kin_info.arm.measured_data.measured_cp.velocity)[0:3]
+        arm_info["v"] = np.array(kin_info.arm.measured_data.measured_cp.velocity)[3:6]
+        arm_info['measured_frequency'] = kin_info.arm.measured_frequency
     else:
         raise ValueError(f"Unknown arm name: {arm_name}")
-    # -------- local_cp (base coordinates) --------
-    rot_local = R.from_quat(kin_info.arm.local_cp.orientation)
+    # -------- local_measured_cp (base coordinates) --------
+    rot_local = R.from_quat(kin_info.arm.measured_data.local_measured_cp.orientation)
     arm_info["R_local"] = rot_local.as_matrix()
-    arm_info["t_local"] = np.array(kin_info.arm.local_cp.position)
+    arm_info["t_local"] = np.array(kin_info.arm.measured_data.local_measured_cp.position)
     # -------- meta --------
     arm_info["arm_name"] = arm_name
     if arm_name.upper() == 'ECM':
@@ -277,7 +311,8 @@ def load_handeye_dict(calib_folder: Union[Path, str],
 
 def load_ecm_transformation_matrix(path: Union[Path, str]) -> np.ndarray:
     '''
-    Load the ECM transformation matrix from local_cp topic in the given json file
+    Load the ECM transformation matrix from local_measured_cp topic in the given json file.
+    Uses load_json_cp() which handles both old and new kinematic JSON formats.
     path: path to the json file
     output: 4*4 transformation matrix
     '''

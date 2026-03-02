@@ -1,5 +1,5 @@
 defaults:
-  - path_config: jack_local_new     # pick one file from the data, data load and store paths
+  - path_config: jack_local_test     # pick one file from the data, data load and store paths
   - preprocess: kinematic_map   # select the preprocess type
   - _self_
 

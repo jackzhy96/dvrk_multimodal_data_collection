@@ -89,6 +89,14 @@ class PSMMeasuredCpConfig:
 class ECMMeasuredCpConfig:
     position: List[float]
     orientation: List[float]
+    velocity: List[float] = None  # present in both old/new formats, optional for safety
+
+
+@dataclass
+class MeasuredCvConfig:
+    """Measured Cartesian velocity — separate linear and angular components."""
+    linear: List[float]
+    angular: List[float]
 
 
 @dataclass
@@ -111,66 +119,79 @@ class ArmJsConfig:
 
 @dataclass
 class MeasuredLoadConfig:
-    cp: ArmMeasuredCpConfig
-    js: ArmJsConfig
+    """Generic measured data config — matches new JSON field names."""
+    measured_cp: ArmMeasuredCpConfig
+    measured_js: ArmJsConfig
+    local_measured_cp: ArmLocalCpConfig = None  # local coordinates (base frame)
+    measured_cv: MeasuredCvConfig = None         # Cartesian velocity (linear + angular)
 
 
 @dataclass
 class PSMMeasuredLoadConfig:
-    cp: PSMMeasuredCpConfig
-    js: ArmJsConfig
+    """PSM measured data — fields match JSON keys: measured_cp, measured_js, etc."""
+    measured_cp: PSMMeasuredCpConfig
+    measured_js: ArmJsConfig
+    local_measured_cp: ArmLocalCpConfig = None  # local coordinates (base frame)
+    measured_cv: MeasuredCvConfig = None         # Cartesian velocity (linear + angular)
 
 
 @dataclass
 class ECMMeasuredLoadConfig:
-    cp: ECMMeasuredCpConfig
-    js: ArmJsConfig
+    """ECM measured data — fields match JSON keys: measured_cp, measured_js, etc."""
+    measured_cp: ECMMeasuredCpConfig
+    measured_js: ArmJsConfig
+    local_measured_cp: ArmLocalCpConfig = None  # local coordinates (base frame)
+    measured_cv: MeasuredCvConfig = None         # Cartesian velocity (linear + angular)
+
 
 @dataclass
 class DesiredLoadConfig:
-    cp: ArmSetpointCpConfig
-    js: ArmJsConfig
+    """Setpoint/desired data — setpoint_cp is optional (absent in new ECM format)."""
+    setpoint_js: ArmJsConfig
+    setpoint_cp: ArmSetpointCpConfig = None  # not present in new ECM format
+
 
 @dataclass
 class ArmLoadConfig:
-    local_cp: ArmLocalCpConfig
+    """Generic arm config — matches the normalized new JSON structure."""
     measured_data: MeasuredLoadConfig
     setpoint_data: DesiredLoadConfig
+    jaw: JawLoadConfig = None           # PSM only; inside arm in new format
+    measured_frequency: float = None    # PSM only; inside arm in new format
 
 
 @dataclass
 class PSMLoadConfig:
-    local_cp: ArmLocalCpConfig
+    """PSM arm config — local_cp moved into measured_data as local_measured_cp."""
     measured_data: PSMMeasuredLoadConfig
     setpoint_data: DesiredLoadConfig
+    jaw: JawLoadConfig = None           # inside arm in new format, moved here from top level in old format
+    measured_frequency: float = None    # inside arm in new format, moved here from top level in old format
 
 
 @dataclass
 class ECMLoadConfig:
-    local_cp: ArmLocalCpConfig
+    """ECM arm config — local_cp moved into measured_data as local_measured_cp."""
     measured_data: ECMMeasuredLoadConfig
     setpoint_data: DesiredLoadConfig
 
 
 @dataclass
 class KinematicInfo:
+    """Generic kinematic info — wraps the arm config."""
     arm: ArmLoadConfig
-    header: HeaderConfig
-    jaw: JawLoadConfig
 
 
 @dataclass
 class PSMInfo:
+    """PSM kinematic info — jaw and measured_frequency are inside arm (PSMLoadConfig)."""
     arm: PSMLoadConfig
-    header: HeaderConfig
-    jaw: JawLoadConfig
-    measured_frequency: float
 
 
 @dataclass
 class ECMInfo:
+    """ECM kinematic info — no jaw or measured_frequency."""
     arm: ECMLoadConfig
-    header: HeaderConfig
 
 
 @dataclass
@@ -242,16 +263,24 @@ def datacls_from_dict(data_class: Type[datacls], raw: dict) -> datacls:
 
 if __name__ == "__main__":
     data_path = Path.cwd().parents[2] / 'data'
-    # print(data_path)
     camera_path = data_path / 'camera_calibration' / 'left.yaml'
-    kinematic_path = data_path / 'data_20250701' / '1' / 'regular' / 'kinematic' / 'PSM1' / '0.json'
+    # Example: load kinematic data from test_data (both old and new formats are list-wrapped)
+    kinematic_path = data_path / 'test_data' / 'old' / 'raw' / '0' / 'kinematic' / 'PSM1' / '0.json'
     with open(camera_path, 'r') as f:
         data = yaml.safe_load(f)
     cam_info = datacls_from_dict(CameraInfo, data)
 
     with open(kinematic_path, 'r') as f:
         data_kin = json.load(f)
-    kin_info = datacls_from_dict(KinematicInfo, data_kin)
+    # Unwrap list if needed (both old and new formats are list-wrapped)
+    if isinstance(data_kin, list) and len(data_kin) > 0:
+        data_kin = data_kin[0]
+    # Normalize old format: move jaw and measured_frequency from top level into arm
+    if 'jaw' in data_kin and 'arm' in data_kin:
+        data_kin['arm']['jaw'] = data_kin.pop('jaw')
+    if 'measured_frequency' in data_kin and 'arm' in data_kin:
+        data_kin['arm']['measured_frequency'] = data_kin.pop('measured_frequency')
+    kin_info = datacls_from_dict(PSMInfo, data_kin)
 
-    cam_dict = asdict(cam_info) # convert back
+    cam_dict = asdict(cam_info)  # convert back
     pass
