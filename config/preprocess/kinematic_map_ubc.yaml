@@ -14,5 +14,10 @@ weight_config:
   advanced_weight: true
   tol_dist: 0.05
 
-fps_img: 30
+# Per-PSM weight overrides. If null/omitted, falls back to weight_config above.
+# Each entry follows the same format as weight_config (sigma_x, sigma_y, advanced_weight, tol_dist).
+weight_config_PSM1:
+weight_config_PSM2:
+weight_config_PSM3:
+
 enable_overlay: true

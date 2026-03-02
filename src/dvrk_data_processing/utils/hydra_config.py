@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Union, List
+from typing import Optional, Union, List
 
 
 @dataclass
@@ -29,9 +29,12 @@ class KinematicMapConfig:
     input_folder: str
     output_folder: str
     weight_config: KinmaticMapWeightConfig
-    fps_img: float
-    fps_kin: float
     enable_overlay: bool
+    # Per-PSM weight overrides — if None, falls back to the global weight_config
+    weight_config_PSM1: Optional[KinmaticMapWeightConfig] = None
+    weight_config_PSM2: Optional[KinmaticMapWeightConfig] = None
+    weight_config_PSM3: Optional[KinmaticMapWeightConfig] = None
+    fps_kin: float = -1.0  # legacy field; scripts now use per-frame measured_frequency instead
     folder_initialize: bool = False
 
 
@@ -141,6 +144,7 @@ class RaftOpticalFlowConfig:
     save_confidence: bool = False  # Save confidence/uncertainty maps (if supported)
     folder_initialize: bool = False
 
+@dataclass
 class ResizeVideoConfig:
     enable_resize: bool
     new_size: List[int]  # [width, height]

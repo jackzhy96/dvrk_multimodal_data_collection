@@ -1,5 +1,7 @@
 from dataclasses import dataclass
-from typing import Union, Tuple, List
+from typing import Any, Union, List
+from copy import deepcopy
+import logging
 import hydra
 from hydra.core.config_store import ConfigStore
 from pathlib import Path
@@ -7,8 +9,10 @@ import numpy as np
 from dvrk_data_processing.utils.hydra_config import PathConfig, KinematicMapConfig
 from dvrk_data_processing.utils.utility import (create_folder, clear_folder, load_json_cp, glob_sorted_frame,
                                                 load_stereo_camera_param_yaml, load_mono_camera_param_yaml,
-                                                load_handeye_dict,load_ecm_transformation_matrix)
-from dvrk_data_processing.utils.data_load_config import CameraInfoProcessed
+                                                load_handeye_dict, load_ecm_transformation_matrix,
+                                                cam_project_3d_to_2d, gen_heatmap,
+                                                parse_tool_tip_offsets, apply_tool_tip_offset,
+                                                resolve_per_arm_weight_configs)
 from tqdm import tqdm
 import cv2
 
@@ -21,85 +25,7 @@ class AppCfg:
     camera_calibration_path: Union[Path, str]
     camera_offset: Union[None, List[float]]
     handeye_calib_path: Union[Path, str]
-
-
-def pixel_coord_check(pixel_coord:np.ndarray, img_w:int, img_h:int)->None:
-    '''
-    check if the pixel coordinates are within the image scope.
-    pixel_coord: 2D pixel coordinates (u,v), dimension is Nx2
-    img_w: width of the image
-    img_h: height of the image
-    output: print warning if any pixel coordinate is out of range (view scope)
-    '''
-    for i in range(len(pixel_coord)):
-        u = pixel_coord[i][0]
-        v = pixel_coord[i][1]
-        if not (0 <= u < img_w and 0 <= v < img_h):
-            print(f'pair {i} pixel coordinate ({u}, {v}) is out of range (view scope)!')
-
-def cam_project_3d_to_2d(coord_3d:np.ndarray, cam_param: CameraInfoProcessed,
-                         cam_offset: Union[None, np.ndarray])->np.ndarray:
-    '''
-    Project 3D point to 2D pixel coordinates,enable camera offset via Rotation matrix
-    coord_3d: 3D point in the camera coordinate system, N points
-    cam_param: camera parameters, using CameraInfo dataclass
-    cam_offset: camera offset, 3x3 rotation matrix
-    output: 2D pixel coordinates (u,v), dimension is Nx2
-    '''
-    if cam_offset is None:
-        cam_offset = np.eye(3)
-    R_cam = cam_param.R_c
-    t_cam = cam_param.t_c.reshape(-1,1)
-    R_cam = cam_offset @ R_cam
-    rvec, _ = cv2.Rodrigues(R_cam)
-    tvec = cam_offset @ t_cam
-    pixel_coord, _ = cv2.projectPoints(coord_3d, rvec, tvec, cam_param.K, cam_param.D)
-    pixel_coord_check(pixel_coord.reshape(-1, 2), cam_param.image_width, cam_param.image_height)
-    return pixel_coord.reshape(-1,2)
-
-def d_weight(xyz:np.ndarray, weight_adv:bool, tol_dist:float=0.02)->float:
-    '''
-    Calculate the weight of the prediction term.
-    xyz: 3D point in the camera coordinate system
-    weight_adv: whether to use the advanced d-weight
-    tol_dist: tolerance for the distance (the substraction offset)
-    output: calculated weight
-    '''
-    xyz_norm = np.linalg.norm(xyz)
-    s = xyz_norm - tol_dist
-    if weight_adv:
-        # d = np.exp((-s + np.exp(-s))/2.0) / np.sqrt(2.0 * np.pi)
-        d = np.exp((-s + np.exp(-s)) / 2.0)
-        return d
-    else:
-        if s < 4e-4:
-            s = 4e-4
-        d = 1.0 / (1000.0 * s)
-        return d
-
-
-def gen_heatmap(u:float,v:float, u_next:float, v_next:float, xyz:np.ndarray, sigma_x:float, sigma_y:float,
-                img_w:float, img_h:float, weight_adv:bool, tol_dist:float)->np.ndarray:
-    '''
-    Generate the kinematic heatmap.
-    u: x-coordinate of the current point
-    v: y-coordinate of the current point
-    u_next: x-coordinate of the predicted point
-    v_next: y-coordinate of the predicted point
-    xyz: 3D point in the camera coordinate system
-    sigma_x: standard deviation of the Gaussian kernel along the x-axis
-    sigma_y: standard deviation of the Gaussian kernel along the y-axis
-    img_w: width of the image
-    img_h: height of the image
-    weight_adv: whether to use the advanced weight
-    tol_dist: tolerance for the distance (the substraction offset)
-    output: kinematic heatmap
-    '''
-    y, x = np.mgrid[0:img_h, 0:img_w]
-    mp_current = np.exp(-(((x - u) ** 2 / sigma_x ** 2) + ((y - v) ** 2 / sigma_y ** 2)))
-    mp_predict = np.exp(-(((x - u_next) ** 2 / sigma_x ** 2) + ((y - v_next) ** 2 / sigma_y ** 2)))
-    d = d_weight(xyz, weight_adv, tol_dist)
-    return mp_current + d * mp_predict
+    tool_tip_offset: Any = None  # per-PSM 4x4 offset matrices (dict of lists or None)
 
 
 cs = ConfigStore.instance()
@@ -121,19 +47,17 @@ def main(cfg: AppCfg):
     if camera_offset is not None:
         camera_offset = np.array(cfg.camera_offset).reshape(3, 3)
     arm_list = list(cfg.preprocess.arm_name)
-    
+
+    # Parse per-PSM tool-tip offsets (4x4 matrices, identity if None)
+    tool_tip_offsets = parse_tool_tip_offsets(cfg.tool_tip_offset, arm_list)
+
     handeye_path = Path(cfg.handeye_calib_path)
     dict_handeye_calib = load_handeye_dict(handeye_path, arm_list)   # {'PSM1':4×4 , 'PSM2':4×4}
 
     img_w, img_h = cfg.preprocess.img_size
-    fps_img = float(cfg.preprocess.fps_img)
-    sigma_x = float(cfg.preprocess.weight_config.sigma_x)
-    sigma_y = float(cfg.preprocess.weight_config.sigma_y)
-    tol_dist = float(cfg.preprocess.weight_config.tol_dist)
+    # Resolve per-arm weight configs (falls back to global weight_config when per-PSM is null)
+    weight_configs = resolve_per_arm_weight_configs(cfg.preprocess, arm_list)
     processed_dir = Path(cfg.path_config.processed_dir)
-    raw_dir = Path(cfg.path_config.raw_dir)
-    weight_adv = cfg.preprocess.weight_config.advanced_weight
-    # weight_adv = False ## use this one if you only want to have the heatmap
     enable_overlay = cfg.preprocess.enable_overlay
     # enable_overlay = False ## use this one if you only want to have the heatmap
     input_folder = Path(cfg.preprocess.input_folder)
@@ -143,7 +67,10 @@ def main(cfg: AppCfg):
         if processed_dir.exists():
             clear_folder(output_folder)
         else:
-            print(f"Output folder does not exist - {processed_dir}")
+            logging.warning(f"Output folder does not exist - {processed_dir}")
+
+    # Pre-compute the pixel coordinate grid once (reused for every frame)
+    mgrid_cache = np.mgrid[0:img_h, 0:img_w]
 
     data_folder = input_folder / 'kinematic'
     save_folder = output_folder
@@ -156,11 +83,12 @@ def main(cfg: AppCfg):
         else:
             raise ValueError('Only support single or stereo camera setup.')
         image_folder = data_folder.parent / 'image' / camera_names[i_cam]
-        print(f'Working on {camera_names[i_cam].upper()} Camera: \n')
+        logging.info(f'Working on {camera_names[i_cam].upper()} Camera')
         if enable_overlay:
             img_file_list = glob_sorted_frame(image_folder)
 
-        from copy import deepcopy
+        # Create a "naked" camera params copy with identity extrinsics for hand-eye projection
+        # (the hand-eye pipeline already accounts for camera-to-world transforms)
         camera_params_naked = deepcopy(camera_params)
         camera_params_naked.R_c = np.eye(3)
         camera_params_naked.t_c = np.zeros((3, 1))
@@ -171,13 +99,32 @@ def main(cfg: AppCfg):
             data_path = data_folder / arm_name
             file_list = glob_sorted_frame(data_path)
 
+            # Get the tool-tip offset for this arm
+            T_offset = tool_tip_offsets[arm_name]
+            # Check if offset is non-identity to decide whether to apply it
+            has_offset = not np.allclose(T_offset, np.eye(4))
+            if has_offset:
+                logging.info(f"Applying tool-tip offset for {arm_name}:\n{T_offset}")
+
+            # Extract per-arm weight config for heatmap generation
+            wcfg = weight_configs[arm_name]
+            sigma_x = wcfg['sigma_x']
+            sigma_y = wcfg['sigma_y']
+            weight_adv = wcfg['advanced_weight']
+            tol_dist = wcfg['tol_dist']
+
             if camera_names is not None:
                 arm_save_folder = save_folder / arm_name / camera_names[i_cam]
-
-                print(f'Working on {camera_names[i_cam].upper()} Camera: \n')
             else:
                 arm_save_folder = save_folder / arm_name
 
+            # Create output directories once (not per frame)
+            img_save_folder = arm_save_folder / 'image'
+            heatmap_save_folder = arm_save_folder / 'heatmap'
+            if not img_save_folder.exists():
+                create_folder(img_save_folder)
+            if not heatmap_save_folder.exists():
+                create_folder(heatmap_save_folder)
 
             for file_name in tqdm(file_list, desc=f"Kinematic HeatMap Processing Frames of {arm_name}"):
                 # === Camera←World  ===
@@ -192,14 +139,8 @@ def main(cfg: AppCfg):
                     img_greyscale = cv2.imread(str(img_file_path), cv2.IMREAD_GRAYSCALE).astype(np.float64)
                 img_file_name = file_name.parts[-1].replace('json', 'png')
                 heatmap_file_name = file_name.parts[-1].replace('json', 'npy')
-                img_save_folder = arm_save_folder / 'image'
-                heatmap_save_folder = arm_save_folder / 'heatmap'
-                if not img_save_folder.exists():
-                    create_folder(img_save_folder)
-                if not heatmap_save_folder.exists():
-                    create_folder(heatmap_save_folder)
 
-                # R = data_arm.R
+                R_arm = data_arm.R
                 t = data_arm.t
                 w = data_arm.w
                 v = data_arm.v
@@ -210,6 +151,12 @@ def main(cfg: AppCfg):
                 dx = v + np.cross(w, t)
                 t_next = t + dx * dt
                 t_local      = data_arm.t_local
+                R_local      = data_arm.R_local
+
+                # Apply tool-tip offset to local coordinates if configured
+                if has_offset:
+                    R_local, t_local = apply_tool_tip_offset(R_local, t_local, T_offset)
+
                 t_local_next = t_local + dx * dt
 
                # ---------- Hand-Eye ----------
@@ -231,7 +178,8 @@ def main(cfg: AppCfg):
                 kp_heat = gen_heatmap(
                     pixel_coord_handeye[0,0], pixel_coord_handeye[0,1],
                     pixel_coord_handeye_next[0,0], pixel_coord_handeye_next[0,1],
-                    tip_cam_handeye, sigma_x, sigma_y, img_w, img_h, weight_adv, tol_dist
+                    tip_cam_handeye, sigma_x, sigma_y, img_w, img_h, weight_adv, tol_dist,
+                    mgrid_cache=mgrid_cache
                 )
 
 
@@ -258,28 +206,28 @@ def main(cfg: AppCfg):
                 u_next = pixel_coord_next[0, 0]
                 v_next = pixel_coord_next[0, 1]
 
-                if int(file_name.stem) % 50 == 0:          
+                if int(file_name.stem) % 50 == 0:
                     frame_id = file_name.stem
-                    print(
+                    logging.info(
                         f"[Frame {frame_id} | {arm_name}]  dVRK 3-D (cam): "
                         f"{t if 't' in locals() else 'N/A'}"
                     )
-                    print(
+                    logging.info(
                         f"[Frame {frame_id} | {arm_name}]  dVRK 2-D (u,v): "
                         f"{pixel_coord[0,0]:7.1f}, {pixel_coord[0,1]:7.1f}"
                     )
-                    print(
+                    logging.info(
                         f"[Frame {frame_id} | {arm_name}]  HE   3-D (cam): "
                         f"{tip_cam_handeye.round(4)}"
                     )
-                    print(
+                    logging.info(
                         f"[Frame {frame_id} | {arm_name}]  HE   2-D (u,v): "
                         f"{pixel_coord_handeye[0,0]:7.1f}, {pixel_coord_handeye[0,1]:7.1f}"
                     )
                     # quick sanity: delta in pixels
                     du = pixel_coord_handeye[0,0] - pixel_coord[0,0]
                     dv = pixel_coord_handeye[0,1] - pixel_coord[0,1]
-                    print(
+                    logging.info(
                         f"[Frame {frame_id} | {arm_name}]  Δ(pixel HE-dVRK): "
                         f"{du:+6.1f}, {dv:+6.1f}\n"
                     )
@@ -335,8 +283,6 @@ if __name__ == '__main__':
     #     print(f'Working on {camera_names[i_cam].upper()} Camera: \n')
     #     if enable_overlay:
     #         img_file_list = glob_sorted_frame(image_folder)
-    #
-    #     from copy import deepcopy
     #
     #     camera_params_naked = deepcopy(camera_params)
     #     camera_params_naked.R_c = np.eye(3)
@@ -462,11 +408,3 @@ if __name__ == '__main__':
     #                     f"[Frame {frame_id} | {arm_name}]  Δ(pixel HE-dVRK): "
     #                     f"{du:+6.1f}, {dv:+6.1f}\n"
     #                 )
-
-
-
-
-
-
-
-
