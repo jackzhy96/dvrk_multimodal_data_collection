@@ -151,15 +151,29 @@ class ResizeVideoConfig:
 
 
 @dataclass
+class FFmpegConfig:
+    """FFmpeg encoding settings for high-quality video output."""
+    codec: str = "libx264"         # FFmpeg codec (libx264, libx265, etc.)
+    crf: int = 17                  # Constant Rate Factor (0-51, lower = better quality)
+    preset: str = "slow"           # Encoding preset (ultrafast/fast/medium/slow/veryslow)
+    pixel_format: str = "yuv420p"  # Pixel format for broad playback compatibility
+
+
+@dataclass
 class ImageToVideoConfig:
     stage: str
     video_fixed_rate: float
     enable_fixed_rate: bool
     resize_config: ResizeVideoConfig
+    ffmpeg_config: FFmpegConfig = None  # FFmpeg encoding settings (uses defaults if None)
     start_frame: int = -1  # -1 means start from first frame (0)
     end_frame: int = -1  # -1 means process until last frame
-    codec: str = "mp4v"  # video codec
     folder_initialize: bool = False
+
+    def __post_init__(self):
+        # Initialize default FFmpegConfig if not provided
+        if self.ffmpeg_config is None:
+            self.ffmpeg_config = FFmpegConfig()
 
 
 @dataclass
@@ -167,6 +181,7 @@ class VideoToImageConfig:
     stage: str
     enable_timestamp: bool
     file_extension: str = "png"  # output image file extension
+    extract_fps: float = -1  # target extraction fps; -1 = extract all frames
     folder_initialize: bool = False
 
 

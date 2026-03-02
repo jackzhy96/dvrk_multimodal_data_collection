@@ -1,7 +1,7 @@
 stage: image_to_video
 folder_initialize: false
 
-enable_fixed_rate: false
+enable_fixed_rate: true
 video_fixed_rate: 10
 
 ### Frame range selection (-1 means use all frames)
@@ -15,8 +15,11 @@ end_frame: -1    # -1 means process until last frame
 resize_config:
   enable_resize: false
 #  enable_resize: true
-  new_size: [1280, 720]
+  new_size: [512, 288]
 
-codec: "mp4v"
-
-#file extension: "png"
+### FFmpeg encoding settings (used when FFmpeg is available; OpenCV fallback otherwise)
+ffmpeg_config:
+  codec: "libx264"       # FFmpeg codec (libx264, libx265, etc.)
+  crf: 17                # Constant Rate Factor (0-51, lower = better quality)
+  preset: "slow"         # Encoding preset (ultrafast/fast/medium/slow/veryslow)
+  pixel_format: "yuv420p"  # Pixel format for broad playback compatibility
