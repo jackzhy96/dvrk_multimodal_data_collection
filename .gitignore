@@ -185,5 +185,6 @@ CLAUDE.md
 /analysis_results/interpolation/output_simplified/
 /analysis_results/strict_match/output_simplified/
 config/path_config/jack_local_test.yaml
-env_setup/
+config/config_annotation_test.yaml
+#env_setup/
 
