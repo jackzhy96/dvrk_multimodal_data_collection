@@ -20,13 +20,17 @@ camera_offset: [-1.0, 0.0, 0.0,
 # Set to null or omit for identity (no offset).
 tool_tip_offset:
 #  PSM1:
-  PSM1:  [1.0, 0.0, 0.0, 0.001,
-          0.0, 1.0, 0.0, 0.008,
-          0.0, 0.0, 1.0, 0.0015,
-          0.0, 0.0, 0.0, 1.0] # null → identity (no offset)
+#  PSM1:  [1.0, 0.0, 0.0, 0.001,
+#          0.0, 1.0, 0.0, 0.008,
+#          0.0, 0.0, 1.0, 0.0015,
+#          0.0, 0.0, 0.0, 1.0] # null → identity (no offset)
+  PSM1: [ 1.0, 0.0, 0.0, 0.0,
+          0.0, 1.0, 0.0, 0.0,
+          0.0, 0.0, 1.0, 0.0102,
+          0.0, 0.0, 0.0, 1.0 ] # null → identity (no offset)
 #  PSM2:
   PSM2:   [1.0, 0.0, 0.0, 0.0,
-          0.0, 1.0, 0.0, 0.008,
+          0.0, 1.0, 0.0, 0.0,
           0.0, 0.0, 1.0, 0.0102,
           0.0, 0.0, 0.0, 1.0] # null → identity (no offset)
   PSM3:   # null → identity (no offset)
