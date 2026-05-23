@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Union, List
+from typing import Union, List, Tuple
 import hydra
 from hydra.core.config_store import ConfigStore
 from pathlib import Path
@@ -9,11 +9,19 @@ import torch
 import cv2
 import time
 import re
+import json
 import logging
+import yaml
 from tqdm import tqdm
 from omegaconf import OmegaConf
 from dvrk_data_processing.utils.hydra_config import PathConfig, DepthEstimationConfig
 from dvrk_data_processing.utils.utility import create_folder, clear_folder, get_sorted_names, glob_sorted_frame
+# Depth helpers — pulled into a small dependency-light module so unit tests
+# don't need the full FoundationStereo / tqdm / torch stack just to validate
+# the numeric conversion.
+from dvrk_data_processing.depth_estimation.depth_utils import (
+    load_stereo_depth_params, disparity_to_depth_m, colorize_depth_m,
+)
 
 
 def setup_foundation_stereo_imports():
@@ -107,7 +115,9 @@ def load_and_prepare_model(model_path: Path, config_overrides: dict = None):
 
 
 def process_stereo_pair(model, left_img_path: Path, right_img_path: Path,
-                       scale: float, hierarchical: bool, valid_iters: int):
+                       scale: float, hierarchical: bool, valid_iters: int,
+                       padder_divis_by: int = 32,
+                       hierarchical_small_ratio: float = 0.5):
     """
     Process a single stereo image pair to generate depth estimation.
 
@@ -162,7 +172,7 @@ def process_stereo_pair(model, left_img_path: Path, right_img_path: Path,
     img_right_tensor = torch.as_tensor(img_right).cuda().float()[None].permute(0, 3, 1, 2)
 
     # Pad images to ensure compatible dimensions for the model
-    padder = InputPadder(img_left_tensor.shape, divis_by=32, force_square=False)
+    padder = InputPadder(img_left_tensor.shape, divis_by=padder_divis_by, force_square=False)
     img_left_padded, img_right_padded = padder.pad(img_left_tensor, img_right_tensor)
     timing['tensor_prep'] = time.time() - tensor_start
 
@@ -176,7 +186,7 @@ def process_stereo_pair(model, left_img_path: Path, right_img_path: Path,
             # Use hierarchical inference for high-resolution images
             disparity = model.run_hierachical(img_left_padded, img_right_padded,
                                             iters=valid_iters, test_mode=True,
-                                            small_ratio=0.5)
+                                            small_ratio=hierarchical_small_ratio)
     timing['inference'] = time.time() - inference_start
 
     # Post-process results
@@ -195,17 +205,28 @@ def process_stereo_pair(model, left_img_path: Path, right_img_path: Path,
 
 def save_depth_results(disparity: np.ndarray, original_img: np.ndarray,
                       output_dir: Path, frame_number: int,
-                      save_depth: bool, save_visualization: bool):
+                      save_depth: bool, save_visualization: bool,
+                      depth_m: np.ndarray = None,
+                      depth_viz_range_m: Tuple[float, float] = (0.02, 0.5),
+                      depth_viz_cmap: str = "turbo"):
     """
     Save depth estimation results to disk.
 
     Args:
-        disparity: Computed disparity map
-        original_img: Original left camera image for visualization
-        output_dir: Directory to save results
-        frame_number: Frame number for file naming
-        save_depth: Whether to save raw depth data as .npy
-        save_visualization: Whether to save visualization images
+        disparity:          Computed disparity map (pixels, post-scale resolution)
+        original_img:       Original left camera image for visualization
+        output_dir:         Directory to save results (processed_dir/depth_estimation/)
+        frame_number:       Frame number for file naming
+        save_depth:         Whether to save raw disparity .npy (legacy flag name —
+                            controls disparity/<i>.npy only; the depth output
+                            has its own knob, ``compute_depth``)
+        save_visualization: Whether to save the colored .png files (disparity_image/,
+                            combined_image/, depth_image/)
+        depth_m:            Optional precomputed depth-in-meters array (float32, NaN-masked).
+                            When provided, written to depth/<i>.npy and colorized to
+                            depth_image/<i>.png (the latter gated by save_visualization).
+                            When None the depth outputs are skipped.
+        depth_viz_range_m:  (min_m, max_m) for the depth_image/ colormap.
     """
     # Import vis_disparity from the modules
     success, modules = setup_foundation_stereo_imports()
@@ -217,9 +238,10 @@ def save_depth_results(disparity: np.ndarray, original_img: np.ndarray,
     # Create frame-specific output directory
     save_start = time.time()
 
-    depth_output_dir = output_dir / "disparity"
-    if not depth_output_dir.exists():
-        create_folder(depth_output_dir)
+    # Disparity output (legacy — name kept for backwards compatibility).
+    disparity_output_dir = output_dir / "disparity"
+    if not disparity_output_dir.exists():
+        create_folder(disparity_output_dir)
 
     img_output_dir = output_dir / "disparity_image"
     vis_img_output_dir = output_dir / "combined_image"
@@ -229,10 +251,25 @@ def save_depth_results(disparity: np.ndarray, original_img: np.ndarray,
     if not vis_img_output_dir.exists():
         create_folder(vis_img_output_dir)
 
+    # Depth output directories. Only created when depth_m is passed.
+    if depth_m is not None:
+        depth_npy_dir = output_dir / "depth"
+        depth_png_dir = output_dir / "depth_image"
+        if not depth_npy_dir.exists():
+            create_folder(depth_npy_dir)
+        if save_visualization and not depth_png_dir.exists():
+            create_folder(depth_png_dir)
+
     # Save raw disparity data if requested
     if save_depth:
-        depth_file = depth_output_dir / f"{frame_number}.npy"
-        np.save(str(depth_file), disparity)
+        disparity_file = disparity_output_dir / f"{frame_number}.npy"
+        np.save(str(disparity_file), disparity.astype(np.float32))
+
+    # Save depth in meters (float32 .npy with NaN sentinels) regardless
+    # of save_depth — the depth-write toggle is whether `depth_m` was passed.
+    if depth_m is not None:
+        depth_file = depth_npy_dir / f"{frame_number}.npy"
+        np.save(str(depth_file), depth_m.astype(np.float32))
 
     # Save visualization if requested
     if save_visualization:
@@ -247,6 +284,12 @@ def save_depth_results(disparity: np.ndarray, original_img: np.ndarray,
         combined_vis_bgr = cv2.cvtColor(combined_vis.astype(np.uint8), cv2.COLOR_RGB2BGR)
         vis_file = vis_img_output_dir / f"{frame_number}.png"
         cv2.imwrite(str(vis_file), combined_vis_bgr)
+
+        # depth_image/<i>.png — colorized depth viz (turbo by default).
+        if depth_m is not None:
+            depth_vis = colorize_depth_m(depth_m, depth_viz_range_m, cmap=depth_viz_cmap)
+            depth_png_file = depth_png_dir / f"{frame_number}.png"
+            cv2.imwrite(str(depth_png_file), depth_vis)
 
     save_time = time.time() - save_start
     return save_time
@@ -365,6 +408,42 @@ def main(cfg: AppCfg):
     model_path = Path(cfg.preprocess.pretrained_model_path)
     camera_names = cfg.camera_names
 
+    # Depth-in-meters knobs: opt-in depth-in-meters output. Reading with getattr so
+    # legacy configs that don't set these keys keep working (default behavior:
+    # compute depth, NaN-mask at eps=1e-3, viz range [0.02, 0.5] m, turbo cmap).
+    compute_depth = bool(getattr(cfg.preprocess, 'compute_depth', True))
+    depth_eps = float(getattr(cfg.preprocess, 'depth_eps', 1.0e-3))
+    depth_viz_range_m = tuple(getattr(cfg.preprocess, 'depth_viz_range_m', [0.02, 0.5]))
+    # Colormap name resolved by depth_utils._resolve_cv2_colormap. Default
+    # "turbo" matches modern stereo viz conventions (Open3D, RealSense, etc.).
+    depth_viz_cmap = str(getattr(cfg.preprocess, 'depth_viz_cmap', 'turbo'))
+    stereo_calib_filename = str(getattr(cfg.preprocess, 'stereo_calib_filename',
+                                        'stereo_calib_params.json'))
+
+    # The stereo calibration lives under intermediate_dir/camera_calibration/
+    # (where stage 1 wrote the scaled left.yaml / right.yaml and copied the
+    # original stereo_calib_params.json). We compute fx/baseline once here and
+    # reuse across all frames.
+    fx_left = None
+    baseline_m = None
+    if compute_depth:
+        camera_calibration_path = input_folder / 'camera_calibration'
+        try:
+            fx_left, baseline_m = load_stereo_depth_params(
+                camera_calibration_path, stereo_calib_filename
+            )
+            logging.info(
+                f"Depth conversion enabled: fx_left = {fx_left:.3f} px, "
+                f"baseline = {baseline_m * 1000:.4f} mm (depth_eps = {depth_eps:g})"
+            )
+        except FileNotFoundError as e:
+            # Don't kill the run if calibration is missing — just turn off
+            # the depth output and log a loud warning. The disparity output
+            # still works.
+            logging.error(f"Cannot enable depth-in-meters: {e}")
+            logging.warning("Continuing with disparity-only outputs.")
+            compute_depth = False
+
     # Validate input directories exist
     if not input_folder.exists():
         raise FileNotFoundError(f"Input folder not found: {input_folder}")
@@ -440,14 +519,35 @@ def main(cfg: AppCfg):
                 model, left_path, right_path,
                 cfg.preprocess.scale,
                 cfg.preprocess.hierarchical_inference,
-                cfg.preprocess.valid_iters
+                cfg.preprocess.valid_iters,
+                padder_divis_by=int(getattr(cfg.preprocess, 'padder_divis_by', 32)),
+                hierarchical_small_ratio=float(getattr(cfg.preprocess, 'hierarchical_small_ratio', 0.5)),
             )
+
+            # Convert disparity → depth in meters (NaN-masked). Note
+            # that when preprocess.scale < 1 the saved disparity is at the
+            # reduced resolution but so is fx_left (scaled at stage 1) — we
+            # would need to re-scale fx by the same factor for the conversion
+            # to be exact. We multiply fx by `scale` here so the math works
+            # at any scale.
+            depth_m = None
+            if compute_depth:
+                fx_scaled = fx_left * float(cfg.preprocess.scale)
+                depth_m = disparity_to_depth_m(
+                    disparity_px=disparity,
+                    fx_left=fx_scaled,
+                    baseline_m=baseline_m,
+                    eps=depth_eps,
+                )
 
             # Save results
             save_time = save_depth_results(
                 disparity, original_img, output_folder, frame_num,
                 cfg.preprocess.save_depth,
-                cfg.preprocess.save_visualization
+                cfg.preprocess.save_visualization,
+                depth_m=depth_m,
+                depth_viz_range_m=depth_viz_range_m,
+                depth_viz_cmap=depth_viz_cmap,
             )
             frame_timing['save'] = save_time
 

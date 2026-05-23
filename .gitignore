@@ -188,3 +188,9 @@ config/path_config/jack_local_test.yaml
 config/config_annotation_test.yaml
 #env_setup/
 
+.ai/
+REPO_MAP.md
+specs/
+tasks/
+.claude
+

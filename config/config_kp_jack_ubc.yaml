@@ -1,6 +1,6 @@
 defaults:
   - path_config: jack_local_ubc     # pick one file from the data, data load and store paths
-  - preprocess: kinematic_map_ubc   # select the preprocess type
+  - preprocess: kinematic_reproject_ubc   # select the preprocess type
   - _self_
 
 workspace: "/home/jackzhy/dvrk_multimodal_data_collection"

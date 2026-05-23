@@ -1,6 +1,6 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, Union, List
+from typing import Any, Optional, Union, List
 
 
 @dataclass
@@ -22,6 +22,34 @@ class KinmaticMapWeightConfig:
 
 
 @dataclass
+class CalibratedKinematicConfig:
+    """
+    calibrated_kinematic block. Single knob: whether to emit the
+    per-frame JSON files. Default off (must be opted into via YAML) so the
+    legacy heatmap-only behavior stays the default when an older config is
+    loaded without the new key.
+    """
+    enable: bool = False
+
+
+@dataclass
+class DrawframeConfigSchema:
+    """
+    Drawframe block. Keep this matching the YAML knobs:
+      enable, axis_length_m, line_thickness_px, origin_marker_radius_px,
+      colors_bgr (sub-block), cameras (list).
+    `colors_bgr` is left as `Any` so OmegaConf doesn't fight us over the
+    BGR triple format (DictConfig of three int-lists).
+    """
+    enable: bool = False
+    axis_length_m: float = 0.010
+    line_thickness_px: int = 2
+    origin_marker_radius_px: int = 3
+    colors_bgr: Any = None
+    cameras: List[str] = field(default_factory=lambda: ["left", "right"])
+
+
+@dataclass
 class KinematicMapConfig:
     stage: str
     img_size: List[int]
@@ -36,6 +64,11 @@ class KinematicMapConfig:
     weight_config_PSM3: Optional[KinmaticMapWeightConfig] = None
     fps_kin: float = -1.0  # legacy field; scripts now use per-frame measured_frequency instead
     folder_initialize: bool = False
+    # New calibrated_kinematic / drawframe feature blocks. Defaulted to a no-op so old
+    # configs that don't define these keys keep working (the resolver in
+    # the entry point checks `enable` first).
+    calibrated_kinematic: CalibratedKinematicConfig = field(default_factory=CalibratedKinematicConfig)
+    drawframe: DrawframeConfigSchema = field(default_factory=DrawframeConfigSchema)
 
 
 @dataclass
@@ -70,6 +103,46 @@ class DepthEstimationConfig:
     start_frame: int
     end_frame: int
     folder_initialize: bool = False
+    # Depth-in-meters augmentation. Defaulted to enabled so any
+    # caller using the new YAML schema automatically gets the depth/<i>.npy
+    # output without further opt-in.
+    compute_depth: bool = True
+    # Disparity values at or below this threshold (pixels) → depth NaN. The
+    # spec explicitly forbids clamping to a large positive number; NaN is the
+    # "model failed here" signal. 1e-3 keeps a healthy guard band away from
+    # both float epsilon and any realistic textured-region disparity.
+    depth_eps: float = 1.0e-3
+    # Colormap range (meters) for the depth_image/<i>.png visualization. The
+    # default [0.02 m, 0.5 m] window matches the working volume of the
+    # sample stereo rig; pixels outside this clip to the colormap endpoints.
+    depth_viz_range_m: List[float] = None
+    # Name of the cv2 colormap used to colorize depth_image/. Defaults to
+    # "turbo" (Google's perceptually-uniform replacement for jet — modern
+    # standard for stereo/depth visualization). Supported names live in
+    # depth_utils._CV2_COLORMAP_BY_NAME (turbo, jet, inferno, magma, plasma,
+    # viridis, parula, hot, bone, rainbow).
+    depth_viz_cmap: str = "turbo"
+    # Path to the stereo calibration JSON inside intermediate_dir. The depth
+    # converter reads `baseline_m` from it. Treated as relative when not
+    # starting with '/' — resolved against the camera_calibration folder
+    # alongside left.yaml / right.yaml.
+    stereo_calib_filename: str = "stereo_calib_params.json"
+    # FoundationStereo InputPadder divisor: how many pixels the model needs
+    # H and W to be divisible by. The pretrained 23-51-11 / 11-33-40 weights
+    # require 32; smaller values risk shape mismatches. Don't change unless
+    # you also know the model's stride.
+    padder_divis_by: int = 32
+    # `run_hierachical` (sic — that's the upstream spelling) downsamples by
+    # this factor for the coarse pass when hierarchical_inference=true. The
+    # FoundationStereo default is 0.5; tighten the ratio (e.g. 0.25) only if
+    # the coarse pass is unstable on your data.
+    hierarchical_small_ratio: float = 0.5
+
+    def __post_init__(self):
+        # OmegaConf passes default mutable args carefully; this still has the
+        # standard Python gotcha so we instantiate the list here.
+        if self.depth_viz_range_m is None:
+            self.depth_viz_range_m = [0.02, 0.5]
 
 
 @dataclass

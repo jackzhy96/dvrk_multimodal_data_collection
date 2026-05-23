@@ -1,6 +1,6 @@
 defaults:
   - path_config: jack_local_test     # pick one file from the data, data load and store paths
-  - preprocess: kinematic_map   # select the preprocess type
+  - preprocess: kinematic_reproject   # select the preprocess type
   - _self_
 
 workspace: "/home/jackzhy/dvrk_multimodal_data_collection"

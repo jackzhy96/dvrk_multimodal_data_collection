@@ -27,7 +27,12 @@ class AppCfg:
 
 
 cs = ConfigStore.instance()
-cs.store(name="kinematic_map", node=AppCfg)
+# Renamed from "kinematic_map" to "kinematic_reproject" alongside the
+# output-folder rename. The dVRK variant does NOT emit
+# calibrated_kinematic (its transform chain isn't hand-eye-calibrated)
+# but it shares the same preprocess config schema and output folder
+# structure as the hand-eye variant.
+cs.store(name="kinematic_reproject", node=AppCfg)
 # set config path
 p_config = Path.cwd().parents[2] / 'config'
 

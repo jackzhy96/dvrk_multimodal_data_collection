@@ -51,11 +51,11 @@ save_folder: "${path_config.data_dir}/${path_config.data_name}/output_video/${pa
 
 ### kinematic map to video
 #video_name: 'psm1_left_kinematic_reprojection'
-#image_path: "${path_config.data_dir}/${path_config.data_name}/preprocess/${path_config.data_index}/kinematic_map/PSM1/left/image"
+#image_path: "${path_config.data_dir}/${path_config.data_name}/preprocess/${path_config.data_index}/kinematic_reproject/PSM1/left/image"
 #save_folder: "${path_config.data_dir}/${path_config.data_name}/output_video/${path_config.data_index}"
 
 #video_name: 'psm2_left_kinematic_reprojection'
-#image_path: "${path_config.data_dir}/${path_config.data_name}/preprocess/${path_config.data_index}/kinematic_map/PSM2/left/image"
+#image_path: "${path_config.data_dir}/${path_config.data_name}/preprocess/${path_config.data_index}/kinematic_reproject/PSM2/left/image"
 #save_folder: "${path_config.data_dir}/${path_config.data_name}/output_video/${path_config.data_index}"
 
 

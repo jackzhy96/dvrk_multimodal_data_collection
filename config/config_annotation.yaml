@@ -14,7 +14,7 @@ workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
 #
 #save_folder: "${path_config.data_dir}/output/${path_config.data_name}/${path_config.data_index}"
 
-index: 74
+index: 0
 
 #left_image_path: "/media/jackzhy/Extreme Pro/data_2026_icra/raw/${index}/image/left"
 #right_image_path: "/media/jackzhy/Extreme Pro/data_2026_icra/raw/${index}/image/right"

@@ -3,7 +3,7 @@ defaults:
   - preprocess: depth_estimation   # select the preprocess type
   - _self_
 
-workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+workspace: "/home/jackzhy/claude_code_projects/dvrk_multimodal_data_collection"
 
 camera_calibration_path: "${path_config.intermediate_dir}/camera_calibration" # use your own path
 

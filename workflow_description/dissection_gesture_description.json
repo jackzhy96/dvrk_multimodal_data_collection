@@ -1,0 +1,27 @@
+
+// NOTE!!! PSM1 is the right arm; PSM2 is the left arm!!!
+// A single-digit label (e.g. "0") is suitable for both PSM1 and PSM2!
+// A label starting with "1" (e.g. 10) is specifically for PSM1!
+// A label starting with "2" (e.g. 20) is specifically for PSM2!
+
+  {
+    "0": "stay_still (no meaningful action is carried out; the arm stays idle)",
+    
+    "10": "reach_for_tissues_with_scissors (move scissors to optimal position to prepare for cold cut, performed at the start of the operation)",
+    "11": "cut_along_trajectory (carry out cold cut along the marked trajectory; cutting involves opening and closing scissors blades)",
+    "12": "retract_and_reposition_scissors (performed when the operator pulls the scissors back from the tissue, and then moves the scissors back to the tissue to a  more optimal position to continue cutting)", 
+    "13": "move_scissors_to_finishing_position (operation complete, move scissors to a finishing position)",
+
+    "20": "position_grabber (move the grabber to optimal position to grab the tissue)",
+    "21": "grab_tissue (open the grabber jaws, positioning the tissue between the jaws, and clenching the grabber jaws)",
+    "22": "create_tension (pull on the grabbed tissue to create tension for cold cut)",
+    "23": "move_tissue (move the grabbed tissue to a different position)",
+    "24": "release_tissue (release the grabbed tissue by opening the grabber jaws)",
+    "25": "move_grabbers_to_finishing_position (operation complete, move grabbers to a finishing position)",
+
+  }
+
+
+
+
+

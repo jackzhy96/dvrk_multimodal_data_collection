@@ -1,0 +1,17 @@
+# Encoder settings for the default build profile.
+# - Processed RGB: H.264 CRF 18 (visually lossless on natural video)
+# - Raw RGB / preprocess: FFV1 bit-exact
+# - Preview: disabled by default (Option C, on-request only)
+
+h264:
+  crf: 18
+  fps: 10.0
+  preset: "medium"
+
+ffv1:
+  fps: 10.0
+
+preview:
+  enable: false
+  crf: 23
+  fps: 10.0

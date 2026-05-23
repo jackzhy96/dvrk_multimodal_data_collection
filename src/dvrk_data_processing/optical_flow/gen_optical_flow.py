@@ -1,3 +1,18 @@
+# ============================================================================
+# LEGACY — Farneback optical flow.
+# ----------------------------------------------------------------------------
+# This is the older, CPU-only OpenCV Farneback variant. The default
+# stage-4 script is the RAFT variant (`gen_optical_flow_raft.py`); use that one for
+# any new workflow. This file is retained because:
+#   - some CPU-only consumers still want a torch-free flow option;
+#   - the output tree is the same so downstream code can transparently consume
+#     either variant.
+# Per `specs/interm_data_spec.md` § stage 4, this script's preprocess YAML
+# (`config/preprocess/optical_flow.yaml`) historically pointed at the legacy
+# `intermediate_dir/regular/` layout from the deprecated stage-1 script
+# (`gen_resize_rectify.py`). If you re-enable Farneback, double-check
+# `input_folder` in the preprocess YAML against the rectify-resize layout.
+# ============================================================================
 from dataclasses import dataclass
 from typing import Union, List, Tuple
 import hydra

@@ -7,9 +7,23 @@ pretrained_model_path: "${workspace}/FoundationStereo/pretrained_models/23-51-11
 scale: 1.0
 hierarchical_inference: true
 valid_iters: 32
-save_depth: true
-save_visualization: true
+save_depth: true            # controls the disparity/<i>.npy output (legacy name)
+save_visualization: true    # controls disparity_image/, combined_image/, depth_image/
+
 start_frame: -1 # -1 means all frames
 end_frame: -1 # -1 means all frames
 
-# custom configurations
+# ---------------------------------------------------------------------------
+# T-M1-03: depth-in-meters augmentation. Off-the-shelf FoundationStereo
+# emits pixel disparity; the conversion below produces depth in meters using
+# the scaled left intrinsics (fx) and the stereo baseline.
+# ---------------------------------------------------------------------------
+compute_depth: true                       # write depth/<i>.npy alongside disparity/
+depth_eps: 1.0e-3                         # disparity ≤ this (pixels) → depth NaN
+depth_viz_range_m: [0.010, 0.15]          # colormap clipping window in meters for depth_image/<i>.png
+depth_viz_cmap: "turbo"                   # turbo (default) | jet | inferno | magma | plasma | viridis | parula | hot | bone | rainbow
+stereo_calib_filename: "stereo_calib_params.json"   # read baseline_m from this file
+
+# FoundationStereo internals — surfaced for reproducibility but rarely changed.
+padder_divis_by: 32                       # InputPadder divisor — model architecture constraint
+hierarchical_small_ratio: 0.5             # coarse-pass downsample ratio for hierarchical_inference

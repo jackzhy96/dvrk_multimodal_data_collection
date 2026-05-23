@@ -1,0 +1,13 @@
+# Nearest-interpolation alignment tolerances for the offline recorder.
+# Wider for inter-modality, narrower within-modality (see code_design.md § 4.3).
+# Online overrides also present so a mixed release can fall back per-variant.
+
+tol_ms_image_right_online: 2.0
+tol_ms_image_side_online: 33.0
+tol_ms_kinematic_online: 100.0
+
+tol_ms_image_right_offline: 2.0
+tol_ms_image_side_offline: 33.0
+tol_ms_kinematic_offline: 100.0
+
+contiguity_period_multiplier: 1.5

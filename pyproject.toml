@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name            = "dvrk_data_processing"            # PyPI style name
-version         = "0.1.0"
+version         = "1.0.0"
 description     = "Python package for dVRK Multi-Modal Post-Collection Processing"
 
 requires-python = ">=3.8"
@@ -34,9 +34,9 @@ dependencies = [
 #dev = [
 #]
 
-## Console-script entry points  (optional)
-#[project.scripts]
-#my-example = "dvrk_data_processing.core:main"
+# Console-script entry points
+[project.scripts]
+surgsync = "dvrk_data_processing.surgsync.cli:main"
 
 # --------------------  setuptool-specific knobs  --------------------
 

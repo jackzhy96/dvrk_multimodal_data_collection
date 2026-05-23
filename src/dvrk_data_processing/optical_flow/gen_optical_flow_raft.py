@@ -1,3 +1,13 @@
+"""
+Stage-4 default optical flow pipeline — RAFT (torchvision).
+
+Reads consecutive rectified frame pairs out of ``intermediate_dir/image/<cam>/``
+and writes the dense forward flow (``frame[i] → frame[i+1]``) to
+``processed_dir/optical_flow/<cam>/{optical_flow,image}/<i>.{npy|flo,png}``.
+
+Pairs of N input frames produce N−1 flow files; ``<i>`` is the first frame of
+the consecutive pair (see ``specs/interm_data_spec.md`` § stage 4).
+"""
 from dataclasses import dataclass
 from typing import Union, List, Tuple, Optional
 import hydra

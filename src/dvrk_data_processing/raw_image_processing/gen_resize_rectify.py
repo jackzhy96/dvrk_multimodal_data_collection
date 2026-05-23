@@ -1,3 +1,17 @@
+# ============================================================================
+# DEPRECATED — DO NOT USE
+# ----------------------------------------------------------------------------
+# This stage-1 variant (resize → rectify) is no longer supported. Per
+# `specs/interm_data_spec.md` § stage 1, the canonical stage-1 entry point is
+# `gen_rectify_resize.py` (rectify-then-resize). The two scripts produce
+# slightly different camera matrices and a different on-disk layout, so
+# downstream stages 2–4 assume the rectify-then-resize output exclusively.
+# ----------------------------------------------------------------------------
+# The file is kept for historical / git-blame purposes. Calling `main()` will
+# raise a `RuntimeError` immediately so accidental sweeps fail loudly. All
+# original module-level helpers are preserved untouched below in case some
+# external script imports them.
+# ============================================================================
 from dataclasses import dataclass, asdict
 from typing import Union, Tuple, List
 import hydra
@@ -13,6 +27,14 @@ from dvrk_data_processing.utils.data_load_config import CameraInfoProcessed
 from tqdm import tqdm
 import yaml
 import cv2
+
+
+# Sentinel message used by the deprecation guard below. Keep the wording in
+# sync with `tasks/M1-processing.md` so test fixtures can grep for it.
+_DEPRECATION_MSG = (
+    "gen_resize_rectify.py is deprecated; use gen_rectify_resize.py "
+    "(see specs/interm_data_spec.md § stage 1)."
+)
 
 
 @dataclass
@@ -145,6 +167,12 @@ p_config = Path.cwd().parents[2] / 'config'
     # config_name="config_rr_jack_campus"
 )
 def main(cfg: AppCfg):
+    # Deprecation guard: block accidental invocation. We do this
+    # inside main() rather than at import time so that downstream tooling
+    # which imports helpers (scale_camera_matrix, etc.) from this module
+    # is not punished for the deprecation of the entry point.
+    raise RuntimeError(_DEPRECATION_MSG)
+
     camera_calibration_path = Path(cfg.camera_calibration_path)
     camera_names = cfg.camera_names
     camera_offset = cfg.camera_offset
