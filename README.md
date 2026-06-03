@@ -31,6 +31,7 @@ Author: Haoying (Jack) Zhou — `hzhou62@jh.edu` / `hzhou6@wpi.edu` ·
 - [Hardware & data-collection tooling](#hardware--data-collection-tooling)
 - [Tests](#tests)
 - [Further reading](#further-reading)
+- [Citation](#citation)
 - [License + contact](#license--contact)
 
 ---
@@ -479,6 +480,25 @@ External:
   depth-estimation backbone (Wen et al., CVPR 2025).
 - [RAFT](https://github.com/princeton-vl/RAFT) — the optical-flow
   backbone (Teed & Deng, ECCV 2020).
+
+---
+
+## Citation
+
+If you use this toolkit or the SurgSync dataset in your research, please cite:
+
+```bibtex
+@inproceedings{zhou2026surgsync,
+  author    = {Zhou, Haoying and Liu, Chang and Wu, Yimeng and Wu, Junlin
+               and Wu, Zijian and Lee, Yu Chung and Martuscelli, Sara
+               and Salcudean, Septimiu E. and Fischer, Gregory S.
+               and Kazanzides, Peter},
+  title     = {{SurgSync}: Time-Synchronized Multi-modal Data Collection
+               Framework and Dataset for Surgical Robotics},
+  booktitle = {IEEE International Conference on Robotics and Automation (ICRA)},
+  year      = {2026},
+}
+```
 
 ---
 
