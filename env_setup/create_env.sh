@@ -26,7 +26,7 @@
 
 set -e  # Exit on any error
 
-ENV_NAME="dvrk_multimodal_process"
+ENV_NAME="dvrk_multimodal_process_test"
 PYTHON_VERSION="3.9"
 PYTORCH_INDEX="https://download.pytorch.org/whl/cu121"
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"

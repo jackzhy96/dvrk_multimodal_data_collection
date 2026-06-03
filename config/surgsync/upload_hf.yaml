@@ -1,0 +1,163 @@
+# SurgSync release uploader — runtime config.
+#
+# Consumed by tests/upload_to_hf.py at startup. Edit values here, not in
+# the Python source. CLI flags (e.g. --release-root, --num-workers,
+# --include-meta / --no-include-meta) override the values in this file
+# when supplied; otherwise the values below are used as defaults.
+#
+# This config is plain YAML (PyYAML), not Hydra-composed. The HF
+# uploader is a one-shot operational tool — not a pipeline stage — so
+# the 3-layer Hydra pattern used by the preprocessing scripts is
+# unnecessary here. The single config matches the single environment
+# the script is run in.
+
+# ----- HF target -------------------------------------------------------
+repo_id: jackzhy/surgsync
+repo_type: dataset
+
+# ----- Local release path ---------------------------------------------
+# Where the packed dataset sits on disk. The script used to self-locate
+# via Path(__file__).parent when it lived inside the release tree; it
+# now lives in tests/ of the toolkit repo, so this path must be set
+# explicitly (here or via --release-root).
+release_root: /media/jackzhy/Extreme SSD/surgsync_release
+
+# ----- Gate: full -----------------------------------------------------
+# Number of parallel uploaders. 4-16 is reasonable; 8 is a good default
+# for a ~282 Mbps link. Bump if you have more bandwidth.
+num_workers: 8
+
+# Whether to include the meta/ subtree in the bulk push. Set to false
+# only when meta/ is being regenerated and you want to push the rest
+# first (then `--gate meta` later).
+include_meta: true
+
+# ----- Gate: canary ---------------------------------------------------
+# Preferred task to auto-pick a small canary clip from. peg_transfer
+# is a good default because the clips are short (~30 s upload), it has
+# all three video streams + parquets + calibration, and it lives in
+# online_data (always present after a v1.0 pack).
+canary_task: online_data/episodes/peg_transfer
+
+# Where --gate canary lands its snapshot_download round-trip. Living on
+# the same SSD as the source keeps it off the home-dir HF cache and
+# makes manual inspection easy. The subdirectory is excluded from
+# --gate full via base_ignore so the canary never bounces back to HF.
+canary_download_dir: tmp/canary_download
+
+# Optional explicit canary episode path (relative to release_root),
+# e.g. "online_data/episodes/peg_transfer/96". null = auto-pick the
+# smallest clip under canary_task. Overridden by --canary on the CLI.
+canary_override: null
+
+# ----- Gate: squash ---------------------------------------------------
+# Commit message stamped on the single post-squash commit when
+# `--gate squash --confirm` collapses the operational commit history.
+squash_message: |-
+  Initial v1.0 release — 205 episodes, 168,132 frames (raw video + parquets + Hive-partitioned indexes)
+
+# ----- Gate: update ---------------------------------------------------
+# `--gate update` pushes a hand-picked set of files (or directories,
+# walked recursively) as a single atomic commit. Existing files at the
+# same path on HF are overwritten — that's the point of this gate.
+#
+# Use cases:
+#   - You patched data in place (e.g. fixed a case_type label, re-ran
+#     `surgsync index`) and need to push the four affected files
+#     without going through the full ~6.5 h bulk re-upload.
+#   - You want to push files normally excluded by base_ignore
+#     (README.md, .gitattributes) without the LFS / card gates' more
+#     specialized semantics.
+#   - You want one atomic commit instead of one-per-file (which
+#     a sequence of `--gate <single-file>` invocations would produce).
+#
+# `update_paths` here is the YAML default; `--path <p>` on the CLI
+# (repeatable) overrides. Each entry is a path relative to release_root
+# OR an absolute path. Directories are walked recursively — every
+# file inside is added to the commit. The destination path on HF
+# mirrors the path relative to release_root for in-tree files; for
+# files outside release_root, pass `--path-pair <local>:<remote>`
+# instead so the gate knows where to land them.
+update_message: "Apply targeted file updates"
+update_paths: []
+
+# ----- Gate: update-all -----------------------------------------------
+# `--gate update-all` is the auto-detect counterpart to `--gate update`.
+# It compares the LOCAL `meta/manifest.json` (which carries SHA-256 for
+# every shipped file) against the REMOTE manifest on HF, and pushes
+# only the files whose hash differs OR are missing remotely. The new
+# local manifest is always included so the public release stays
+# self-consistent after the commit.
+#
+# Use this AFTER you've patched data in place and re-run
+# `surgsync index` (or the build_manifest helper) so the local
+# manifest reflects the new SHAs. The gate refuses to run if the
+# local manifest is missing — that protects against pushing stale
+# hashes by accident.
+#
+# How it compares to the other gates:
+#   - `update`     : you list the paths; gate trusts you.
+#   - `update-all` : gate finds the delta automatically.
+#   - `full`       : pushes everything that's NOT in base_ignore.
+#                    Honors local→remote hash dedup via upload_large_folder.
+update_all_message: "Apply targeted file updates (auto-detected)"
+# Push a local markdown file as `README.md` on the HF dataset repo.
+# This is the *dataset card* — what visitors see on the dataset's HF
+# page, including the YAML frontmatter (license, tags, configs) that
+# drives the page's badges and dataset-viewer wiring.
+#
+# `--card <name>` selects from the `cards` dict below (path is relative
+# to release_root, or absolute). `--card-path <path>` overrides the
+# named selection. `card_default` decides what runs when neither flag
+# is passed.
+#
+# Add more entries here if you keep historical variants of the card
+# (e.g. one for v1.0 polishing, one for v1.1) so you can re-push any
+# of them with `--card <name>`.
+card_default: dataset_card
+cards:
+  # The polished HF dataset card — YAML frontmatter + slim summary +
+  # "vs surgsync.github.io" diff + 12-item limitations register.
+  dataset_card: tmp/dataset_card_draft.md
+  # The auto-stamped operational README written by `surgsync release`.
+  # Useful if you ever want to publish the operator-facing version
+  # instead of the polished card.
+  release_readme: README.md
+
+# ----- Patterns excluded from every gate ------------------------------
+# Matched against paths relative to release_root. fnmatch syntax;
+# huggingface_hub interprets `**` as "any depth", `*` as "one segment".
+# Both forms are listed for each rule because some matcher
+# implementations only honor one.
+#
+# What never ships to the HF mirror, in any gate:
+#   - .logs/ — operator-side pack-run logs (not part of the data contract)
+#   - .cache/ — huggingface_hub's own resume cache; don't echo it back
+#   - tmp/ — holds the canary's snapshot_download round-trip
+#   - .DS_Store / Thumbs.db — OS noise
+#   - __pycache__/ + *.pyc — CPython bytecode (env-specific)
+#   - .surgsync_*.json — per-episode packer state sentinels
+#   - README.md / CHANGELOG.md — auto-emitted by `surgsync release`;
+#     replaced by the HF dataset card
+#
+# Note: the script's own filename used to be in this list when the
+# script lived inside the release tree. It now lives in tests/ of the
+# toolkit repo, so self-upload is impossible regardless of patterns.
+base_ignore:
+  - ".logs/*"
+  - ".logs/**"
+  - ".cache/*"
+  - ".cache/**"
+  - "tmp/*"
+  - "tmp/**"
+  - "**/.DS_Store"
+  - "**/Thumbs.db"
+  - "__pycache__/*"
+  - "__pycache__/**"
+  - "**/__pycache__/*"
+  - "**/__pycache__/**"
+  - "*.pyc"
+  - ".surgsync_*.json"
+  - "**/.surgsync_*.json"
+  - "README.md"
+  - "CHANGELOG.md"

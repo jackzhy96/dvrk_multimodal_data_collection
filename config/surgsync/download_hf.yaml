@@ -1,0 +1,45 @@
+# SurgSync release downloader — runtime config.
+#
+# Consumed by tests/download_from_hf.py at startup. Edit values here,
+# not in the Python source. CLI flags (e.g. --target-dir, --max-workers,
+# --task, --partition, --episode) override these values when supplied.
+#
+# Plain YAML (PyYAML), not Hydra-composed — same rationale as
+# upload_hf.yaml: one-shot operational tool, single environment.
+
+# ----- HF source -------------------------------------------------------
+repo_id: jackzhy/surgsync
+repo_type: dataset
+
+# ----- Local target path ----------------------------------------------
+# Where the downloaded copy lands on disk. The default is intentionally
+# NOT the same path the upload script reads from. We do NOT want to
+# clobber the canonical packed release by writing the HF-mirrored copy
+# on top of it — that would defeat the point of an independent verify
+# pass and risks data loss if HF returns incomplete files. Override
+# with --target-dir on the CLI.
+target_dir: /media/jackzhy/Extreme SSD/surgsync_release_dl
+
+# ----- Gate: full -----------------------------------------------------
+# Parallel downloaders inside snapshot_download. 4-16 is reasonable;
+# 8 is a good default for a ~282 Mbps link.
+max_workers: 8
+
+# ----- Auto-fallback order for --gate task / --gate episode -----------
+# Some tasks live only in one partition (e.g. cold_cut_dissection_skin_peel
+# is offline_data-only in v1.0), so the fallback is load-bearing. The
+# script tries the partitions in this order and uses the first one that
+# contains the requested task / episode.
+partitions:
+  - online_data
+  - offline_data
+
+# ----- Files always pulled, regardless of gate ------------------------
+# Bundled with every gate so downstream tooling has consistent
+# preconditions:
+#   .gitattributes  — LFS routing rules; without it, consumer-side
+#                     `git lfs` setup can't pull MKV/parquet bodies
+#   meta/dataset.json — release header; tiny, ~1.7 KB
+always_include:
+  - .gitattributes
+  - meta/dataset.json
