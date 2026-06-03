@@ -1,5 +1,5 @@
 # Strict alignment tolerances for the online recorder.
-# Per code_design.md § 4.3 — 2 ms across the board.
+# Strict policy — 2 ms across the board.
 
 tol_ms_image_right_online: 2.0
 tol_ms_image_side_online: 33.0

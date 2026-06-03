@@ -1,8 +1,8 @@
 """Pre-ingest sanity check on a raw clip.
 
-Checks the documented structure from `specs/raw_data_spec.md` — every
-required subdirectory present, every per-frame index space matches
-(within the documented "gesture may be partial" tolerance).
+Checks the documented raw-clip structure — every required subdirectory
+present, every per-frame index space matches (within the documented
+"gesture may be partial" tolerance).
 """
 from __future__ import annotations
 from pathlib import Path

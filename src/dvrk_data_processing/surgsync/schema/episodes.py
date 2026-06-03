@@ -1,6 +1,6 @@
 """pyarrow.Schema for `meta/episodes.parquet/task=*/part-*.parquet`.
 
-This is the Hive-partitioned episode-level index (`code_design.md` § 2.2).
+This is the Hive-partitioned episode-level index.
 One row per episode, queryable across episodes without opening per-episode
 files. The `task` column is partition-encoded by directory; it's still
 included in the schema so the parquet is portable when moved out of the

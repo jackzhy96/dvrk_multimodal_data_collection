@@ -1,8 +1,7 @@
 """Per-frame annotation JSON ↔ in-memory record.
 
 The four annotation tasks each have their own per-frame file under
-`raw_dir/annotation/<task>/<frame>.json`. Schemas (from
-`specs/raw_data_spec.md`):
+`raw_dir/annotation/<task>/<frame>.json`. Schemas:
 
   contact_detection/<frame>.json  → {"PSM1": 0/1, "PSM2": 0/1}
   gesture/<frame>.json            → {"gesture": {"PSM1": "<id>", "PSM2": "<id>"}}
@@ -115,8 +114,8 @@ def annotation_sample_to_files(
     """Write the per-frame annotation JSONs back to disk.
 
     `gesture_path` may be None — when the original clip had no gesture
-    file for this frame (common in online_data/2 — see raw_data_spec
-    "Frame-count divergence"), the decomposer should pass None for that
+    file for this frame (common in online_data/2 — a known frame-count
+    divergence), the decomposer should pass None for that
     one frame to skip writing the gesture file.
     """
     contact_path.parent.mkdir(parents=True, exist_ok=True)

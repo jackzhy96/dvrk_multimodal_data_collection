@@ -1,4 +1,4 @@
-"""Synchronization pipeline (`code_design.md` § 4).
+"""Synchronization pipeline.
 
 This subpackage is the **only** place in the codebase that does
 timestamp matching. All other modules consume the resulting

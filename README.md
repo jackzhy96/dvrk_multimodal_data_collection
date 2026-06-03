@@ -19,7 +19,7 @@ Author: Haoying (Jack) Zhou — `hzhou62@jh.edu` / `hzhou6@wpi.edu` ·
 - [What's in this repo](#whats-in-this-repo)
 - [Pipeline at a glance](#pipeline-at-a-glance)
 - [Install](#install)
-- [Sample data](#sample-data)
+- [Raw clip layout](#raw-clip-layout)
 - [Quick start](#quick-start)
 - [Stage-by-stage operator guide](#stage-by-stage-operator-guide)
   - [Preprocessing — Process raw clips](#preprocessing--process-raw-clips)
@@ -28,6 +28,7 @@ Author: Haoying (Jack) Zhou — `hzhou62@jh.edu` / `hzhou6@wpi.edu` ·
   - [Cleanup — Release docs](#cleanup--release-docs)
 - [Reader API cheat sheet](#reader-api-cheat-sheet)
 - [Repo layout](#repo-layout)
+- [Hardware & data-collection tooling](#hardware--data-collection-tooling)
 - [Tests](#tests)
 - [Further reading](#further-reading)
 - [License + contact](#license--contact)
@@ -38,14 +39,14 @@ Author: Haoying (Jack) Zhou — `hzhou62@jh.edu` / `hzhou6@wpi.edu` ·
 
 | Capability | CLI | Doc |
 |---|---|---|
-| Run preprocessing on raw clips | `python scripts/run_all_stages.py …` | [`HOW_to_RUN_Process.md`](HOW_to_RUN_Process.md) |
-| Pack clips into a SurgSync release | `surgsync build …` | [`HOW_to_RUN_pack.md`](HOW_to_RUN_pack.md) |
-| Validate a packed release | `surgsync validate …` | `HOW_to_RUN_pack.md` § validate |
+| Run preprocessing on raw clips | `python scripts/run_all_stages.py …` | [`docs/HOW_to_RUN_Process.md`](docs/HOW_to_RUN_Process.md) |
+| Pack clips into a SurgSync release | `surgsync build …` | [`docs/HOW_to_RUN_pack.md`](docs/HOW_to_RUN_pack.md) |
+| Validate a packed release | `surgsync validate …` | `docs/HOW_to_RUN_pack.md` § validate |
 | Read a packed release in Python | `surgsync.open_dataset(...)` | [`docs/surgsync/loader_cookbook.md`](docs/surgsync/loader_cookbook.md) |
-| Unpack a release back to raw layout | `surgsync unpack …` | [`HOW_to_RUN_unpack.md`](HOW_to_RUN_unpack.md) |
+| Unpack a release back to raw layout | `surgsync unpack …` | [`docs/HOW_to_RUN_unpack.md`](docs/HOW_to_RUN_unpack.md) |
 | Emit README + CHANGELOG into a release | `surgsync release …` | This README + section below |
 | Extend the format (new modality / column) | — | [`docs/surgsync/extension_policy.md`](docs/surgsync/extension_policy.md) |
-| **Single-page runbook for all of the above** | — | [`HOW_to_RUN.md`](HOW_to_RUN.md) |
+| **Single-page runbook for all of the above** | — | [`docs/HOW_to_RUN.md`](docs/HOW_to_RUN.md) |
 
 Everything is one installable package, `dvrk_data_processing`, with a single
 entry-point binary, `surgsync`.
@@ -102,8 +103,7 @@ entry-point binary, `surgsync`.
 ```
 
 **Four stages — preprocessing, packing, unpacking, cleanup — all
-complete and tested.** See [`tasks/`](tasks/) for the design / status;
-[`specs/`](specs/) for the data-format contracts.
+complete and tested.**
 
 ---
 
@@ -141,17 +141,13 @@ ffmpeg version, GPU prerequisites), see [`env_setup/INSTALL.md`](env_setup/INSTA
 
 ---
 
-## Sample data
+## Raw clip layout
 
-Two reference clips ship in-repo so every code path can run without
-external downloads:
-
-| Path | Frames | Recorder | Notes |
-|---|---:|---|---|
-| `data/online_data/2/` | 886 | online | Has Cartesian `setpoint_cp` (per-arm) |
-| `data/offline_data/3/` | 947 | offline | No `setpoint_cp`; jaw nested inside `arm` |
-
-Each follows the canonical raw layout:
+The pipeline operates on raw clips placed under `data/`. Each clip is a
+self-contained recording in the canonical layout below — e.g.
+`data/online_data/2/` (online recorder, has Cartesian `setpoint_cp`) or
+`data/offline_data/3/` (offline recorder, no `setpoint_cp`, jaw nested
+inside `arm`):
 
 ```
 <clip>/
@@ -164,8 +160,6 @@ Each follows the canonical raw layout:
 └── meta_data.json
 ```
 
-Full spec: [`specs/raw_data_spec.md`](specs/raw_data_spec.md).
-
 ---
 
 ## Quick start
@@ -173,7 +167,7 @@ Full spec: [`specs/raw_data_spec.md`](specs/raw_data_spec.md).
 After installing, the shortest end-to-end demo is:
 
 ```bash
-# 1. Run preprocessing on the sample online clip (CPU + GPU stages).
+# 1. Run preprocessing on a raw clip (here online_data/2; CPU + GPU stages).
 python scripts/run_all_stages.py \
     path_config=jack_local_release \
     clips.source=list +clips.list='[online_data/2]'
@@ -200,8 +194,8 @@ surgsync release /tmp/my_release --bump-version=minor \
     --notes 'Initial v1.0 release.'
 ```
 
-For the verbose operator walkthroughs see the three `HOW_to_RUN_*.md`
-files at the repo root.
+For the verbose operator walkthroughs see the `HOW_to_RUN_*.md`
+files under [`docs/`](docs/).
 
 ---
 
@@ -231,7 +225,7 @@ python scripts/run_all_stages.py path_config=jack_local_release \
 ```
 
 Full walkthrough — config keys, per-stage flags, GPU prerequisites —
-in [`HOW_to_RUN_Process.md`](HOW_to_RUN_Process.md).
+in [`docs/HOW_to_RUN_Process.md`](docs/HOW_to_RUN_Process.md).
 
 ### Packing — Pack to SurgSync
 
@@ -261,7 +255,7 @@ Plus a top-level `meta/` directory with `dataset.json`, `tasks.jsonl`,
 Hive-partitioned `episodes.parquet` / `index.parquet`, `stats.parquet`,
 and SHA-256 `manifest.json`.
 
-Full guide: [`HOW_to_RUN_pack.md`](HOW_to_RUN_pack.md).
+Full guide: [`docs/HOW_to_RUN_pack.md`](docs/HOW_to_RUN_pack.md).
 
 ### Unpacking — Read or unpack a SurgSync dataset
 
@@ -305,7 +299,7 @@ Resume-friendly via `.surgsync_unpacked.json` sentinel; collision
 detection if two task folders share the same clip index; bounded
 PNG-encoder memory so very large clips don't OOM.
 
-Full guide: [`HOW_to_RUN_unpack.md`](HOW_to_RUN_unpack.md).
+Full guide: [`docs/HOW_to_RUN_unpack.md`](docs/HOW_to_RUN_unpack.md).
 
 ### Cleanup — Release docs
 
@@ -391,9 +385,10 @@ of clip length.
 │   ├── data_reorg.py, data_remap.py, data_trim.py, …
 │   └── (one-off conversion / inspection utilities)
 │
-├── docs/surgsync/                   # consumer docs
-│   ├── loader_cookbook.md
-│   └── extension_policy.md
+├── docs/                            # all documentation
+│   ├── HOW_to_RUN.md                # single-page runbook
+│   ├── HOW_to_RUN_Process.md  HOW_to_RUN_pack.md  HOW_to_RUN_unpack.md   # operator guides
+│   └── surgsync/                    # consumer docs: loader_cookbook.md, extension_policy.md
 │
 ├── tests/surgsync/                  # 150+ pytest tests
 │   ├── schema/  serde/  ingest/  align/  encode/  index/  validate/
@@ -401,18 +396,41 @@ of clip length.
 │   ├── decompose/                   # unpack round-trip
 │   └── integration/                 # end-to-end pack → unpack smoke
 │
-├── specs/                           # design specs (the source of truth for shapes)
-│   ├── dataset_spec.md              raw_data_spec.md         interm_data_spec.md
-│   ├── final_data_spec.md           code_design.md           architecture_risks.md
-├── tasks/                           # milestone task plans + status
 ├── workflow_description/            # phase / step / gesture vocab JSONs
 ├── FoundationStereo/                # git submodule (depth backbone)
 ├── env_setup/                       # create_env.sh + INSTALL.md
-├── data/                            # in-repo sample clips
-├── replay/  rosbag_record/  video_launch/  dvrk_config/   (data-collection-time tooling)
-├── HOW_to_RUN_Process.md  HOW_to_RUN_pack.md  HOW_to_RUN_unpack.md
-├── CLAUDE.md  REPO_MAP.md  pyproject.toml  LICENSE  README.md
+├── data/                            # raw clips you supply (gitignored)
+├── assets/                          # endoscope-holder CAD (SolidWorks + STL)
+├── dvrk_config/                     # dVRK console JSONs + capacitive contact-sensor design
+├── replay/  rosbag_record/  video_launch/   (data-collection-time tooling — see "Hardware" below)
+├── pyproject.toml  LICENSE  README.md
 ```
+
+---
+
+## Hardware & data-collection tooling
+
+The dataset was captured on a physical dVRK. The hardware designs and
+collection-time launch files used to produce the raw clips ship alongside the
+processing code so the capture rig can be reproduced.
+
+- **Endoscope holder (CAD)** — [`assets/endoscope_holder_CAD/`](assets/endoscope_holder_CAD/):
+  SolidWorks parts (`.SLDPRT`) and print-ready `.STL` for the custom endoscope
+  holder, adapter, and cannula used to mount the stereo endoscope.
+- **Capacitive contact sensor** — [`dvrk_config/contact_sensor/`](dvrk_config/contact_sensor/):
+  a simple Arduino-based capacitive contact-detection system (one sensor per
+  PSM) that produces the `contact_detection` annotation channel. Includes the
+  Arduino sketch (`.ino`), a wiring + threshold-tuning guide
+  ([`README.md`](dvrk_config/contact_sensor/README.md)), and the dVRK
+  `sawRobotIO1394` digital-input XML.
+- **dVRK console configs** — [`dvrk_config/`](dvrk_config/): the console / SUJ
+  system JSON files for the PSM / ECM / MTM setup used during collection.
+- **Video capture launch** — [`video_launch/`](video_launch/): `gscam` V4L2
+  launch files for the endoscope feed. They drive stereo capture through the
+  dVRK video stack — see [jhu-dvrk/dvrk_video](https://github.com/jhu-dvrk/dvrk_video).
+- **Replay / recording** — [`replay/`](replay/) and
+  [`rosbag_record/`](rosbag_record/): trajectory replay and ROS bag recording
+  helpers used at collection time.
 
 ---
 
@@ -435,26 +453,25 @@ Counts as of the latest pass:
 | End-to-end pack → unpack smoke | 1 | ~13 min |
 | **Total** | **150** | **~25 min** |
 
-Smoke + integration tests need the in-repo sample clip
-(`data/online_data/2/`); they're auto-skipped if absent.
+Smoke + integration tests need a raw sample clip at
+`data/online_data/2/`; they're auto-skipped if absent.
 
 ---
 
 ## Further reading
 
-- [`HOW_to_RUN_Process.md`](HOW_to_RUN_Process.md) — preprocessing
+- [`docs/HOW_to_RUN.md`](docs/HOW_to_RUN.md) — single-page runbook
+  for the whole pipeline.
+- [`docs/HOW_to_RUN_Process.md`](docs/HOW_to_RUN_Process.md) — preprocessing
   operator guide.
-- [`HOW_to_RUN_pack.md`](HOW_to_RUN_pack.md) — packing operator
+- [`docs/HOW_to_RUN_pack.md`](docs/HOW_to_RUN_pack.md) — packing operator
   guide.
-- [`HOW_to_RUN_unpack.md`](HOW_to_RUN_unpack.md) — unpacking
+- [`docs/HOW_to_RUN_unpack.md`](docs/HOW_to_RUN_unpack.md) — unpacking
   operator guide + fidelity table.
 - [`docs/surgsync/loader_cookbook.md`](docs/surgsync/loader_cookbook.md) — Python
   reader API worked examples.
 - [`docs/surgsync/extension_policy.md`](docs/surgsync/extension_policy.md) — how
   to add a new modality, column, or stream.
-- [`specs/`](specs/) — design specs (data formats, code architecture,
-  risk register).
-- [`tasks/`](tasks/) — milestone plans and per-task status.
 - [`env_setup/INSTALL.md`](env_setup/INSTALL.md) — install troubleshooting.
 
 External:

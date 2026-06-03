@@ -1,8 +1,8 @@
 """Per-arm kinematic JSON ↔ in-memory record.
 
 Captures **every** field that the raw `kinematic/<arm>/<frame>.json`
-carries (see `specs/raw_data_spec.md`). The on-disk JSON layout (which
-differs slightly from the schema diagram) is:
+carries. The on-disk JSON layout (which differs slightly from the
+schema diagram) is:
 
     [{
       "arm": {
@@ -23,7 +23,7 @@ differs slightly from the schema diagram) is:
       "measured_frequency": <Hz>,
     }]
 
-Reader tolerances (per `raw_data_spec.md` § Time-sync schema notes):
+Reader tolerances:
 - Offline arms have no `setpoint_cp` (Cartesian setpoint). Online arms do.
 - ECM has no jaw block. PSM1/PSM2 do.
 - `measured_frequency` is per-arm (PSM) but absent on ECM.
@@ -168,8 +168,8 @@ def load_arm_frame_json(json_path: Path, arm_name: str, frame_idx: int) -> Kinem
 
     # Raw JSON is a 1-element list. The top-level dict carries `arm` plus
     # optional siblings `jaw` and `measured_frequency` (PSM-only; ECM has
-    # neither). The on-disk layout differs from the schema diagram in
-    # `specs/raw_data_spec.md` which colocates `jaw` inside `arm` — the
+    # neither). The on-disk layout differs from the schema diagram,
+    # which colocates `jaw` inside `arm` — the
     # real data places jaw/measured_frequency at the top level, so we
     # accept either location for forward-compatibility.
     if not isinstance(payload, list) or not payload or "arm" not in payload[0]:
@@ -227,7 +227,7 @@ def kinematic_sample_to_raw_dict(
       - `"inside_arm"` — nested under `arm`. This matches the
         **offline recorder**'s on-disk layout (e.g.
         `data/offline_data/3/kinematic/PSM1/`) and also the schema
-        diagram in `specs/raw_data_spec.md`.
+        diagram.
 
     Callers (the decomposer) should pick the location based on the
     episode's `recorder_variant` so the inverse reproduces the original

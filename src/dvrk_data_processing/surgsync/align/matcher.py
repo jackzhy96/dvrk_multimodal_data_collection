@@ -1,4 +1,4 @@
-"""Nearest-within-tolerance matching (`code_design.md` § 4.2).
+"""Nearest-within-tolerance matching.
 
 `match_modality` is the workhorse — for each master frame, it picks the
 closest candidate sample within `tol_ns`. Returns `-1` and an arbitrary

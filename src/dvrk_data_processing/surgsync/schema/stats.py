@@ -1,7 +1,7 @@
 """pyarrow.Schema for `meta/stats.parquet`.
 
 Per-column statistics over the full dataset, used by consumers for
-normalization presets (`code_design.md` § 2.4). List columns are
+normalization presets. List columns are
 expanded by index (e.g. `state.PSM1.joint_position[0]` through `[5]`).
 """
 from __future__ import annotations

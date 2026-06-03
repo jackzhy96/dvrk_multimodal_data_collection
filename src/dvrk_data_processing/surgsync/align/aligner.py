@@ -1,4 +1,4 @@
-"""End-to-end align (`code_design.md` § 4.5).
+"""End-to-end align.
 
 `align_clip` runs the master clock derivation, per-topic delta
 computation, contiguity detection, and assembles the `AlignedClip`

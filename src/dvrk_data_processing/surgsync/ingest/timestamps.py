@@ -1,7 +1,6 @@
 """Parse `time_syn/<frame>.json` into a flat per-modality timestamp table.
 
-The raw timestamp schema is per-frame and deeply nested (see
-`specs/raw_data_spec.md` § Time-sync schema notes). This module
+The raw timestamp schema is per-frame and deeply nested. This module
 flattens every topic listed in `align.topics.TIMESTAMP_TOPICS` into a
 numpy-friendly dict-of-arrays — one int64 array per topic. NULL stamps
 (missing files / missing keys / offline-recorder gaps) are encoded as
@@ -46,7 +45,7 @@ class TimestampTable:
     """Flat per-topic timestamp arrays.
 
     `master_ns` is the stereo-left capture timestamp (canonical master
-    clock per `specs/code_design.md` § 4.1). `topic_stamps[<name>]`
+    clock). `topic_stamps[<name>]`
     is the per-frame stamp for that topic — keys come from
     `align.topics.TOPIC_NAMES`. All arrays are length-N int64 with
     `NULL_TS` marking missing values.

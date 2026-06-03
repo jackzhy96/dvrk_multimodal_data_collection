@@ -48,7 +48,7 @@ def _iter_episode_dirs(dataset_root: Path) -> Iterable[Path]:
 def _row_for_episode(ep_dir: Path) -> dict[str, Any]:
     """Read episode_meta.json + a stat of frames.parquet for the parquet row.
 
-    Mirrors `code_design.md` § 2.2 (with the additional
+    Mirrors the episode-level index schema (with the additional
     `has_video_raw` field we added for the packer invertibility contract).
     """
     import hashlib

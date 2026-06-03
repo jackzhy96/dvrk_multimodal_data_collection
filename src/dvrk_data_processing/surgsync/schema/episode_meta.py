@@ -1,4 +1,4 @@
-"""pydantic model for `<episode_id>/episode_meta.json` (`code_design.md` § 3.2).
+"""pydantic model for `<episode_id>/episode_meta.json`.
 
 Every field is `extra = "forbid"` so a typo in the encoder raises at
 construction time. `Tool`, `SyncStats`, and `PipelineVersions` are nested

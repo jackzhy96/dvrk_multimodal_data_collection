@@ -1,6 +1,6 @@
 # Preprocess config for the stage-2 kinematic projection pipeline.
 # The output folder name (kinematic_reproject) replaces the legacy
-# "kinematic_map" — see tasks/M1-processing.md § T-M1-02.
+# "kinematic_map".
 stage: kinematic_reproject
 folder_initialize: false
 

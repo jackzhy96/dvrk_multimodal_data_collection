@@ -1,4 +1,4 @@
-"""Contiguity / frame-drop detection (`code_design.md` § 4.4).
+"""Contiguity / frame-drop detection.
 
 The master timeline can have drops (missed frames in the camera record).
 We label each frame `is_contiguous_to_prev` and count how many source

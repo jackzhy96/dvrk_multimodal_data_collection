@@ -5,10 +5,8 @@ real packed dataset — adjust the path and `task` literal to match
 your release.
 
 For the operator-facing pack / unpack guides, see
-[`HOW_to_RUN_pack.md`](../../HOW_to_RUN_pack.md) and
-[`HOW_to_RUN_unpack.md`](../../HOW_to_RUN_unpack.md). The architectural
-background lives under [`specs/`](../../specs/) — `code_design.md` is
-the entry point.
+[`HOW_to_RUN_pack.md`](../HOW_to_RUN_pack.md) and
+[`HOW_to_RUN_unpack.md`](../HOW_to_RUN_unpack.md).
 
 ---
 
@@ -335,7 +333,7 @@ the original raw `data/online_data/2/` layout, with:
 - reconstructed `time_syn/*.json`
 - byte-exact `camera_calibration/`, `hand_eye_calibration/`, `meta_data.json`
 
-See [`HOW_to_RUN_unpack.md`](../../HOW_to_RUN_unpack.md) for the full
+See [`HOW_to_RUN_unpack.md`](../HOW_to_RUN_unpack.md) for the full
 fidelity table and the resume / collision-detection semantics.
 
 ---

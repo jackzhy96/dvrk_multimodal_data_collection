@@ -1,4 +1,4 @@
-"""Dataset-wide validator — I-1 through I-7 from `code_design.md` § 6.3.
+"""Dataset-wide validator — checks I-1 through I-7.
 
 I-1 every episode dir has a matching row in `meta/episodes.parquet`
 I-2 every row in episodes.parquet has a matching dir

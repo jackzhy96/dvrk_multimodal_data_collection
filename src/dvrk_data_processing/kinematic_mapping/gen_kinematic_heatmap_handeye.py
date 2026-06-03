@@ -15,8 +15,8 @@ calibration chain (ECM-derived T_C_W ∘ T_W_B ∘ PSM-base), and writes:
                    does not log Cartesian setpoints). Note the asymmetry: the
                    measured pose goes through the full hand-eye chain
                    (PSM-base → world → camera), but the setpoint only goes
-                   through ``T_C_W`` (world → camera). This is intentional
-                   — see ``specs/interm_data_spec.md`` § calibrated_kinematic.
+                   through ``T_C_W`` (world → camera). This asymmetry is
+                   intentional, not a bug.
   - drawframe (gated by ``preprocess.drawframe.enable``):
                    tool-tip 3D axes drawn on each rectified frame, saved to
                    ``processed_dir/kinematic_reproject_drawframe/<PSM>/<cam>/<frame>.png``.

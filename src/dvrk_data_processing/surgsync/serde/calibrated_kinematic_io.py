@@ -3,7 +3,7 @@
 The preprocessing hand-eye stage emits one JSON per PSM frame at:
     `processed_dir/kinematic_reproject/<PSM>/calibrated_kinematic/<i>.json`
 
-Schema (from `specs/interm_data_spec.md` § calibrated_kinematic):
+Schema (calibrated_kinematic):
 
     {
       "frame": 123,

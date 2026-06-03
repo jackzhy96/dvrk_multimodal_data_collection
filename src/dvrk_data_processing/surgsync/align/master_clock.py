@@ -1,4 +1,4 @@
-"""Master clock derivation (`code_design.md` § 4.1).
+"""Master clock derivation.
 
 The master clock is the **stereo-left camera capture timestamp** — i.e.
 the camera driver's ROS header.stamp, NOT the rosbag record time.

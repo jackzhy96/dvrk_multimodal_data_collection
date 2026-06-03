@@ -12,7 +12,7 @@ Run with::
     python tests/processing/test_pipeline_e2e.py
 
 The script is intentionally **not** a pytest fixture — the project's tests/
-tree is a collection of standalone validators (see `CLAUDE.md` § Tests). The
+tree is a collection of standalone validators. The
 script returns exit code 0 on success and non-zero on any check failure.
 
 Stage 3 (depth) is skipped with a clear message if FoundationStereo weights

@@ -1,4 +1,4 @@
-"""Per-release orchestrator (`code_design.md` § 5.1).
+"""Per-release orchestrator.
 
 `build_release(cfg)` is the Hydra entry point for `surgsync build`. It:
 1. Discovers clips via `ingest.clip.discover_clips` (filtered by the

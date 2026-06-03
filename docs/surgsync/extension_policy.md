@@ -1,14 +1,11 @@
 # SurgSync extension policy
 
-How to evolve the dataset format without breaking consumers. This is
-the H-4 risk closure from `architecture_risks.md`: changes ship
-through documented patterns rather than ad-hoc edits to packer code.
+How to evolve the dataset format without breaking consumers: changes
+ship through documented patterns rather than ad-hoc edits to packer
+code.
 
 Scope: schema fields, modality additions, dense streams, per-episode
-metadata, and `schema_version` bumps. For the architectural
-contracts these extensions rest on, read
-[`code_design.md`](../../specs/code_design.md) and
-[`final_data_spec.md`](../../specs/final_data_spec.md) first.
+metadata, and `schema_version` bumps.
 
 ---
 
@@ -36,9 +33,9 @@ in the packed dataset.
 
 ### Steps
 
-1. **Spec the on-disk raw form** in `specs/raw_data_spec.md` —
-   filename pattern, sample rate, file format. Submit as a PR
-   before writing code so reviewers can debate the shape.
+1. **Spec the on-disk raw form** — filename pattern, sample rate,
+   file format. Submit as a PR before writing code so reviewers can
+   debate the shape.
 
 2. **Add a new ingest module** under `src/dvrk_data_processing/surgsync/ingest/`:
    ```python

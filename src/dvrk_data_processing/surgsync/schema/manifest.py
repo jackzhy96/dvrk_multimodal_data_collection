@@ -1,4 +1,4 @@
-"""pydantic model for `meta/manifest.json` (`code_design.md` § 3.4).
+"""pydantic model for `meta/manifest.json`.
 
 SHA256 manifest for bit-rot detection. Written last by the indexing
 stage so it covers every other file under `<dataset_root>` except itself.

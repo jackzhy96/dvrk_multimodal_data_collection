@@ -5,9 +5,8 @@ that takes a packed SurgSync dataset (the output of `surgsync build`)
 and writes a directory tree that mirrors the **pre-pack raw layout**
 under `data/`.
 
-`unpack` is the literal inverse of `build`. See `tasks/M3-unpacking.md`
-for the architectural design and `HOW_to_RUN_pack.md` for the forward
-direction.
+`unpack` is the literal inverse of `build`. See `HOW_to_RUN_pack.md` for
+the forward direction.
 
 ---
 

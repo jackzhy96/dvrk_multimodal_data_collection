@@ -2,9 +2,8 @@
 
 Annotations are organized by task (`contact_detection`, `gesture`,
 `phase`, `step`) — one folder per task, one file per frame per task.
-Per `specs/raw_data_spec.md`, gesture coverage can be partial; we
-tolerate gaps and record per-task presence stats so the validator can
-surface them.
+Gesture coverage can be partial; we tolerate gaps and record per-task
+presence stats so the validator can surface them.
 """
 from __future__ import annotations
 from dataclasses import dataclass, field

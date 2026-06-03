@@ -1,7 +1,7 @@
 """Encode raw PNGs from `raw_dir` into MKV/FFV1 — **bit-exact** round-trip.
 
 Per the packer invertibility contract, this is **mandatory** in every
-release (see `tasks/M2-packing.md`). The unpack stage reconstructs
+release. The unpack stage reconstructs
 `image/{left,right,side*}/<frame>.png` from these MKVs.
 
 The three streams (stereo_left / stereo_right / side) are independent —
@@ -39,8 +39,8 @@ def write_raw_videos(
     """Encode raw stereo + side cameras into FFV1, in parallel.
 
     `side_dir_name` is `"side"` for online clips and `"side1"` for
-    offline (see `specs/raw_data_spec.md`). When the side folder
-    doesn't exist (some clips have stereo only) it's silently skipped.
+    offline. When the side folder doesn't exist (some clips have stereo
+    only) it's silently skipped.
     """
     dst_dir = Path(dst_dir)
     dst_dir.mkdir(parents=True, exist_ok=True)

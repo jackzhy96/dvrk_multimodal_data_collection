@@ -1,7 +1,7 @@
 """`meta_data.json` ↔ ClipMeta record, and the lossless mapping into
 `episode_meta.json` for the unpack direction.
 
-The raw `meta_data.json` schema (per `specs/raw_data_spec.md`):
+The raw `meta_data.json` schema:
 
     {
       "user_id": "2",

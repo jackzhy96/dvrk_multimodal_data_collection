@@ -14,8 +14,7 @@ and the same `frame_index` values 0..N-1, so consumers join them by row
 position (or by the explicit `frame_index` column).
 
 Parquet write options: row group size 8192, Zstd compression level 3 —
-mirrors the per-`code_design.md` § 2.1 defaults from the prior
-monolithic encoder.
+mirrors the defaults from the prior monolithic encoder.
 """
 from __future__ import annotations
 import logging

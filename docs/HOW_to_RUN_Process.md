@@ -1,13 +1,10 @@
 # HOW_to_RUN_Process.md
 
-Operational walkthrough for the **preprocessing pipeline**
-(`tasks/M1-processing.md`). Covers every stage from raw inputs to per-stage
-outputs, the canned sample data, the batch orchestrator, and the unit + E2E
-smoke tests.
+Operational walkthrough for the **preprocessing pipeline**. Covers every
+stage from raw inputs to per-stage outputs, the sample data layout, the
+batch orchestrator, and the unit + E2E smoke tests.
 
-For the higher-level project README see `README.md`; for the codebase
-conventions see `CLAUDE.md`; for the per-folder data spec see
-`specs/interm_data_spec.md`.
+For the higher-level project README see `README.md`.
 
 ---
 
@@ -20,7 +17,7 @@ conda activate dvrk_multimodal_process
 pip install -e .
 ```
 
-Sample clips ship in-repo under `data/`:
+Place your raw clips under `data/`, one folder per clip:
 
 ```
 data/
@@ -28,7 +25,7 @@ data/
 └── online_data/2/          # online recorder — has setpoint_cp
 ```
 
-Both contain `image/{left,right,…}/`, `kinematic/{PSM1,PSM2,ECM}/`,
+Each clip folder contains `image/{left,right,…}/`, `kinematic/{PSM1,PSM2,ECM}/`,
 `camera_calibration/{left.yaml,right.yaml,stereo_calib_params.json}`,
 `hand_eye_calibration/`, `time_syn/`, `annotation/`.
 
@@ -47,8 +44,7 @@ the other three stages still run end-to-end.
 
 ## 1. Hydra config layout (one-time read)
 
-Every pipeline script is a Hydra entry point composed from three layers (see
-`CLAUDE.md` § Config conventions):
+Every pipeline script is a Hydra entry point composed from three layers:
 
 1. **Running config** at `config/config_<op>_<user>.yaml` — picks `path_config`
    + `preprocess` via the `defaults:` block.
@@ -337,7 +333,7 @@ Expected runtime: < 10 minutes on a dev box with GPU.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `RuntimeError: gen_resize_rectify.py is deprecated …` | Called the deprecated stage-1 script. | Switch to `gen_rectify_resize.py` (per `specs/interm_data_spec.md` § stage 1). |
+| `RuntimeError: gen_resize_rectify.py is deprecated …` | Called the deprecated stage-1 script. | Switch to `gen_rectify_resize.py`. |
 | Stage 2 errors `Cannot find Hand-Eye file …PSMx-registration-dVRK.json` | The clip's `hand_eye_calibration/` folder is missing the expected JSONs. | Confirm the per-arm registration files are present under `${raw_dir}/hand_eye_calibration/`. |
 | Stage 3 errors `Pretrained model not found …model_best_bp2.pth` | FoundationStereo weights absent. | Download per `env_setup/INSTALL.md` into `FoundationStereo/pretrained_models/23-51-11/`. |
 | Stage 3 depth values are all NaN | `depth_eps` set too high, or disparity model failed on a textureless region. | Inspect `disparity/<i>.npy` first; if disparity is reasonable, lower `depth_eps`. |

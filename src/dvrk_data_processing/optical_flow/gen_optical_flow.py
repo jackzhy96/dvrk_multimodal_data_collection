@@ -7,7 +7,7 @@
 #   - some CPU-only consumers still want a torch-free flow option;
 #   - the output tree is the same so downstream code can transparently consume
 #     either variant.
-# Per `specs/interm_data_spec.md` § stage 4, this script's preprocess YAML
+# This script's preprocess YAML
 # (`config/preprocess/optical_flow.yaml`) historically pointed at the legacy
 # `intermediate_dir/regular/` layout from the deprecated stage-1 script
 # (`gen_resize_rectify.py`). If you re-enable Farneback, double-check

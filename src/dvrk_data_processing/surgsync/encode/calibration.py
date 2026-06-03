@@ -1,6 +1,6 @@
 """Write the per-episode `<staging>/calibration/` folder.
 
-Layout (per the preprocessing → packing invertibility contract, `code_design.md` § 1.2):
+Layout (per the preprocessing → packing invertibility contract):
 
     calibration/
       left.yaml                    ← original raw CRTK YAML, verbatim

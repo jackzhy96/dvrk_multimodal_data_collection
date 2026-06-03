@@ -4,9 +4,7 @@ This is the operator guide for `surgsync build` — the packer that
 turns raw dVRK clips + the preprocessing outputs into a SurgSync
 dataset on disk.
 
-For the architectural background, read `tasks/M2-packing.md` and
-`specs/code_design.md` first. This document is "how to drive it", not
-"how it works".
+This document is "how to drive it", not "how it works".
 
 ---
 
@@ -22,8 +20,7 @@ You must already have:
    ```
 
 2. **Raw data** at `data/{offline_data,online_data}/<idx>/` — one
-   self-contained recording per `<idx>` folder (see
-   `specs/raw_data_spec.md`).
+   self-contained recording per `<idx>` folder.
 
 3. **Preprocessing outputs** for every clip you want to pack. The
    preprocessing pipeline writes everything **inside the clip

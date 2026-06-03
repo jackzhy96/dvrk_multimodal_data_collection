@@ -1,8 +1,8 @@
 # ============================================================================
 # DEPRECATED — DO NOT USE
 # ----------------------------------------------------------------------------
-# This stage-1 variant (resize → rectify) is no longer supported. Per
-# `specs/interm_data_spec.md` § stage 1, the canonical stage-1 entry point is
+# This stage-1 variant (resize → rectify) is no longer supported. The
+# canonical stage-1 entry point is
 # `gen_rectify_resize.py` (rectify-then-resize). The two scripts produce
 # slightly different camera matrices and a different on-disk layout, so
 # downstream stages 2–4 assume the rectify-then-resize output exclusively.
@@ -29,11 +29,11 @@ import yaml
 import cv2
 
 
-# Sentinel message used by the deprecation guard below. Keep the wording in
-# sync with `tasks/M1-processing.md` so test fixtures can grep for it.
+# Sentinel message used by the deprecation guard below. Keep the wording
+# stable so test fixtures can grep for it.
 _DEPRECATION_MSG = (
     "gen_resize_rectify.py is deprecated; use gen_rectify_resize.py "
-    "(see specs/interm_data_spec.md § stage 1)."
+    "(rectify-then-resize, the canonical stage-1 entry point)."
 )
 
 

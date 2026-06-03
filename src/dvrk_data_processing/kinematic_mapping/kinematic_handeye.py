@@ -26,7 +26,7 @@ loop:
    the rotation too — the existing code discarded the rotation.
 
 2. ``write_calibrated_kinematic_json`` — atomic, per-frame JSON writer that
-   conforms to the schema in ``specs/interm_data_spec.md`` § calibrated_kinematic:
+   conforms to the calibrated_kinematic schema:
 
        {
          "frame": <int>,
@@ -147,7 +147,7 @@ def write_calibrated_kinematic_json(out_path: Union[Path, str],
     """
     Atomic per-frame JSON writer for calibrated_kinematic.
 
-    The schema (see ``specs/interm_data_spec.md`` § calibrated_kinematic):
+    The calibrated_kinematic schema:
 
         {
           "frame": 123,

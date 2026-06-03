@@ -1,4 +1,4 @@
-"""Per-clip orchestrator (`code_design.md` § 5.2).
+"""Per-clip orchestrator.
 
 `convert_clip` takes a RawClip + Hydra build cfg + dataset root and
 produces one finalized episode directory. Atomic: either the final

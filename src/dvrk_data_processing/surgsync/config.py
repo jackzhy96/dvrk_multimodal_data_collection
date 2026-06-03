@@ -71,9 +71,9 @@ class AlignCfg:
     """Tolerance policy and contiguity detection knobs.
 
     `tol_ms_*` are millisecond windows for the nearest-within-tolerance
-    matcher. The defaults match `specs/code_design.md` § 4.3 — they're
-    set for the typical 30 Hz capture / 800 Hz kinematic rates we see
-    in practice.
+    matcher. The defaults are set for the typical 30 Hz capture / 1000 Hz
+    kinematic rates we see in practice (the kinematic stream runs at the
+    recorded running rate, nominally 1000 Hz).
     """
     # Online (strict): 2 ms image_right; 100 ms kinematic by default to
     # accommodate standard rosbag-recorded data (camera+PSM topics

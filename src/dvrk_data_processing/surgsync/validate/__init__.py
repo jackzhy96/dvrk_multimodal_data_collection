@@ -1,4 +1,4 @@
-"""Three-layer validators (`code_design.md` § 6.4).
+"""Three-layer validators.
 
 - raw_clip: structure check before ingest
 - episode:  per-episode schema + decodability check, ideally before atomic rename

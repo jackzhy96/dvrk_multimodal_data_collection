@@ -1,4 +1,4 @@
-"""Tolerance policy (`code_design.md` § 4.3).
+"""Tolerance policy.
 
 The matcher needs a tolerance window per (modality, recorder_variant);
 this module encodes that table without scattering magic numbers.

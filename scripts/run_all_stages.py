@@ -121,7 +121,7 @@ class RunAllStagesAppCfg:
 # --------------------------------------------------------------------------- #
 # Stage descriptor table — encodes the per-stage script location, output
 # folder layout (used for resumability checks), and CWD for the subprocess.
-# Keep this in sync with `specs/interm_data_spec.md` § Stage map.
+# Keep this in sync with the stage map (rectify → kinematic → depth → flow).
 # --------------------------------------------------------------------------- #
 
 @dataclass

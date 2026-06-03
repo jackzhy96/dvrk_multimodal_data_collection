@@ -1,4 +1,4 @@
-"""pydantic model for `meta/dataset.json` (`code_design.md` § 3.1).
+"""pydantic model for `meta/dataset.json`.
 
 Top-level dataset metadata. One file per dataset root; loaded eagerly by
 both readers and validators.

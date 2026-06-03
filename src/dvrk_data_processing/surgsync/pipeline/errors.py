@@ -1,4 +1,4 @@
-"""Structured error classes for the export pipeline (`code_design.md` § 5.5).
+"""Structured error classes for the export pipeline.
 
 - `RecoverableExportError`: bad input for one clip; logged + skipped, the
   rest of the sweep continues.

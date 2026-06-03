@@ -1,6 +1,6 @@
 """Dataset-wide indexes built after every per-clip pack completes.
 
-Four indexes (`specs/code_design.md` § 6.1):
+Four indexes:
 - `episodes.parquet/task=*/part-*.parquet` — one row per episode
 - `index.parquet/task=*/part-*.parquet`   — frame-level cross-episode view
 - `stats.parquet`                          — per-column min/max/mean/std
