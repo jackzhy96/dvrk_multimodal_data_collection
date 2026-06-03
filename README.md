@@ -485,7 +485,7 @@ External:
 
 ## Citation
 
-If you use this toolkit or the SurgSync dataset in your research, please cite:
+We hope SurgSync can support your research — if it does, please cite:
 
 ```bibtex
 @inproceedings{zhou2026surgsync,
