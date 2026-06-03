@@ -692,7 +692,6 @@ config_path = Path(__file__).resolve().parents[3] / 'config'
     version_base=None,
     config_path=str(config_path),
     config_name="config_of_raft_jack"  # New config name for RAFT optical flow
-    # config_name="config_of_raft_jack_ubc"  # New config name for RAFT optical flow
 )
 def main(cfg: AppCfg):
     """

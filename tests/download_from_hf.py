@@ -120,7 +120,7 @@ DEFAULT_CONFIG_PATH = _REPO_ROOT / "config" / "surgsync" / "download_hf.yaml"
 # doesn't trip on a missing config file.
 REPO_ID: str = "jackzhy/surgsync"
 REPO_TYPE: str = "dataset"
-TARGET_DIR: Path = Path("/media/jackzhy/Extreme SSD/surgsync_release_dl")
+TARGET_DIR: Path = Path("<download target folder>")
 PARTITIONS: tuple = ("online_data", "offline_data")
 ALWAYS_INCLUDE: list = []
 DEFAULT_MAX_WORKERS: int = 8

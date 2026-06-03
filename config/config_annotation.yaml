@@ -1,8 +1,8 @@
 defaults:
-  - path_config: jack_local     # pick one file from the data, data load and store paths
+  - path_config: jack_local_release     # pick one file from the data, data load and store paths
   - _self_
 
-workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+workspace: "<repository root>"
 
 
 #left_image_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_index}/regular/image/left"
@@ -16,20 +16,20 @@ workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
 
 index: 0
 
-#left_image_path: "/media/jackzhy/Extreme Pro/data_2026_icra/raw/${index}/image/left"
-#right_image_path: "/media/jackzhy/Extreme Pro/data_2026_icra/raw/${index}/image/right"
-#side_camera_1_path: "/media/jackzhy/Extreme Pro/data_2026_icra/raw/${index}/image/side"
+#left_image_path: "<raw data folder>/${index}/image/left"
+#right_image_path: "<raw data folder>/${index}/image/right"
+#side_camera_1_path: "<raw data folder>/${index}/image/side"
 
 
-left_image_path: "/media/jackzhy/Extreme Pro/data_open_h_new/raw/${index}/image/left"
-right_image_path: "/media/jackzhy/Extreme Pro/data_open_h_new/raw/${index}/image/right"
-side_camera_1_path: "/media/jackzhy/Extreme Pro/data_open_h_new/raw/${index}/image/side1"
+left_image_path: "<raw data folder>/${index}/image/left"
+right_image_path: "<raw data folder>/${index}/image/right"
+side_camera_1_path: "<raw data folder>/${index}/image/side1"
 #side_camera_1_path: None
-#side_camera_2_path: "/media/jackzhy/Jack_SSD_4T/contact_detection_dataset/preprocess/${index}/depth_estimation/disparity_image"
+#side_camera_2_path: "<preprocess folder>/${index}/depth_estimation/disparity_image"
 
 side_camera_2_path: None
 
-save_folder: "/media/jackzhy/Extreme Pro/test_label/${index}"
+save_folder: "<output folder>/${index}"
 
 resize_max_size: False
 
@@ -47,6 +47,6 @@ enable_PSM3: False
 # ### Optional, define log output if required
 #hydra:
 #  run:
-#    dir: "/home/jackzhy/dvrk_multimodal_data_collection/outputs/logs/${now:%Y%m%d}_${now:%H%M%S}"
+#    dir: "<repository root>/outputs/logs/${now:%Y%m%d}_${now:%H%M%S}"
 
 # custom configurations

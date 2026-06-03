@@ -11,7 +11,7 @@ so they can run on any CPU-only machine without the sample data. They cover:
 
 Run with::
 
-    cd /home/jackzhy/claude_code_projects/dvrk_multimodal_data_collection
+    cd <repository root>
     python tests/processing/test_unit_synthetic.py
 """
 from __future__ import annotations

@@ -3,12 +3,12 @@
 # between video frames using a search window approach
 
 # Workspace path (root of the dvrk_multimodal_data_collection project)
-workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+workspace: "<repository root>"
 
 # Input folder containing the data subsets to process
 # Expected structure: <input_folder>/<task>/<subset_index>/
 # Example: data/suturing/1/, data/suturing/2/, etc.
-input_folder: "/media/jackzhy/Jack_SSD_4T/new_data_set"
+input_folder: "<input data folder>"
 #input_folder: "${workspace}/data"
 
 # Output folder where synchronization JSON results will be saved

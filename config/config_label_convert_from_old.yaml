@@ -4,12 +4,12 @@
 # - phase -> gesture (folder name and JSON key)
 # - contact_detection -> no change (copy as-is)
 
-workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+workspace: "<repository root>"
 
 # Input folder: contains subfolders with old annotation format
 # Expected structure: <input_folder>/<int_number>/annotation/{contact_detection, event, phase}
-input_folder: "/media/jackzhy/Jack_SSD_4T/contact_detection_dataset/raw_label"
+input_folder: "<label data folder>"
 
 # Output folder: will contain subfolders with new annotation format
 # Output structure: <output_folder>/<int_number>/annotation/{contact_detection, step, gesture}
-output_folder: "/media/jackzhy/Jack_SSD_4T/contact_detection_dataset/raw_label_new"
+output_folder: "<output folder>"

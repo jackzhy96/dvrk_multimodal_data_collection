@@ -5,11 +5,11 @@
 # files until all subfolders match the minimum file count.
 
 # Workspace directory (root of dvrk_multimodal_data_collection repository)
-workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+workspace: "<repository root>"
 
 # Data folder containing subset folders to trim
 # Each subset should have image/, kinematic/, time_syn/, and optionally annotation/
-data_folder: "/media/jackzhy/Extreme Pro/data_open_h_new"
+data_folder: "<input data folder>"
 
 # Trim mode: determines which image folders to check for minimum file count
 # - "stereo": Only check image/left and image/right (default for stereo camera setups)

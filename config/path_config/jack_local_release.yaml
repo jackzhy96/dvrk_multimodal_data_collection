@@ -4,7 +4,7 @@
 #                        path_config.data_index=1,2,3
 # The sweep keeps the model process alive across data_index values so the
 # GPU-heavy stages (depth, RAFT) load weights only once per stage.
-data_dir: "/home/jackzhy/claude_code_projects/dvrk_multimodal_data_collection/data"
+data_dir: "<repository root>/data"
 
 # `data_name` selects the per-dataset namespace under `data_dir`. Override on
 # the CLI when sweeping multiple datasets (`path_config.data_name=offline_data`).

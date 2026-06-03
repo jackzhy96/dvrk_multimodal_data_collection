@@ -18,7 +18,7 @@ repo_type: dataset
 # on top of it — that would defeat the point of an independent verify
 # pass and risks data loss if HF returns incomplete files. Override
 # with --target-dir on the CLI.
-target_dir: /media/jackzhy/Extreme SSD/surgsync_release_dl
+target_dir: <download target folder>
 
 # ----- Gate: full -----------------------------------------------------
 # Parallel downloaders inside snapshot_download. 4-16 is reasonable;

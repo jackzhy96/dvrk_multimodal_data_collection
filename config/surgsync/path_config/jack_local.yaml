@@ -1,7 +1,7 @@
 # SurgSync path config for the local dev machine.
 # Points at the same data tree that the preprocessing run_all_stages produces under.
 
-data_dir: "/home/jackzhy/claude_code_projects/dvrk_multimodal_data_collection/data"
+data_dir: "<repository root>/data"
 
 # Datasets to sweep into one release. Each is a top-level dir under data_dir
 # (parent of the per-clip indices).

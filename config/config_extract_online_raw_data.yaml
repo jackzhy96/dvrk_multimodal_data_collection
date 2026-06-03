@@ -2,10 +2,10 @@
 # Extracts the most raw data from convert_data for online dataset publishing
 # Only copies essential files: videos, kinematics, and select metadata
 
-workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+workspace: "<repository root>"
 
 # Input folder: the converted data folder with full nested structure
-input_folder: "/media/jackzhy/Jack_SSD_4T/open_h_new_data"
+input_folder: "<input data folder>"
 
 # Output folder: where extracted raw data will be copied
-output_folder: "/media/jackzhy/Extreme SSD/NUS_share"
+output_folder: "<output folder>"

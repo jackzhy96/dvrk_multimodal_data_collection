@@ -7,7 +7,7 @@ import pytest
 from dvrk_data_processing.surgsync.validate import validate_episode
 
 
-SAMPLE = Path("/media/jackzhy/Extreme SSD/surgsync_release/online_data/episodes/single_interrupted_stitch/2")
+SAMPLE = Path("<release_root>/online_data/episodes/single_interrupted_stitch/2")
 
 
 def _sample_is_current_schema() -> bool:

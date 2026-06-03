@@ -1,9 +1,9 @@
 defaults:
-  - path_config: jack_local     # pick one file from the data, data load and store paths
+  - path_config: jack_local_release     # pick one file from the data, data load and store paths
   - preprocess: optical_flow   # select the preprocess type
   - _self_
 
-workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+workspace: "<repository root>"
 
 camera_calibration_path: "${path_config.intermediate_dir}/camera_calibration" # use your own path
 camera_names: ['left', 'right']
@@ -17,6 +17,6 @@ camera_names: ['left', 'right']
 # ### Optional, define log output if required
 #hydra:
 #  run:
-#    dir: "/home/jackzhy/dvrk_multimodal_data_collection/outputs/logs/${now:%Y%m%d}_${now:%H%M%S}"
+#    dir: "<repository root>/outputs/logs/${now:%Y%m%d}_${now:%H%M%S}"
 
 # custom configurations

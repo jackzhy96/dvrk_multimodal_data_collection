@@ -8,7 +8,7 @@ changes.
 
 Run with::
 
-    cd /home/jackzhy/claude_code_projects/dvrk_multimodal_data_collection
+    cd <repository root>
     python tests/processing/test_pipeline_e2e.py
 
 The script is intentionally **not** a pytest fixture — the project's tests/

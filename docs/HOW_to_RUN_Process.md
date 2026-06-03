@@ -46,22 +46,23 @@ the other three stages still run end-to-end.
 
 Every pipeline script is a Hydra entry point composed from three layers:
 
-1. **Running config** at `config/config_<op>_<user>.yaml` — picks `path_config`
-   + `preprocess` via the `defaults:` block.
-2. **Path config** at `config/path_config/<user>_local*.yaml` — `data_dir`,
-   `data_name`, `data_index`.
+1. **Running config** at `config/config_<op>_jack.yaml` — picks `path_config`
+   + `preprocess` via the `defaults:` block. One config per operation.
+2. **Path config** at `config/path_config/jack_local_release.yaml` — `data_dir`,
+   `data_name`, `data_index`. This is the single shipped example; edit it (or
+   copy it to a new name and pass `path_config=<name>`) to point at your data.
 3. **Preprocess config** at `config/preprocess/<stage>.yaml` — algorithm knobs.
 
 For multi-clip runs use the preprocessing path config:
 
 ```yaml
 # config/path_config/jack_local_release.yaml
-data_dir: ".../dvrk_multimodal_data_collection/data"
+data_dir: "<repository root>/data"
 data_name: "offline_data"
 data_index: "3"
 raw_dir:          "${.data_dir}/${.data_name}/${.data_index}"
-intermediate_dir: "${.data_dir}/intermediate/${.data_name}/${.data_index}"
-processed_dir:    "${.data_dir}/preprocess/${.data_name}/${.data_index}"
+intermediate_dir: "${.raw_dir}/preprocess/rectify_resize"
+processed_dir:    "${.raw_dir}/preprocess"
 ```
 
 You can switch clips on the command line via Hydra overrides

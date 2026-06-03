@@ -161,7 +161,7 @@ DEFAULT_CONFIG_PATH = _REPO_ROOT / "config" / "surgsync" / "upload_hf.yaml"
 # doesn't trip on a missing config file.
 REPO_ID: str = "jackzhy/surgsync"
 REPO_TYPE: str = "dataset"
-RELEASE_ROOT: Path = Path("/media/jackzhy/Extreme SSD/surgsync_release")
+RELEASE_ROOT: Path = Path("<release_root>")
 CANARY_TASK: str = "online_data/episodes/peg_transfer"
 CANARY_DOWNLOAD_DIR: str = "tmp/canary_download"
 BASE_IGNORE: list = []

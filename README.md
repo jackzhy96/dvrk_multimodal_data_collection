@@ -216,7 +216,7 @@ untouched.
 | 4. Optical flow — RAFT (GPU) | `gen_optical_flow_raft.py` | `preprocess/optical_flow/<cam>/{optical_flow,image}/*.{npy,png}` |
 
 The four stages share the same Hydra config layout
-(`config/preprocess/<stage>.yaml` + `config/path_config/<name>_local*.yaml`)
+(`config/preprocess/<stage>.yaml` + `config/path_config/jack_local_release.yaml`)
 and can be invoked individually or all at once:
 
 ```bash
@@ -372,10 +372,10 @@ of clip length.
 │       └── cli.py                   #   build, validate, index, unpack, release, selftest
 │
 ├── config/
-│   ├── path_config/                 # per-user path mappings (data_dir, dataset_root)
+│   ├── path_config/                 # data path mapping (one example: jack_local_release.yaml)
 │   ├── preprocess/                  # per-preprocessing-stage hyperparameter configs
 │   ├── surgsync/                    # SurgSync build/encode/align configs
-│   ├── config_<op>_<user>.yaml      # preprocessing running configs (one per op × user)
+│   ├── config_<op>_jack.yaml        # preprocessing running configs (one per operation)
 │   └── run_all_stages.yaml          # preprocessing batch orchestrator
 │
 ├── scripts/

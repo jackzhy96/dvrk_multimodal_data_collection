@@ -1,9 +1,9 @@
 defaults:
-  - path_config: jack_local_test     # pick one file from the data, data load and store paths
+  - path_config: jack_local_release     # pick one file from the data, data load and store paths
   - preprocess: kinematic_reproject   # select the preprocess type
   - _self_
 
-workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+workspace: "<repository root>"
 
 camera_calibration_path: "${path_config.intermediate_dir}/camera_calibration" # use your own path
 handeye_calib_path: "${path_config.raw_dir}/hand_eye_calibration"
@@ -49,6 +49,6 @@ tool_tip_offset:
 # ### Optional, define log output if required
 #hydra:
 #  run:
-#    dir: "/home/jackzhy/dvrk_multimodal_data_collection/outputs/logs/${now:%Y%m%d}_${now:%H%M%S}"
+#    dir: "<repository root>/outputs/logs/${now:%Y%m%d}_${now:%H%M%S}"
 
 # custom configurations

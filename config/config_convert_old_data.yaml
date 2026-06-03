@@ -5,12 +5,12 @@
 # both kinematic and time_syn JSON files to match the new data structure.
 
 # Workspace directory (root of dvrk_multimodal_data_collection repository)
-workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+workspace: "<repository root>"
 
 # Input folder containing old data to convert
 # This folder should contain dataset subfolders (0, 3, 5, 10, 17, etc.)
 # Each dataset should have kinematic/ and time_syn/ folders
-input_folder: "/media/jackzhy/Extreme Pro/data_2026_icra"
+input_folder: "<input data folder>"
 
 # Maximum search depth for finding dataset folders
 # Controls how deep to search in nested directory structures

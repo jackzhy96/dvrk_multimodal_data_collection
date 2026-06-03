@@ -34,7 +34,7 @@ import dvrk_data_processing.surgsync as surgsync
 
 
 REPO = Path(__file__).resolve().parents[3]
-PACKED_ROOT  = Path("/media/jackzhy/Extreme SSD/surgsync_release")
+PACKED_ROOT  = Path("<release_root>")
 RAW_ONLINE_2 = REPO / "data" / "online_data" / "2"
 
 

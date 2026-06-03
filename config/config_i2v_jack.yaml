@@ -1,9 +1,9 @@
 defaults:
-  - path_config: jack_local_test     # pick one file from the data, data load and store paths
+  - path_config: jack_local_release     # pick one file from the data, data load and store paths
   - preprocess: image_to_video  # select the preprocess type
   - _self_
 
-workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+workspace: "<repository root>"
 
 timestamp_path: "${path_config.data_dir}/${path_config.data_name}/raw/${path_config.data_index}/time_syn"
 

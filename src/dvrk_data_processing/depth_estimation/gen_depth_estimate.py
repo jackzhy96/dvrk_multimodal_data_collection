@@ -389,7 +389,6 @@ config_path = Path(__file__).resolve().parents[3] / 'config'
     version_base=None,
     config_path=str(config_path),
     config_name="config_de_jack"  # Default config name - will be created
-    # config_name="config_de_jack_ubc"  # Default config name - will be created
 )
 def main(cfg: AppCfg):
     """

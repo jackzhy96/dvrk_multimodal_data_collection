@@ -6,18 +6,18 @@
 # and copies the data accordingly.
 
 # Workspace directory (root of dvrk_multimodal_data_collection repository)
-workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+workspace: "<repository root>"
 
 # Input folder containing the time synchronization test results
 # This folder should contain subfolders with *_sync_test.json files
-input_folder: "/home/jackzhy/dvrk_multimodal_data_collection/data/test_sync"
+input_folder: "<repository root>/data/test_sync"
 
 # Output folder where reorganized data will be copied
-output_folder: "/home/jackzhy/dvrk_multimodal_data_collection/data/test_sync_reorg"
+output_folder: "<repository root>/data/test_sync_reorg"
 
 # Path to the data organization note JSON file
 # This file contains the mapping from original_data_path to new_data_path
-data_org_note: "/home/jackzhy/dvrk_multimodal_data_collection/data/data_organization_note.json"
+data_org_note: "<repository root>/data/data_organization_note.json"
 
 # Folder initialization: whether to clear the output folder before processing
 # Set to true to remove existing output (WARNING: destructive operation)

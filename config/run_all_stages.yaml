@@ -7,7 +7,7 @@ defaults:
   - path_config: jack_local_release
   - _self_
 
-workspace: "/home/jackzhy/claude_code_projects/dvrk_multimodal_data_collection"
+workspace: "<repository root>"
 
 # ---------------------------------------------------------------------------
 # Where to find the clips. Pick exactly one of these by setting clip_indices.source:

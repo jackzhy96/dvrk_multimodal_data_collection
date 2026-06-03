@@ -1,11 +1,11 @@
-workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+workspace: "<repository root>"
 
 # Input/Output folders
 #input_folder: "${workspace}/data"      # Raw data with nested structure
-#input_folder: "/media/jackzhy/Jack_SSD_4T/multi_modal_data/JHU"
-input_folder: "/media/jackzhy/Jack_SSD_4T/open_h_new_data"
+#input_folder: "<input data folder>"
+input_folder: "<input data folder>"
 #output_folder: "${workspace}/raw_data" # Organized output with flat structure
-output_folder: "/media/jackzhy/Extreme Pro/data_open_h_new/raw"
+output_folder: "<raw data folder>"
 
 # Camera selection: which camera views to copy
 # Options: "left", "right", "side"

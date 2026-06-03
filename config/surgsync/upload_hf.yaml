@@ -20,7 +20,7 @@ repo_type: dataset
 # via Path(__file__).parent when it lived inside the release tree; it
 # now lives in tests/ of the toolkit repo, so this path must be set
 # explicitly (here or via --release-root).
-release_root: /media/jackzhy/Extreme SSD/surgsync_release
+release_root: <release_root>
 
 # ----- Gate: full -----------------------------------------------------
 # Number of parallel uploaders. 4-16 is reasonable; 8 is a good default

@@ -11,7 +11,7 @@ from dvrk_data_processing.surgsync.index import (
 )
 
 
-SAMPLE_ROOT = Path("/media/jackzhy/Extreme SSD/surgsync_release")
+SAMPLE_ROOT = Path("<release_root>")
 
 
 def _sample_is_current_schema() -> bool:

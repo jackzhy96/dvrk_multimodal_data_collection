@@ -1,9 +1,9 @@
 defaults:
-  - path_config: jack_local_video     # pick one file from the data, data load and store paths
+  - path_config: jack_local_release     # pick one file from the data, data load and store paths
   - preprocess: video_to_image  # select the preprocess type
   - _self_
 
-workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+workspace: "<repository root>"
 
 video_name: 'left'
 

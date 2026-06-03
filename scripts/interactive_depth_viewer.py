@@ -64,7 +64,7 @@ def plot_depth_map(idx_frame:int)->None:
 
 
 if __name__ == '__main__':
-    test_path = '/home/jackzhy/dvrk_multimodal_data_collection/data/output/data_20250828/suturing1/7/depth_estimation'
+    test_path = '<repository root>/data/output/data_20250828/suturing1/7/depth_estimation'
     parser = argparse.ArgumentParser(description="Interactive Depth Viewer")
     parser.add_argument("--depth_dir", type=str, help="Path of the depth estimation generated folder", default=test_path)
     parser.add_argument("--idx_frame", type=str, help="frame index", default=340)

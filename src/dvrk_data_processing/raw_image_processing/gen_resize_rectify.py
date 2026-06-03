@@ -163,8 +163,6 @@ p_config = Path.cwd().parents[2] / 'config'
     version_base=None,
     config_path= str(p_config),
     config_name="config_rr_jack"
-    # config_name="config_rr_jack_ubc"
-    # config_name="config_rr_jack_campus"
 )
 def main(cfg: AppCfg):
     # Deprecation guard: block accidental invocation. We do this

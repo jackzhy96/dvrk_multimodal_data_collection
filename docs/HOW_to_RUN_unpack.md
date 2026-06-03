@@ -21,7 +21,7 @@ You must already have:
    ```
 
 2. **A packed SurgSync dataset** on disk — e.g.
-   `/media/jackzhy/Extreme SSD/surgsync_release` for the sample data,
+   `<release_root>` for the sample data,
    or any other release built with `surgsync build`.
 
 3. **Disk space**: unpacking restores the raw PNGs (bit-exact via FFV1)
@@ -42,8 +42,8 @@ You must already have:
 conda activate dvrk_multimodal_process
 
 surgsync unpack \
-    "/media/jackzhy/Extreme SSD/surgsync_release" \
-    --out "/media/jackzhy/Extreme SSD/surgsync_unpack"
+    "<release_root>" \
+    --out "<unpack_root>"
 ```
 
 What happens:
@@ -85,7 +85,7 @@ What happens:
 ### Runtime
 
 Measured on an 8-core dev box with both packed and unpacked tree on
-`/media/jackzhy/Extreme SSD`. Sample release is 2 clips (886 + 947
+`<external drive>`. Sample release is 2 clips (886 + 947
 frames, 3 cameras each, 1920×1080 raw):
 
 | Configuration | Per-clip wall-clock | Sum-of-clips (serial-equiv) | Wall-clock end-to-end | Speedup |
@@ -166,15 +166,15 @@ Examples:
 
 ```bash
 # Only the online suturing clip; skip preprocess; overwrite if already there.
-surgsync unpack /media/jackzhy/Extreme\ SSD/surgsync_release \
-    --out /media/jackzhy/Extreme\ SSD/surgsync_unpack \
+surgsync unpack <release_root> \
+    --out <unpack_root> \
     --clip online_data/2 \
     --streams raw \
     --force
 
 # Whole dataset, 4 clips in parallel, 4 PNG threads each.
-surgsync unpack /media/jackzhy/Extreme\ SSD/surgsync_release \
-    --out /media/jackzhy/Extreme\ SSD/surgsync_unpack \
+surgsync unpack <release_root> \
+    --out <unpack_root> \
     --parallelism 4 \
     --workers-per-clip 4
 ```
@@ -273,7 +273,7 @@ dropped frames.
 The per-run report carries everything:
 
 ```bash
-jq . "/media/jackzhy/Extreme SSD/surgsync_unpack/decompose_report.json" | less
+jq . "<unpack_root>/decompose_report.json" | less
 ```
 
 To spot-check that PNGs round-trip pixel-exact for a clip you also
@@ -282,7 +282,7 @@ have in raw form, use the bundled verifier script:
 ```bash
 python scripts/verify_unpack_vs_raw.py \
     --raw    data/online_data/2 \
-    --unpack "/media/jackzhy/Extreme SSD/surgsync_unpack/online_data/2" \
+    --unpack "<unpack_root>/online_data/2" \
     --max-frames 10
 ```
 
@@ -292,9 +292,9 @@ JSON shape + numeric values, and confirms time_syn stamps match.
 For a quick visual sanity check on the verbalized annotations:
 
 ```bash
-jq . "/media/jackzhy/Extreme SSD/surgsync_unpack/online_data/2/annotation/phase/0.json"
-jq . "/media/jackzhy/Extreme SSD/surgsync_unpack/online_data/2/annotation/step/0.json"
-jq . "/media/jackzhy/Extreme SSD/surgsync_unpack/online_data/2/annotation/gesture/100.json"
+jq . "<unpack_root>/online_data/2/annotation/phase/0.json"
+jq . "<unpack_root>/online_data/2/annotation/step/0.json"
+jq . "<unpack_root>/online_data/2/annotation/gesture/100.json"
 ```
 
 You should see English descriptions, not bare integer strings.
@@ -311,8 +311,8 @@ from pathlib import Path
 import surgsync   # or: from dvrk_data_processing import surgsync
 
 report = surgsync.decompose(
-    dataset_root=Path("/media/jackzhy/Extreme SSD/surgsync_release"),
-    out_root=Path("/media/jackzhy/Extreme SSD/surgsync_unpack"),
+    dataset_root=Path("<release_root>"),
+    out_root=Path("<unpack_root>"),
     clips=["online_data/2"],          # filter (optional)
     streams=("raw", "preprocess"),    # default
     force=True,
@@ -325,7 +325,7 @@ print(report.n_episodes_ok, "/", report.n_episodes_seen)
 The reader API is also exposed for ad-hoc inspection without unpacking:
 
 ```python
-ds = surgsync.open_dataset("/media/jackzhy/Extreme SSD/surgsync_release")
+ds = surgsync.open_dataset("<release_root>")
 ep = ds["online_data/single_interrupted_stitch/2"]
 print(ep.meta["operator_skill_level"])
 for frame in ep.video_raw("stereo_left").iter_frames():
@@ -341,20 +341,20 @@ Same CLI; just point at the right packed root and out dir:
 ```bash
 # Online ICRA data set (built earlier)
 surgsync unpack \
-    "/media/jackzhy/Extreme SSD/surgsync_release_icra"  \
-    --out "/media/jackzhy/Extreme SSD/surgsync_unpack_icra" \
+    "<release_root>"  \
+    --out "<unpack_root>" \
     --parallelism 4
 
 # Offline data set (built earlier)
 surgsync unpack \
-    "/media/jackzhy/Extreme SSD/surgsync_release_offline" \
-    --out "/media/jackzhy/Extreme SSD/surgsync_unpack_offline" \
+    "<release_root>" \
+    --out "<unpack_root>" \
     --parallelism 4
 ```
 
 The corresponding raw sources are at
-`/media/jackzhy/Extreme Pro/data_2026_icra` (online) and
-`/media/jackzhy/Extreme Pro/data_open_h_new` (offline) — handy for
+`<input data folder>` (online) and
+`<input data folder>` (offline) — handy for
 side-by-side comparison.
 
 ---

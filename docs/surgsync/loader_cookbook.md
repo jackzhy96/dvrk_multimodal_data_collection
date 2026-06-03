@@ -18,10 +18,10 @@ Every example assumes:
 from pathlib import Path
 import dvrk_data_processing.surgsync as surgsync
 
-DATASET_ROOT = Path("/media/jackzhy/Extreme SSD/surgsync_release")
+DATASET_ROOT = Path("<release_root>")
 ds = surgsync.open_dataset(DATASET_ROOT)
 print(ds)
-# Dataset(root='/media/jackzhy/Extreme SSD/surgsync_release', episodes=2, tasks=['single_interrupted_stitch'])
+# Dataset(root='<release_root>', episodes=2, tasks=['single_interrupted_stitch'])
 ```
 
 The constructor walks `<root>/<dataset>/episodes/<task>/<clip>/` once
