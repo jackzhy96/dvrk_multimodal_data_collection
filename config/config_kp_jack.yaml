@@ -1,0 +1,54 @@
+defaults:
+  - path_config: jack_local_test     # pick one file from the data, data load and store paths
+  - preprocess: kinematic_reproject   # select the preprocess type
+  - _self_
+
+workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+
+camera_calibration_path: "${path_config.intermediate_dir}/camera_calibration" # use your own path
+handeye_calib_path: "${path_config.raw_dir}/hand_eye_calibration"
+
+camera_names: ['left', 'right']
+camera_offset: [-1.0, 0.0, 0.0,
+                0.0, -1.0, 0.0,
+                0.0, 0.0, 1.0]
+#camera_offset:
+
+# Per-PSM tool-tip offset: 4x4 transformation matrix (row-major, 16 floats).
+# Applied as T_actual = T_psm @ T_offset to account for physical offset between
+# the PSM's reported end-effector and the actual tool tip.
+# Set to null or omit for identity (no offset).
+tool_tip_offset:
+#  PSM1:
+#  PSM1:  [1.0, 0.0, 0.0, 0.001,
+#          0.0, 1.0, 0.0, 0.008,
+#          0.0, 0.0, 1.0, 0.0015,
+#          0.0, 0.0, 0.0, 1.0] # null → identity (no offset)
+  PSM1: [ 1.0, 0.0, 0.0, 0.0,
+          0.0, 1.0, 0.0, 0.0,
+          0.0, 0.0, 1.0, 0.0102,
+          0.0, 0.0, 0.0, 1.0 ] # null → identity (no offset)
+#  PSM2:
+  PSM2:   [1.0, 0.0, 0.0, 0.0,
+          0.0, 1.0, 0.0, 0.0,
+          0.0, 0.0, 1.0, 0.0102,
+          0.0, 0.0, 0.0, 1.0] # null → identity (no offset)
+  PSM3:   # null → identity (no offset)
+# Example with a non-trivial offset for PSM1:
+# tool_tip_offset:
+#   PSM1: [1.0, 0.0, 0.0, 0.01,
+#          0.0, 1.0, 0.0, 0.0,
+#          0.0, 0.0, 1.0, 0.005,
+#          0.0, 0.0, 0.0, 1.0]
+#   PSM2:
+#   PSM3:
+
+# ### Add random seeds if required
+# seed: 42
+
+# ### Optional, define log output if required
+#hydra:
+#  run:
+#    dir: "/home/jackzhy/dvrk_multimodal_data_collection/outputs/logs/${now:%Y%m%d}_${now:%H%M%S}"
+
+# custom configurations

@@ -1,0 +1,162 @@
+{
+  "schema_version": "1.0.0",
+  "notes": {
+    "structure": "Each phase (top-level workflow class) carries its own `step` and `gesture` child dicts. Step ids generally encode the phase id in their leading digit (e.g. step '41' \u2192 phase 4 tissue_manipulation). The suturing phase (1) uses the 5 high-level workflow steps from `suturing_annotation.txt`; all other phases use step ids from `step_description.json`.",
+    "task_routing": "`_task_routing` maps task partition names (the clip dir name in the packed dataset) to the phase id whose step + gesture vocab applies at pack time. Suturing tasks \u2192 phase 1; cold-cut dissection variants \u2192 phase 2 (intestine \u2192 5, skin peel \u2192 6); peg_transfer \u2192 3; tissue_manipulation \u2192 0/4."
+  },
+  "phases": {
+    "0": {
+      "description": "manipulate ex-vivo tissue to achieve a desired exposure (usually uncover an interface or object), using bimanual grasping, lifting/pulling, and regrasping as needed",
+      "step": {
+        "0": "stay still",
+        "10": "finalize_operation: move the instruments to the rest position as needed",
+        "20": "visualize_tissue: adjust the camera pose to obtain a clear view of the tissue and target region as needed",
+        "21": "grasp_tissue: reach to the tissue and establish an initial grasp to begin cold-cut dissection",
+        "22": "create_tension: apply tension to the tissue to prepare for cold-cut dissection; reapply or increase tension as needed before or during the subsequent cutting",
+        "23": "cold_cut: perform cold-cut dissection using non-energy instruments, following the pre-defined marker trace when available",
+        "24": "finalize_clean_up: finalize the cold-cut dissection and clear the cut tissue piece as needed",
+        "25": "regrasp_tissue: regrasp the tissue when cold-cut dissection, restore tension as needed",
+        "26": "scissor_reposition: when a large reposition is needed, retract the scissor and move it to a new cutting pose during cold-cut dissection",
+        "31": "reach_to_grasp: move the gripper to the object, grasp it securely, and prepare to lift for peg tranfer",
+        "32": "lift_and_transport: lift the object clear of the peg, then transport it to a position near the target peg",
+        "33": "release_and_retract: release the object onto the target peg, then retract the gripper",
+        "34": "reposition_to_next: reposition the gripper(s) and move the next position for peg transfer as needed",
+        "41": "reach_to_approach: reach toward the tissue (or the object) and approach it to initiate tissue manipulation",
+        "42": "grasp_tissue: grasp or regrasp the tissue (or the object) during tissue manipulation",
+        "43": "lift_move_tissue: lift and move the tissue (or the object) towards the desired position when grasping during tissue manipulation",
+        "44": "release_tissue: release the tissue (or the object) at the target area; or open the gripper for the next step during tissue manipulation",
+        "45": "reposition_to_next: roposition the surgical instruments to prepare for the next step during tissue manipulation",
+        "63": "start_plane_at_corner: initiate the dissection plane at the corner by opening a small entry using non-energy surgical instruments",
+        "64": "advance_in_plane_cut: advance along the interface by cutting adhesions in the plane while maintaining traction"
+      },
+      "gesture": {}
+    },
+    "1": {
+      "description": "perform a simple interrupted stitch on ex-vivo tissue (occasionally on silicon suturing training phantom) ; without cutting the suture thread tail at the end",
+      "step": {
+        "00": "bilateral pause (both hand not moving > 20 frames)",
+        "01": "move camera",
+        "11": "Needle Handling and Positioning (This step encompasses all actions from the moment the surgeon initiates motion toward the needle until the needle is held in the dominant instrument in a driving-ready configuration.)",
+        "12": "Needle Driving (This step encompasses all actions involved in passing the needle through the tissue, beginning from the moment the needle tip approaches the tissue surface and ending when sufficient needle length has emerged on the exit side to allow grasping by the assistant instrument.)",
+        "13": "Needle Extraction and Suture Pulling (This step encompasses all actions from the moment the surgeon begins to grasp the emerged needle on the exit side until the suture has been pulled through the tissue to the desired tail length for knotting.)",
+        "14": "Knot Tying (This step encompasses all actions involved in forming and tightening the surgical knot to secure the suture.)",
+        "15": "Finishing (This step encompasses all final actions after the knot is fully tied and secured.)"
+      },
+      "gesture": {
+        "1": "Reach for needle (Open-jaw transit motion directed toward the needle.)",
+        "2": "Grasp needle (Closing the instrument jaws on the needle body to secure it.)",
+        "3": "Release needle (Opening the instrument jaws to deliberately free the needle.)",
+        "4": "Adjust needle (In-hand manipulation to change the needle orientation or grasp point while the jaws remain closed on the needle.)",
+        "5": "Approach tissue (Controlled movement bringing the needle tip toward the tissue surface at the planned entry point.)",
+        "6": "Drive needle (Wrist pronation following the needle curvature to push the needle through the tissue.)",
+        "7": "Tissue manipulation (The instrument pushes, retracts, lifts, or stabilizes tissue to provide exposure or counter-tension for the operative action.)",
+        "8": "Extract needle (Pulling the needle along its curvature out of the tissue on the exit side.)",
+        "9": "Pull suture (Pulling the suture thread through the tissue to set the desired tail length for knotting.)",
+        "10": "Grasp suture tail (Closing instrument jaws on a suture tail in preparation for knot tying.)",
+        "11": "Release suture (Opening instrument jaws to free the suture thread.)",
+        "12": "Park needle (Placing the needle in a safe resting position out of the operative field so that both instruments are free for knot tying.)",
+        "13": "Wrap suture around instrument (Looping the suture around the shaft of the opposite instrument one or more times to form a throw.)",
+        "14": "Grasp suture through loop (The instrument that served as the wrapping post reaches through the formed loop or loops and closes its jaws on the opposite suture tail.)",
+        "15": "Tighten throw (Both instruments pull in opposite directions to draw the formed throw down to the tissue surface and seat it.)",
+        "16": "Cut suture (We do NOT have this, but it should be defined) (Closing scissors or a cutting instrument to sever the suture tail at the target distance from the knot.)",
+        "17": "Hold / Idle (One instrument maintains its current position and grasp state without directed purposeful motion while the other arm performs an active gesture.)",
+        "18": "Move to rest position (The instrument actively travels away from the operative field to a neutral free position.)"
+      }
+    },
+    "2": {
+      "description": "perform cold-cut dissection on ex-vivo tissue by cutting along pre-defined traces using non-energy surigal instruments",
+      "step": {
+        "0": "stay still",
+        "10": "finalize_operation: move the instruments to the rest position as needed",
+        "20": "visualize_tissue: adjust the camera pose to obtain a clear view of the tissue and target region as needed",
+        "21": "grasp_tissue: reach to the tissue and establish an initial grasp to begin cold-cut dissection",
+        "22": "create_tension: apply tension to the tissue to prepare for cold-cut dissection; reapply or increase tension as needed before or during the subsequent cutting",
+        "23": "cold_cut: perform cold-cut dissection using non-energy instruments, following the pre-defined marker trace when available",
+        "24": "finalize_clean_up: finalize the cold-cut dissection and clear the cut tissue piece as needed",
+        "25": "regrasp_tissue: regrasp the tissue when cold-cut dissection, restore tension as needed",
+        "26": "scissor_reposition: when a large reposition is needed, retract the scissor and move it to a new cutting pose during cold-cut dissection"
+      },
+      "gesture": {
+        "0": "stay_still (no meaningful action is carried out; the arm stays idle)",
+        "10": "reach_for_tissues_with_scissors (move scissors to optimal position to prepare for cold cut, performed at the start of the operation)",
+        "11": "cut_along_trajectory (carry out cold cut along the marked trajectory; cutting involves opening and closing scissors blades)",
+        "12": "retract_and_reposition_scissors (performed when the operator pulls the scissors back from the tissue, and then moves the scissors back to the tissue to a  more optimal position to continue cutting)",
+        "13": "move_scissors_to_finishing_position (operation complete, move scissors to a finishing position)",
+        "20": "position_grabber (move the grabber to optimal position to grab the tissue)",
+        "21": "grab_tissue (open the grabber jaws, positioning the tissue between the jaws, and clenching the grabber jaws)",
+        "22": "create_tension (pull on the grabbed tissue to create tension for cold cut)",
+        "23": "move_tissue (move the grabbed tissue to a different position)",
+        "24": "release_tissue (release the grabbed tissue by opening the grabber jaws)",
+        "25": "move_grabbers_to_finishing_position (operation complete, move grabbers to a finishing position)"
+      }
+    },
+    "3": {
+      "description": "perform peg transfer on a table-top phantom by moving triangular-prism rubber objects between pegs, using bimanual grasping and handoffs as needed",
+      "step": {
+        "0": "stay still",
+        "10": "finalize_operation: move the instruments to the rest position as needed",
+        "20": "visualize_tissue: adjust the camera pose to obtain a clear view of the tissue and target region as needed",
+        "31": "reach_to_grasp: move the gripper to the object, grasp it securely, and prepare to lift for peg tranfer",
+        "32": "lift_and_transport: lift the object clear of the peg, then transport it to a position near the target peg",
+        "33": "release_and_retract: release the object onto the target peg, then retract the gripper",
+        "34": "reposition_to_next: reposition the gripper(s) and move the next position for peg transfer as needed"
+      },
+      "gesture": {}
+    },
+    "4": {
+      "description": "grasp and move ex-vivo tissues toward a specified configuration (usually move to a certain area), using lift-pull-release/regrasp actions while avoiding excessive stretching or tearing",
+      "step": {
+        "0": "stay still",
+        "10": "finalize_operation: move the instruments to the rest position as needed",
+        "20": "visualize_tissue: adjust the camera pose to obtain a clear view of the tissue and target region as needed",
+        "41": "reach_to_approach: reach toward the tissue (or the object) and approach it to initiate tissue manipulation",
+        "42": "grasp_tissue: grasp or regrasp the tissue (or the object) during tissue manipulation",
+        "43": "lift_move_tissue: lift and move the tissue (or the object) towards the desired position when grasping during tissue manipulation",
+        "44": "release_tissue: release the tissue (or the object) at the target area; or open the gripper for the next step during tissue manipulation",
+        "45": "reposition_to_next: roposition the surgical instruments to prepare for the next step during tissue manipulation"
+      },
+      "gesture": {}
+    },
+    "5": {
+      "description": "perform cold-cut dissection by cutting through pork intestines using non-energy surgical instruments; no pre-defined cutting path",
+      "step": {
+        "0": "stay still",
+        "10": "finalize_operation: move the instruments to the rest position as needed",
+        "20": "visualize_tissue: adjust the camera pose to obtain a clear view of the tissue and target region as needed",
+        "21": "grasp_tissue: reach to the tissue and establish an initial grasp to begin cold-cut dissection",
+        "22": "create_tension: apply tension to the tissue to prepare for cold-cut dissection; reapply or increase tension as needed before or during the subsequent cutting",
+        "23": "cold_cut: perform cold-cut dissection using non-energy instruments, following the pre-defined marker trace when available",
+        "24": "finalize_clean_up: finalize the cold-cut dissection and clear the cut tissue piece as needed",
+        "25": "regrasp_tissue: regrasp the tissue when cold-cut dissection, restore tension as needed",
+        "63": "start_plane_at_corner: initiate the dissection plane at the corner by opening a small entry using non-energy surgical instruments",
+        "64": "advance_in_plane_cut: advance along the interface by cutting adhesions in the plane while maintaining traction"
+      },
+      "gesture": {}
+    },
+    "6": {
+      "description": "perform cold-cut dissection to partially peel skin from the underlying fat layer using non-energy instruments",
+      "step": {
+        "0": "stay still",
+        "10": "finalize_operation: move the instruments to the rest position as needed",
+        "20": "visualize_tissue: adjust the camera pose to obtain a clear view of the tissue and target region as needed",
+        "21": "grasp_tissue: reach to the tissue and establish an initial grasp to begin cold-cut dissection",
+        "22": "create_tension: apply tension to the tissue to prepare for cold-cut dissection; reapply or increase tension as needed before or during the subsequent cutting",
+        "23": "cold_cut: perform cold-cut dissection using non-energy instruments, following the pre-defined marker trace when available",
+        "24": "finalize_clean_up: finalize the cold-cut dissection and clear the cut tissue piece as needed",
+        "25": "regrasp_tissue: regrasp the tissue when cold-cut dissection, restore tension as needed",
+        "26": "scissor_reposition: when a large reposition is needed, retract the scissor and move it to a new cutting pose during cold-cut dissection",
+        "63": "start_plane_at_corner: initiate the dissection plane at the corner by opening a small entry using non-energy surgical instruments",
+        "64": "advance_in_plane_cut: advance along the interface by cutting adhesions in the plane while maintaining traction"
+      },
+      "gesture": {}
+    }
+  },
+  "_task_routing": {
+    "single_interrupted_stitch": "1",
+    "cold_cut_dissection": "2",
+    "cold_cut_dissection_intestine": "5",
+    "cold_cut_dissection_skin_peel": "6",
+    "peg_transfer": "3",
+    "tissue_manipulation": "4"
+  }
+}

@@ -1,0 +1,78 @@
+defaults:
+  - path_config: jack_local_test     # pick one file from the data, data load and store paths
+  - preprocess: image_to_video  # select the preprocess type
+  - _self_
+
+workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+
+timestamp_path: "${path_config.data_dir}/${path_config.data_name}/raw/${path_config.data_index}/time_syn"
+
+
+### raw images to video
+video_name: 'left'
+image_path: "${path_config.data_dir}/${path_config.data_name}/raw/${path_config.data_index}/image/left"
+save_folder: "${path_config.data_dir}/${path_config.data_name}/output_video/${path_config.data_index}"
+
+#video_name: 'right'
+#image_path: "${path_config.data_dir}/${path_config.data_name}/raw/${path_config.data_index}/image/right"
+#save_folder: "${path_config.data_dir}/${path_config.data_name}/output_video/${path_config.data_index}"
+
+#video_name: 'side'
+##video_name: 'side_resized'
+#image_path: "${path_config.data_dir}/${path_config.data_name}/raw/${path_config.data_index}/image/side1"
+#save_folder: "${path_config.data_dir}/${path_config.data_name}/output_video/${path_config.data_index}"
+
+
+
+
+### rectified images to video
+#video_name: 'left_resized'
+#image_path: "${path_config.data_dir}/${path_config.data_name}/rectify_resize/${path_config.data_index}/image/left"
+#save_folder: "${path_config.data_dir}/${path_config.data_name}/output_video/${path_config.data_index}"
+
+#video_name: 'right_resized'
+#image_path: "${path_config.data_dir}/${path_config.data_name}/rectify_resize/${path_config.data_index}/image/right"
+#save_folder: "${path_config.data_dir}/${path_config.data_name}/output_video/${path_config.data_index}"
+
+### depth estimation to video
+#video_name: 'disparity_image'
+#image_path: "${path_config.data_dir}/${path_config.data_name}/preprocess/${path_config.data_index}/depth_estimation/disparity_image"
+#save_folder: "${path_config.data_dir}/${path_config.data_name}/output_video/${path_config.data_index}"
+
+#video_name: 'disparity_image_combined'
+#image_path: "${path_config.data_dir}/${path_config.data_name}/preprocess/${path_config.data_index}/depth_estimation/combined_image"
+#save_folder: "${path_config.data_dir}/${path_config.data_name}/output_video/${path_config.data_index}"
+
+### optical flow to video
+#video_name: 'optical_flow_left'
+#image_path: "${path_config.data_dir}/${path_config.data_name}/preprocess/${path_config.data_index}/optical_flow/left/image"
+#save_folder: "${path_config.data_dir}/${path_config.data_name}/output_video/${path_config.data_index}"
+
+
+### kinematic map to video
+#video_name: 'psm1_left_kinematic_reprojection'
+#image_path: "${path_config.data_dir}/${path_config.data_name}/preprocess/${path_config.data_index}/kinematic_reproject/PSM1/left/image"
+#save_folder: "${path_config.data_dir}/${path_config.data_name}/output_video/${path_config.data_index}"
+
+#video_name: 'psm2_left_kinematic_reprojection'
+#image_path: "${path_config.data_dir}/${path_config.data_name}/preprocess/${path_config.data_index}/kinematic_reproject/PSM2/left/image"
+#save_folder: "${path_config.data_dir}/${path_config.data_name}/output_video/${path_config.data_index}"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,19 @@
+# One-off config for packing the Pro-SSD raw data.
+#
+# Composes the default `build.yaml` and adds explicit task overrides
+# for the 6 online clips (73-78) whose dominant phase id is 0, which
+# isn't in `workflow_description.json:_task_routing`. Phase 0's
+# description matches tissue_manipulation semantically.
+defaults:
+  - build
+  - _self_
+
+tasks:
+  default_task: "auto"
+  overrides:
+    "online_data/73": "tissue_manipulation"
+    "online_data/74": "tissue_manipulation"
+    "online_data/75": "tissue_manipulation"
+    "online_data/76": "tissue_manipulation"
+    "online_data/77": "tissue_manipulation"
+    "online_data/78": "tissue_manipulation"

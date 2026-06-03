@@ -1,0 +1,27 @@
+# Multi-clip-aware path config for the M1 release sweep.
+# Designed for use with `scripts/run_all_stages.py` and Hydra multi-run:
+#     python gen_*.py -m path_config=jack_local_release \
+#                        path_config.data_index=1,2,3
+# The sweep keeps the model process alive across data_index values so the
+# GPU-heavy stages (depth, RAFT) load weights only once per stage.
+data_dir: "/home/jackzhy/claude_code_projects/dvrk_multimodal_data_collection/data"
+
+# `data_name` selects the per-dataset namespace under `data_dir`. Override on
+# the CLI when sweeping multiple datasets (`path_config.data_name=offline_data`).
+data_name: "offline_data"
+
+# `data_index` is the per-clip selector. The sweep iterates over a list of
+# these (e.g. `path_config.data_index=1,2,3` via Hydra `-m`).
+data_index: "3"
+
+# Derived paths. All M1 outputs (rectified images, calibration, kinematic
+# maps, depth, flow, ...) now live per-clip under
+# `<raw_dir>/preprocess/<stage>/`, so a clip is fully self-contained on
+# disk and nothing escapes the clip's directory. `intermediate_dir` is
+# the stage-1 sub-bucket inside that same `preprocess/` directory
+# (rectify_resize); `processed_dir` is the parent — its siblings under
+# `preprocess/` are the per-stage outputs (kinematic_reproject/,
+# depth_estimation/, optical_flow/, kinematic_reproject_drawframe/).
+raw_dir: "${.data_dir}/${.data_name}/${.data_index}"
+intermediate_dir: "${.raw_dir}/preprocess/rectify_resize"
+processed_dir:  "${.raw_dir}/preprocess"

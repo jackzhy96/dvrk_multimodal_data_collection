@@ -1,0 +1,74 @@
+# Hydra running config for scripts/run_all_stages.py.
+# Drives a stage-first sweep over a set of clip indices through all four M1
+# pipelines. Stage-first ordering (rectify → kinematic → depth → flow) means
+# the GPU models load only once per stage, not once per clip.
+
+defaults:
+  - path_config: jack_local_release
+  - _self_
+
+workspace: "/home/jackzhy/claude_code_projects/dvrk_multimodal_data_collection"
+
+# ---------------------------------------------------------------------------
+# Where to find the clips. Pick exactly one of these by setting clip_indices.source:
+#   - "list"    : use the explicit `clip_indices.list` array below
+#   - "dataset" : process every subfolder of <data_dir>/<dataset_name>/ (the
+#                 common case — "run every clip under offline_data/")
+#   - "glob"    : custom glob patterns joined against <data_dir> (use when
+#                 sweeping multiple datasets at once)
+#   - "file"    : read a YAML/JSON file at `filter_file`
+# ---------------------------------------------------------------------------
+clip_indices:
+  source: "list"
+  # Explicit list (used when source=="list").
+  list: ["3"]
+  # Single-dataset auto-discovery (used when source=="dataset"). Defaults to
+  # path_config.data_name when blank.
+  dataset_name: ""
+  # Custom glob (used when source=="glob"). Each pattern is joined against
+  # path_config.data_dir at runtime.
+  glob_patterns:
+    - "offline_data/*"
+    - "online_data/*"
+  # Filter file (used when source=="file"). Must contain a top-level
+  # `clip_indices: [..]` list.
+  filter_file: ""
+  # When sweeping multiple datasets via "glob", also vary path_config.data_name
+  # to match each clip's parent folder. Leave true unless you have a reason.
+  vary_data_name: true
+
+# ---------------------------------------------------------------------------
+# Per-stage toggles. Stages run in this exact order (clip-by-clip within each
+# stage). Setting `enable: false` skips the stage entirely.
+# ---------------------------------------------------------------------------
+stages:
+  rectify_resize:
+    enable: true
+    config_name: "config_rr_jack"      # the @hydra.main config of the stage script
+    skip_if_no_gpu: false
+  kinematic_reproject:
+    enable: true
+    config_name: "config_kp_jack"
+    skip_if_no_gpu: false
+  depth_estimation:
+    enable: true
+    config_name: "config_de_jack"
+    skip_if_no_gpu: true
+  optical_flow_raft:
+    enable: true
+    config_name: "config_of_raft_jack"
+    skip_if_no_gpu: true
+
+# ---------------------------------------------------------------------------
+# Resumability. By default a stage skips for a clip when the expected output
+# directory exists and is non-empty. Set force=true to rerun.
+# ---------------------------------------------------------------------------
+force: false
+
+# Structured log destination (JSONL). Created relative to the run script's CWD
+# if it doesn't start with '/'.
+log_dir: "${path_config.data_dir}/.run_all_stages"
+
+# Path-config name to pass through to each child invocation. Defaults to
+# whatever the running config used.
+child_path_config: "jack_local_release"

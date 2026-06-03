@@ -1,0 +1,59 @@
+/* -*- Mode: Javascript; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+{
+    "io":
+    {
+        // "footpedals": "io/sawRobotIO1394-MTMR-foot-pedals-DQLA.xml"
+        "firewire-protocol": "bqrw"
+        , "port": "udpfw"
+    }
+    ,
+    "arms":
+    [
+        {
+            "name": "SUJ",
+            "type": "SUJ_Si",
+            "arm": "suj-si.json"
+        }
+        ,
+        {
+            "name": "ECM",
+            "type": "ECM",
+            "arm": "ECM-438610-Custom.json",
+            "serial": "438610",
+            "base-frame": {
+                "component": "SUJ",
+                "interface": "ECM"
+            }
+        }
+        ,
+        {
+            "name": "PSM1",
+            "type": "PSM",
+            "serial": "292409",
+            "base-frame": {
+                "component": "SUJ",
+                "interface": "PSM1"
+            }
+        }
+        ,
+        {
+            "name": "PSM2",
+            "type": "PSM",
+            "serial": "586288",
+            "base-frame": {
+                "component": "SUJ",
+                "interface": "PSM2"
+            }
+        }
+        // ,
+        // {
+        //     "name": "PSM3",
+        //     "type": "PSM",
+        //     "serial": "698534",
+        //     "base-frame": {
+        //         "component": "SUJ",
+        //         "interface": "PSM3"
+        //     }
+        // }
+    ]
+}

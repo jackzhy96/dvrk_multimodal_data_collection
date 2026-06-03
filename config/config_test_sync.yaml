@@ -1,0 +1,48 @@
+# Configuration for Time Synchronization Testing Script
+# This config is used by scripts/test_time_sync.py to compute time differences
+# between video frames using a search window approach
+
+# Workspace path (root of the dvrk_multimodal_data_collection project)
+workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+
+# Input folder containing the data subsets to process
+# Expected structure: <input_folder>/<task>/<subset_index>/
+# Example: data/suturing/1/, data/suturing/2/, etc.
+input_folder: "/media/jackzhy/Jack_SSD_4T/new_data_set"
+#input_folder: "${workspace}/data"
+
+# Output folder where synchronization JSON results will be saved
+output_folder: "${workspace}/data/test_sync"
+
+# Video frame rate (frames per second) - used for validation and logging
+# Most datasets use 10 Hz (10 FPS) for all cameras
+video_fps: 10
+
+# Search window size (n) - number of frames to search before/after current frame
+# For frame k in video A, searches frames [k-n, k+n] in reference video B
+# Larger values allow for more temporal misalignment but increase computation time
+# Recommended: 5-10 for 10 FPS videos
+search_window: 5
+
+# Synchronization strategy to use for determining reference video
+# - "stereo": prioritize left and right cameras (ignore side cameras)
+#             Use the stereo camera with FEWEST frames as reference
+#             If left and right have equal frames, use left as reference
+# - "all": consider all cameras (left, right, side1, side2, etc.)
+#          Use the camera with FEWEST frames as reference
+#          If multiple cameras have min frames, use first alphabetically
+strategy: "all"
+
+# Default reference camera (optional override)
+# If specified, always use this camera as reference regardless of frame counts
+# Leave empty ("") to auto-detect based on strategy and frame counts
+# Valid values: "left", "right", "side1", "side2", etc.
+default_reference_camera: ""
+
+# Camera names to process
+# These should match the subfolder names in regular/image/
+# The script will look for <camera_name>_timetable.json in the meta/ folder
+camera_names: ["left", "right", "side1"]
+
+# Verbose logging - print detailed synchronization results during processing
+verbose: true

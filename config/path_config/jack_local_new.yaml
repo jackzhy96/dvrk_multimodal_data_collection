@@ -1,0 +1,7 @@
+data_dir: "/media/jackzhy/Jack_SSD_4T"
+data_name: "contact_detection_dataset"
+data_index: "109"
+
+raw_dir: "${.data_dir}/${.data_name}/raw/${.data_index}"
+intermediate_dir: "${.data_dir}/${.data_name}/rectify_resize/${.data_index}"
+processed_dir:  "${.data_dir}/${.data_name}/preprocess/${.data_index}"

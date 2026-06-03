@@ -1,0 +1,107 @@
+# Configuration file for converting dVRK data to LeRobot v2.1 format
+# This config file supports both single dataset and recursive mode conversion
+
+# Workspace: root directory of the dvrk_multimodal_data_collection project
+workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+
+# Mode of operation:
+# - "single": Convert a single dataset folder
+# - "recursive": Recursively search and convert all datasets in data_folder
+mode: "recursive"  # Options: "single" or "recursive"
+#mode: "single"
+
+# Data folder: source folder containing the raw data
+# For "recursive" mode: searches recursively for subfolders with required structure
+# For "single" mode: directly uses this folder as the dataset folder
+data_folder: "/media/jackzhy/Extreme Pro/data_2026_icra"
+# Example for single mode: "/home/jackzhy/dvrk_multimodal_data_collection/data/test_data/raw/6"
+
+# Output folder: where the converted LeRobot v2.1 format data will be saved
+output_folder: "/media/jackzhy/Extreme SSD/online_data_part4"
+
+# Task description folder: contains idx-to-text mapping files
+# Expected files: phase_description.json, step_description.json, user_id_info.json
+task_description_folder: "/media/jackzhy/Extreme Pro/meta_descriptions"
+
+# Starting index for case numbering:
+# - -1: automatically continue from the last existing index (auto-detect next available)
+# - 0 or positive: start from the given index
+#
+# Behavior by mode:
+#   "single" mode:
+#     - -1: auto-detect next available case index
+#     - >= 0: use specified index (OVERWRITES if case already exists)
+#   "recursive" mode (NEVER overwrites):
+#     - -1: auto-detect next available case index (global)
+#     - >= 0: start from start_idx, increment for each dataset
+#             (e.g., start_idx=6 with 3 datasets -> case-006, case-007, case-008)
+#             ERROR and STOP if any existing case index >= start_idx
+start_idx: 122
+
+# FPS: Frames per second for video conversion
+# This determines the frame rate of the output MP4 videos
+fps: 10
+
+# Get total time: Calculate total time of all trajectories
+# If True, generates total_time.json with time statistics
+get_total_time: true
+
+# Video encoding settings (optional advanced settings)
+# Using near-lossless settings for high quality and sharpness preservation
+video_encoding:
+  codec: "libx264"  # Video codec for MP4 encoding
+  pixel_format: "yuv420p"  # Pixel format for compatibility
+  crf: 17  # Constant Rate Factor (17-18 = visually lossless, lower = better quality)
+  preset: "slow"  # Encoding speed preset (slow/veryslow = better quality compression)
+
+# for higher fidelity, use following settings:
+
+#video_encoding:
+#  codec: "libx264"  # Video codec for MP4 encoding
+#  pixel_format: "yuv444p"  # Pixel format for compatibility
+#  crf: 14  # Constant Rate Factor (17-18 = visually lossless, lower = better quality)
+#  preset: "veryslow"  # Encoding speed preset (slow/veryslow = better quality compression)
+
+# Parquet settings (optional advanced settings)
+parquet_settings:
+  compression: "snappy"  # Compression algorithm (snappy, gzip, brotli, none)
+  row_group_size: 1000  # Number of rows per row group
+
+# Processing options
+processing:
+  show_progress: true  # Show progress bars during conversion
+  verbose: true  # Print detailed conversion information
+  skip_existing: false  # Skip conversion if output already exists
+  validate_data: true  # Validate data integrity after conversion
+  include_setpoint_cp: true  # Include setpoint_cp cartesian pose in action data
+
+# Statistics computation settings
+statistics:
+  max_video_samples: 10  # Maximum number of video frames to sample for statistics (reduce for faster processing)
+  compute_case_level: true  # Compute case-level timestamp statistics
+  compute_phase_level: true  # Compute phase-level timestamp statistics
+
+# Dataset metadata
+dataset:
+  repo_id: "SMARTS_LCSR_JHU"  # Repository ID for the dataset
+
+# Robot configuration
+robot:
+  type: "dVRK-Si"  # Robot type identifier
+  arms:
+    - "PSM1"  # Patient Side Manipulator 1
+    - "PSM2"  # Patient Side Manipulator 2
+  camera: "ECM"  # Endoscopic Camera Manipulator
+
+# Video name mapping (from folder names to observation names)
+# Maps image subfolder names to LeRobot observation.images.xxx naming
+video_name_mapping:
+  left: "endoscope_left"
+  right: "endoscope_right"
+  side: "camera_side_view"
+#  side1: "camera_side_view"
+
+# Optional: Hydra run directory configuration
+# hydra:
+#   run:
+#     dir: "${workspace}/outputs/logs/convert_openh/${now:%Y%m%d}_${now:%H%M%S}"

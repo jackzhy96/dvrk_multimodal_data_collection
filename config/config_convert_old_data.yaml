@@ -1,0 +1,105 @@
+# Configuration for Old Data Format Converter Script
+#
+# This configuration file controls the conversion of old dVRK data formats to the new standardized format.
+# The script handles three old format types (Format A: simple header, Format B: complex header) and converts
+# both kinematic and time_syn JSON files to match the new data structure.
+
+# Workspace directory (root of dvrk_multimodal_data_collection repository)
+workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+
+# Input folder containing old data to convert
+# This folder should contain dataset subfolders (0, 3, 5, 10, 17, etc.)
+# Each dataset should have kinematic/ and time_syn/ folders
+input_folder: "/media/jackzhy/Extreme Pro/data_2026_icra"
+
+# Maximum search depth for finding dataset folders
+# Controls how deep to search in nested directory structures
+# - 3: Search up to 3 levels deep (e.g., data/old/0/)
+# - 5: Search up to 5 levels deep (default, balances capability with performance)
+# - Higher values allow finding datasets in deeper folder hierarchies
+# - Lower values improve search speed for flat structures
+max_depth: 5
+
+# Dry run mode: validate conversion without writing any files
+# - true: Check conversion logic, detect formats, report what WOULD be done (no files written)
+# - false: Normal operation (files will be written)
+# Note: When dry_run=true, no files are created/modified regardless of test_mode setting
+# Use this to verify the conversion will work before actually running it
+dry_run: false
+
+# Test mode: whether to create new folders for converted data or replace in-place
+# - true: Create new folders (kinematic/ECM_converted, time_syn_converted) for testing
+#         This preserves original data and allows comparison
+# - false: Replace original files in-place (DESTRUCTIVE - backup recommended)
+# Note: Ignored if dry_run=true (dry run never writes files)
+test_mode: false
+
+# Verbose mode: print detailed processing information
+# - true: Show detailed conversion progress, format detection, timestamp extraction
+# - false: Only show summary information and errors
+verbose: true
+
+# Parallel processing: number of worker processes for parallel conversion
+# - 1: Sequential processing (no parallelism, easier debugging)
+# - n > 1: Use n worker processes for parallel conversion (faster for large datasets)
+# - -1: Use all available CPU cores
+num_workers: 16
+
+# Require confirmation: whether to prompt for confirmation before conversion
+# - true: Ask for user confirmation before starting conversion (recommended for first run)
+# - false: Skip confirmation and start immediately
+require_confirmation: true
+
+# Validate output: whether to validate converted JSON files after conversion
+# - true: Read back each converted JSON file to ensure valid structure
+# - false: Skip validation (faster but less safe)
+validate_output: true
+
+# Error handling mode: how to handle errors during conversion
+# - "stop": Stop conversion on first error (safest, recommended for debugging)
+# - "skip": Skip problematic files and continue (complete as much as possible)
+# - "warn": Continue but log warnings for errors (most permissive)
+error_mode: "skip"
+
+# Backup original data: whether to create full dataset backups before conversion
+# - true: Copy entire dataset to <dataset_name>_backup folder before conversion
+#         Example: data/old/3/ → data/old/3_backup/
+#         (only if test_mode=false)
+# - false: No backup (original files will be replaced if test_mode=false)
+# Note: This setting is ignored if test_mode=true (test mode preserves originals)
+# Note: If backup folder already exists, it won't be overwritten (conversion continues)
+backup_originals: false
+
+# Arms to process: list of robot arms to look for in kinematic folder
+# The script will process all arms found, but will warn if expected arms are missing
+expected_arms:
+  - "ECM"
+  - "PSM1"
+  - "PSM2"
+  - "PSM3"
+
+# Default values for new fields that don't exist in old format
+# These values are used when adding new fields
+default_values:
+  # Cartesian position velocity (measured_cp.velocity) - initialized to zeros for ECM
+  # PSM already has this field in old format, so it will be preserved
+  # measured_cv is derived from this: linear = velocity[0:3], angular = velocity[3:6]
+  measured_cp_velocity: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+# Output formatting options
+output_format:
+  # JSON indentation (number of spaces) for better visualization
+  # - 2: Compact but readable (recommended for most cases)
+  # - 4: More spacing, easier to read (recommended default)
+  # - null: Compact JSON, no indentation (smaller files, harder to read)
+  json_indent: 4
+
+  # Sort JSON keys alphabetically
+  # - false: Keep original order (recommended)
+  # - true: Sort keys alphabetically
+  sort_keys: false
+
+  # Use compact separators (no spaces after : and ,)
+  # - false: Pretty format with spaces (recommended for visualization)
+  # - true: Compact format (smaller files)
+  compact: false

@@ -1,0 +1,6 @@
+stage: video_to_image
+folder_initialize: false
+
+file_extension: "png"
+enable_timestamp: true
+extract_fps: -1  # target extraction fps; -1 = extract all frames

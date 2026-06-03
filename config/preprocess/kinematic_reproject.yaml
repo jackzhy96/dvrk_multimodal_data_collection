@@ -1,0 +1,63 @@
+# Preprocess config for the stage-2 kinematic projection pipeline.
+# The output folder name (kinematic_reproject) replaces the legacy
+# "kinematic_map".
+stage: kinematic_reproject
+folder_initialize: false
+
+# custom configurations
+img_size: [512, 288]
+arm_name: ['PSM1', 'PSM2']
+#arm_name: ['PSM2']
+
+input_folder: '${path_config.intermediate_dir}'
+output_folder: "${path_config.processed_dir}/${.stage}"
+
+# Heatmap Gaussian footprint — defaults shared by every PSM unless an arm
+# overrides them below.
+weight_config:
+  sigma_x: 32
+  sigma_y: 32
+  advanced_weight: true
+  tol_dist: 0.02
+
+# Per-PSM weight overrides. If null/omitted, falls back to weight_config above.
+# Each entry follows the same format as weight_config (sigma_x, sigma_y, advanced_weight, tol_dist).
+weight_config_PSM1:
+  sigma_x: 48
+  sigma_y: 48
+  advanced_weight: true
+  tol_dist: 0.02
+weight_config_PSM2:
+  sigma_x: 112
+  sigma_y: 64
+  advanced_weight: true
+  tol_dist: 0.02
+weight_config_PSM3:
+
+enable_overlay: true
+#enable_overlay: false
+
+# ---------------------------------------------------------------------------
+# calibrated_kinematic: per-frame JSON pose in the left-rectified camera frame.
+# Emitted for PSM1 and PSM2 only (never ECM). Configurable so it can be turned
+# off cheaply (e.g. when only the heatmap is needed).
+# ---------------------------------------------------------------------------
+calibrated_kinematic:
+  enable: true
+
+# ---------------------------------------------------------------------------
+# drawframe: render the tool tip's X/Y/Z axes onto every rectified frame for
+# both PSM1 and PSM2, both cameras. Used as a visual sanity-check of the
+# hand-eye calibration chain. See T-M1-07.
+# ---------------------------------------------------------------------------
+drawframe:
+  enable: true
+  axis_length_m: 0.010
+  line_thickness_px: 2
+  origin_marker_radius_px: 3
+  # cv2 uses BGR (NOT RGB). Keep the channel order in mind when tweaking.
+  colors_bgr:
+    x: [0, 0, 255]     # red    → +X axis
+    y: [0, 255, 0]     # green  → +Y axis
+    z: [255, 0, 0]     # blue   → +Z axis
+  cameras: [left, right]

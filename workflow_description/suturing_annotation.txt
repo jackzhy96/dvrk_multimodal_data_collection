@@ -1,0 +1,226 @@
+#### Important Note ####
+
+For Failure / Recover annotation, put it into the event annotation
+
+You can decided the failure and recover is in step-level or in arm-level.
+
+I personally prefer arm-level.
+
+------------------------------------------------------
+LEVEL 1: PHASE (Macro-level tasks)
+------------------------------------------------------
+1: single_interrupted_stitch
+2: cold_cut_dissection
+3: peg_transfer
+4: tissue_manipulation
+
+------------------------------------------------------
+LEVEL 2: STEP (Mid-level subtasks)
+------------------------------------------------------
+[Global]
+
+00: bilateral pause (both hand not moving > 20 frames)
+01: move camera
+
+
+********** New Verion **********
+
+11: Needle Handling and Positioning
+
+Definition: This step encompasses all actions from the moment the surgeon initiates motion toward the needle until the needle is held in the dominant instrument in a driving-ready configuration. Driving-ready means the needle is grasped at the correct point along its body (typically between one-third and two-thirds from the tip), the needle curve plane is aligned with the planned entry vector, and the wrist pronation angle allows a smooth arc through the tissue. This step includes initial acquisition (reaching, grasping) and any subsequent reorientation maneuvers (rotating in jaws, releasing and re-grasping at a better point, using the assistant instrument to stabilize during re-grasp). The step begins when the dominant instrument starts moving toward the needle and ends when the surgeon commits to approaching the tissue surface with a stable driving configuration. If the needle is dropped during this step, all re-acquisition and re-orientation actions remain within S11 until the driving-ready configuration is achieved.
+Entry condition: Needle is at rest (on tissue surface, held loosely by assistant, or freshly returned after a previous suture) and is not in a driving-ready configuration.
+Exit condition: Needle is securely grasped in the dominant instrument in driving-ready configuration and the surgeon initiates motion toward the tissue entry point.
+
+
+12: Needle Driving
+
+Definition: This step encompasses all actions involved in passing the needle through the tissue, beginning from the moment the needle tip approaches the tissue surface and ending when sufficient needle length has emerged on the exit side to allow grasping by the assistant instrument. This includes positioning the needle tip at the planned entry point, applying force to insert the needle through the entry-side tissue, advancing the needle across the wound gap or through deeper tissue layers, and completing the drive until the needle tip is visible and accessible on the exit side. The assistant instrument may actively retract or stabilize the tissue to expose the entry or exit points during this step. The step begins when the dominant instrument carrying the driving-ready needle initiates approach toward the tissue surface. The step ends when the needle tip is visibly exposed on the exit side and the surgeon ceases driving motion in preparation for grasping the emerged needle.
+Entry condition: Needle is in driving-ready configuration in the dominant instrument. No part of the needle is within the tissue.
+Exit condition: Needle has been driven through the tissue. The needle tip and a graspable length of needle body are visible on the exit side. The driving motion has ceased.
+
+
+13: Needle Extraction and Suture Pulling
+
+Definition: This step encompasses all actions from the moment the surgeon begins to grasp the emerged needle on the exit side until the suture has been pulled through the tissue to the desired tail length for knotting. This includes the instrument-to-instrument transfer of the needle from the dominant to the assistant hand (or direct grasping by the assistant), extraction of the needle from the tissue by pulling along its curvature, continued pulling of the suture thread to the target length, and optionally transferring the needle back to the dominant hand or parking it. The step begins when either instrument initiates motion to grasp the needle tip on the exit side. The step ends when the suture is at target tension and length, and the surgeon transitions to either parking the needle or preparing for knot tying.
+Entry condition: Needle tip and a graspable length of needle body are exposed on the exit side. The needle is still partially within the tissue.
+Exit condition: Needle is fully extracted from the tissue. Suture has been pulled through to the desired tail length. The field is prepared for the transition to knot tying.
+
+
+14: Knot Tying
+
+Definition: This step encompasses all actions involved in forming and tightening the surgical knot to secure the suture. This includes parking or positioning the needle out of the working field, grasping and orienting the suture tails, forming each throw (wrapping the suture around an instrument and grasping the opposite tail through the loop), and tightening each throw to approximate the tissue edges. A standard simple interrupted suture uses a surgeon's knot: a double-wrap first throw followed by two or more single-wrap alternating-direction throws. The step begins when the surgeon initiates any action directed toward knot tying (parking the needle, reaching for a suture tail with knotting intent) and ends when the final throw has been tightened and the surgeon is satisfied with knot security and tissue approximation.
+Entry condition: Suture is through the tissue at the desired length. Two tails are accessible. The needle may or may not still be held.
+Exit condition: A completed secure knot is seated on the tissue surface. The tissue edges are approximated to the surgeon's satisfaction. The suture tails are still intact (not yet cut).
+
+
+15: Finishing
+
+Definition: This step encompasses all final actions after the knot is fully tied and secured. This includes cutting the suture tails to the appropriate length above the knot and any final inspection or adjustment of the completed suture. The step begins when the surgeon reaches for the scissors or cutting instrument after the knot is complete. The step ends when the suture tails have been cut and the surgeon disengages from the completed suture site. If no cutting, this step is to let the instruments go back to the rest positions.
+Entry condition: Knot is fully tied and seated. Suture tails are still intact at full length.
+Exit condition: Suture tails have been cut to the appropriate length (typically three to five millimeters above the knot). Or the instruments go back to the rest positions. The single interrupted suture is complete.
+
+
+
+[Phase 4: tissue_manipulation]
+41: reach_to_approach
+42: grasp_tissue
+43: lift_move_tissue
+44: release_tissue
+45: reposition_to_next
+
+------------------------------------------------------
+LEVEL 3: GESTURE (Arm-level atomic motions)
+------------------------------------------------------
+
+** Note: Dominant hand: Right (PSM1); Assistant/Non-dominant hand: Left (PSM2)
+
+
+G1 — Reach for needle
+
+Definition: Open-jaw transit motion directed toward the needle. The instrument travels from its current position to the vicinity of the needle in preparation for grasping. No contact with the needle occurs during this gesture.
+Start point: The first frame where the instrument begins directed translational motion toward the needle. If the instrument was previously idle, this is the first frame of motion initiation. If the instrument was performing another gesture, this is the first frame where the motion direction changes toward the needle.
+End point: The last frame before the instrument jaws begin closing on the needle. The instrument is positioned around the needle but has not yet initiated jaw closure.
+
+
+G2 — Grasp needle
+
+Definition: Closing the instrument jaws on the needle body to secure it. This is a brief discrete action.
+Start point: The first frame where the jaws begin closing on the needle.
+End point: The first frame where the jaws are fully closed and the needle is secured with no further jaw motion. If the grasp fails (needle slips out immediately), the end point is the frame where the jaws reach maximum closure regardless of whether the needle is secured.
+
+
+G3 — Release needle
+
+Definition: Opening the instrument jaws to deliberately free the needle. This may be in preparation for re-grasping, for handoff to the other instrument, or for parking.
+Start point: The first frame where the jaws begin opening with the intent to release the needle.
+End point: The first frame where the needle is fully free from the instrument jaws and the jaws are open.
+
+
+G4 — Adjust needle
+
+Definition: In-hand manipulation to change the needle orientation or grasp point while the jaws remain closed on the needle. Includes wrist rotation (pronation, supination, axial roll) and small translational repositioning. The jaws do not open during this gesture.
+Start point: The first frame where the instrument begins rotational or translational manipulation of the needle while maintaining its grasp.
+End point: The last frame of manipulation motion. The needle is in a new stable configuration and the instrument has ceased adjusting.
+
+
+G5 — Approach tissue
+
+Definition: Controlled movement bringing the needle tip toward the tissue surface at the planned entry point. The instrument carries the needle in driving-ready configuration and moves it into contact with the tissue.
+Start point: The first frame where the needle-carrying instrument begins directed motion toward the tissue surface. This is distinct from G4 (which adjusts the needle itself) because here the entire instrument is translating toward the tissue.
+End point: The first frame where the needle tip makes contact with the tissue surface at the entry point. If the surgeon pauses just above the tissue for a final alignment check, the end point is when that pause begins, and the pause is labeled G17 (hold).
+
+
+G6 — Drive needle
+
+Definition: Wrist pronation following the needle curvature to push the needle through the tissue. This is the primary tissue-penetrating gesture. The force is applied through controlled wrist rotation, and the needle follows its curved path through the tissue.
+Start point: The first frame where the needle tip begins penetrating the tissue surface. If the needle is already in contact with the tissue from G5, the start point is the first frame where forward driving force is applied (visible as tissue deformation or needle advancement into the tissue).
+End point: The last frame of active driving force. If the drive is completed in a single arc, this is the frame where the needle tip has emerged on the exit side and the wrist pronation ceases. If the drive pauses mid-tissue (for repositioning or rest), the end point is the frame where driving force ceases, and the pause is labeled G17 (hold) before a new G6 begins.
+
+
+G7 — Tissue manipulation
+
+Definition: The instrument pushes, retracts, lifts, or stabilizes tissue to provide exposure or counter-tension for the operative action. This is typically performed by the assistant arm but can be performed by either arm.
+Start point: The first frame where the instrument contacts the tissue with manipulative intent, or the first frame where an already-in-contact instrument begins a new directed pushing, lifting, or retracting motion.
+End point: The last frame of active tissue manipulation. If the instrument transitions to simply holding the tissue in a static position, the end point is the last frame of active motion and the static hold is labeled G17 (hold). If the instrument lifts off the tissue entirely, the end point is the last frame of tissue contact.
+
+
+G8 — Extract needle
+
+Definition: Pulling the needle along its curvature out of the tissue on the exit side. The instrument grasps the emerged needle and pulls it through and free of the tissue in a controlled curvilinear motion.
+Start point: The first frame where the instrument begins pulling the needle with extractive intent while the needle is still partially embedded in the tissue. This follows the grasping of the needle on the exit side (G2) and any release by the opposite hand (G3).
+End point: The first frame where the needle is completely free of the tissue. No part of the needle remains within or in contact with the tissue interior.
+
+
+G9 — Pull suture
+
+Definition: Pulling the suture thread through the tissue to set the desired tail length for knotting. The instrument grips the suture or the needle with trailing suture and pulls until the appropriate amount of thread remains on the entry side.
+Start point: The first frame where pulling motion is directed at advancing the suture thread (as opposed to extracting the needle itself). If this immediately follows G8 (extract needle) without interruption, the start point is the first frame after the needle is free of the tissue where continued pulling serves the purpose of setting thread length rather than freeing the needle.
+End point: The last frame of pulling motion. The suture is at the target tail length and the instrument ceases pulling. If the surgeon overshoots and must adjust, the overshoot pull and return adjustment are both within G9 until the final target length is reached.
+
+
+G10 — Grasp suture tail
+
+Definition: Closing instrument jaws on a suture tail in preparation for knot tying. This is functionally similar to G2 (grasp needle) but the target is the suture thread rather than the needle.
+Start point: The first frame where the jaws begin closing on the suture tail.
+End point: The first frame where the jaws are fully closed and the suture tail is secured.
+
+
+G11 — Release suture
+
+Definition: Opening instrument jaws to free the suture thread. This is used during knot tying when the wrapping hand must release its tail to allow the throw to be drawn through, or when repositioning the grip on the suture.
+Start point: The first frame where the jaws begin opening with intent to release the suture.
+End point: The first frame where the suture is free from the jaws.
+
+
+G12 — Park needle
+
+Definition: Placing the needle in a safe resting position out of the operative field so that both instruments are free for knot tying. The instrument carries the needle to a designated location and releases it.
+Start point: The first frame where the instrument begins directed motion to deposit the needle in a resting position. This follows the last action involving the needle as an active tool and precedes knot tying.
+End point: The first frame where the needle has been released in a stable resting position and the instrument begins moving away from the parked needle.
+
+
+G13 — Wrap suture around instrument
+
+Definition: Looping the suture around the shaft of the opposite instrument one or more times to form a throw. The wrapping hand controls the suture while the opposite instrument serves as a stationary post. For the first throw of a surgeon's knot, two loops are placed. For subsequent throws, one loop is placed with the wrapping direction reversed from the previous throw.
+Start point: The first frame where the wrapping hand begins the first looping motion around the post instrument. The post instrument is already in position and the wrapping hand has the suture in its grip.
+End point: The last frame where the final loop is completed and the suture is coiled around the post instrument shaft. The wrapping hand may still be holding the suture tail.
+
+
+G14 — Grasp suture through loop
+
+Definition: The instrument that served as the wrapping post reaches through the formed loop or loops and closes its jaws on the opposite suture tail. This is the critical coordination gesture where the post instrument transitions from passive post to active grasper.
+Start point: The first frame where the post instrument begins directed motion through the loop toward the opposite suture tail.
+End point: The first frame where the post instrument jaws are fully closed on the opposite suture tail. The tail is secured and ready for the tightening pull.
+
+
+G15 — Tighten throw
+
+Definition: Both instruments pull in opposite directions to draw the formed throw down to the tissue surface and seat it. This includes the initial opposing pull and any fine adjustment to ensure the throw lies flat and square (not crossed). The tension must be sufficient to approximate the tissue edges without cutting through.
+Start point: The first frame where both instruments begin moving in opposite directions with the intent to tighten the formed throw. If one instrument begins pulling slightly before the other, the start point is when the first instrument begins its tightening pull.
+End point: The last frame of any tightening or adjusting motion. The throw is seated on the tissue surface, the tissue edges are approximated, and both instruments have ceased tightening motion. If the surgeon pauses briefly to assess before deciding whether to add another throw, that pause is labeled G17 (hold) or T1 (bilateral pause) after G15 ends.
+
+
+G16 — Cut suture (We do NOT have this, but it should be defined)
+
+Definition: Closing scissors or a cutting instrument to sever the suture tail at the target distance from the knot.
+Start point: The first frame where the scissor blades begin closing on the suture tail. The scissors are already positioned around the tail at the target cutting point (positioning is covered by G1, reach, adapted to the context of reaching toward the suture with scissors).
+End point: The first frame where the suture tail is fully severed. If two separate cuts are made (one per tail), each cut is a separate G16 instance.
+
+
+G17 — Hold / Idle
+
+Definition: One instrument maintains its current position and grasp state without directed purposeful motion while the other arm performs an active gesture. The instrument remains where it is. It may be holding an object (needle, suture, tissue) in a static grasp, or it may be empty and stationary. The defining characteristic is the absence of directed motion.
+Start point: The first frame where directed motion ceases on that instrument after the completion of the preceding gesture.
+End point: The last frame before the instrument initiates the next directed motion. If the instrument transitions directly from one active gesture to another without a pause, G17 does not appear between them.
+
+
+G18 — Move to rest position
+
+Definition: The instrument actively travels away from the operative field to a neutral free position. The instrument is disengaged from the current task and is not holding, stabilizing, or acting on any object. This gesture represents intentional clearance of the workspace.
+Start point: The first frame where the instrument begins directed motion away from the operative field or current working area with no task-directed purpose. The instrument may have just completed a release (G3, G11) or a handoff, and is now retracting.
+End point: The first frame where the instrument arrives at a neutral resting position and translational motion ceases. After this point, if the instrument remains stationary, the label transitions to G17 (hold / idle at rest position).
+
+
+************ Please be aware that you may have gestures other than the available gestures in the steps, use your own evaluation and explain it! ************ 
+
+[Mapped to Step 11: Needle Handling and Positioning]
+
+Available gestures: G1, G2, G3, G4, G17, G18
+
+[Mapped to Step 12: Needle Driving]
+
+Available gestures: G5, G6, G7, G17, G18
+
+[Mapped to Step 13: Needle Extraction and Suture Pulling]
+
+Available gestures: G1, G2, G3, G8, G9, G12, G17, G18
+
+
+[Mapped to Step 14: Knot Tying]
+
+Available gestures: G1, G3, G10, G11, G12, G13, G14, G15, G17, G18
+
+
+[Mapped to Step 15: Finishing]
+
+Available gestures: G1, G16 (not available in our cases), G17, G18

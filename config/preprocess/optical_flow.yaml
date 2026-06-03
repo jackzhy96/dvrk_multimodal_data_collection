@@ -1,0 +1,29 @@
+stage: optical_flow
+folder_initialize: false
+
+
+input_folder: "${path_config.intermediate_dir}/regular"
+output_folder: "${path_config.processed_dir}/${.stage}"
+flow_format: "npy"
+enable_visualization: true
+enable_preprocessing: true
+
+# Image preprocessing filter configuration
+filter_config:
+  bilateral_d: 9
+  bilateral_sigma_color: 75.0
+  bilateral_sigma_space: 75.0
+  gaussian_kernel_size: [5, 5]
+  gaussian_sigma: 1.2
+
+# Optical flow algorithm configuration
+algorithm_config:
+  pyramid_scale: 0.5
+  pyramid_levels: 3
+  window_size: 15
+  iterations: 3
+  poly_n: 5
+  poly_sigma: 1.2
+  flags: 0
+
+# custom configurations

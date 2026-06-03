@@ -1,0 +1,52 @@
+defaults:
+  - path_config: jack_local     # pick one file from the data, data load and store paths
+  - _self_
+
+workspace: "/home/jackzhy/dvrk_multimodal_data_collection"
+
+
+#left_image_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_index}/regular/image/left"
+#right_image_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_index}/regular/image/right"
+#side_camera_1_path: "${path_config.data_dir}/${path_config.data_name}/${path_config.data_index}/regular/image/side"
+##side_camera_1_path: None
+#side_camera_2_path: "${path_config.data_dir}/output/${path_config.data_name}/${path_config.data_index}/depth_estimation/depth_image"
+##side_camera_2_path: None
+#
+#save_folder: "${path_config.data_dir}/output/${path_config.data_name}/${path_config.data_index}"
+
+index: 0
+
+#left_image_path: "/media/jackzhy/Extreme Pro/data_2026_icra/raw/${index}/image/left"
+#right_image_path: "/media/jackzhy/Extreme Pro/data_2026_icra/raw/${index}/image/right"
+#side_camera_1_path: "/media/jackzhy/Extreme Pro/data_2026_icra/raw/${index}/image/side"
+
+
+left_image_path: "/media/jackzhy/Extreme Pro/data_open_h_new/raw/${index}/image/left"
+right_image_path: "/media/jackzhy/Extreme Pro/data_open_h_new/raw/${index}/image/right"
+side_camera_1_path: "/media/jackzhy/Extreme Pro/data_open_h_new/raw/${index}/image/side1"
+#side_camera_1_path: None
+#side_camera_2_path: "/media/jackzhy/Jack_SSD_4T/contact_detection_dataset/preprocess/${index}/depth_estimation/disparity_image"
+
+side_camera_2_path: None
+
+save_folder: "/media/jackzhy/Extreme Pro/test_label/${index}"
+
+resize_max_size: False
+
+main_image_max_size: [512, 288]
+side_image_max_size: [512, 288]
+
+enable_PSM1: True
+enable_PSM2: True
+enable_PSM3: False
+
+#camera_offset:
+# ### Add random seeds if required
+# seed: 42
+
+# ### Optional, define log output if required
+#hydra:
+#  run:
+#    dir: "/home/jackzhy/dvrk_multimodal_data_collection/outputs/logs/${now:%Y%m%d}_${now:%H%M%S}"
+
+# custom configurations
