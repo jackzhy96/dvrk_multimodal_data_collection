@@ -1,7 +1,7 @@
 {
   "0": "manipulate ex-vivo tissue to achieve a desired exposure (usually uncover an interface or object), using bimanual grasping, lifting/pulling, and regrasping as needed",
   "1": "perform a simple interrupted stitch on ex-vivo tissue (occasionally on silicon suturing training phantom) ; without cutting the suture thread tail at the end",
-  "2": "perform cold-cut dissection on ex-vivo tissue by cutting along pre-defined traces using non-energy surigal instruments",
+  "2": "perform cold-cut dissection on ex-vivo tissue by cutting along pre-defined traces using non-energy surgical instruments",
   "3": "perform peg transfer on a table-top phantom by moving triangular-prism rubber objects between pegs, using bimanual grasping and handoffs as needed",
   "4": "grasp and move ex-vivo tissues toward a specified configuration (usually move to a certain area), using lift-pull-release/regrasp actions while avoiding excessive stretching or tearing",
   "5": "perform cold-cut dissection by cutting through pork intestines using non-energy surgical instruments; no pre-defined cutting path",

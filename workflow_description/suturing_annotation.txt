@@ -2,7 +2,7 @@
 
 For Failure / Recover annotation, put it into the event annotation
 
-You can decided the failure and recover is in step-level or in arm-level.
+You can decide the failure and recover is in step-level or in arm-level.
 
 I personally prefer arm-level.
 
@@ -23,7 +23,7 @@ LEVEL 2: STEP (Mid-level subtasks)
 01: move camera
 
 
-********** New Verion **********
+********** New Version **********
 
 11: Needle Handling and Positioning
 

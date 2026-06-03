@@ -17,7 +17,7 @@
         "24": "finalize_clean_up: finalize the cold-cut dissection and clear the cut tissue piece as needed",
         "25": "regrasp_tissue: regrasp the tissue when cold-cut dissection, restore tension as needed",
         "26": "scissor_reposition: when a large reposition is needed, retract the scissor and move it to a new cutting pose during cold-cut dissection",
-        "31": "reach_to_grasp: move the gripper to the object, grasp it securely, and prepare to lift for peg tranfer",
+        "31": "reach_to_grasp: move the gripper to the object, grasp it securely, and prepare to lift for peg transfer",
         "32": "lift_and_transport: lift the object clear of the peg, then transport it to a position near the target peg",
         "33": "release_and_retract: release the object onto the target peg, then retract the gripper",
         "34": "reposition_to_next: reposition the gripper(s) and move the next position for peg transfer as needed",
@@ -25,7 +25,7 @@
         "42": "grasp_tissue: grasp or regrasp the tissue (or the object) during tissue manipulation",
         "43": "lift_move_tissue: lift and move the tissue (or the object) towards the desired position when grasping during tissue manipulation",
         "44": "release_tissue: release the tissue (or the object) at the target area; or open the gripper for the next step during tissue manipulation",
-        "45": "reposition_to_next: roposition the surgical instruments to prepare for the next step during tissue manipulation",
+        "45": "reposition_to_next: reposition the surgical instruments to prepare for the next step during tissue manipulation",
         "63": "start_plane_at_corner: initiate the dissection plane at the corner by opening a small entry using non-energy surgical instruments",
         "64": "advance_in_plane_cut: advance along the interface by cutting adhesions in the plane while maintaining traction"
       },
@@ -64,7 +64,7 @@
       }
     },
     "2": {
-      "description": "perform cold-cut dissection on ex-vivo tissue by cutting along pre-defined traces using non-energy surigal instruments",
+      "description": "perform cold-cut dissection on ex-vivo tissue by cutting along pre-defined traces using non-energy surgical instruments",
       "step": {
         "0": "stay still",
         "10": "finalize_operation: move the instruments to the rest position as needed",
@@ -96,7 +96,7 @@
         "0": "stay still",
         "10": "finalize_operation: move the instruments to the rest position as needed",
         "20": "visualize_tissue: adjust the camera pose to obtain a clear view of the tissue and target region as needed",
-        "31": "reach_to_grasp: move the gripper to the object, grasp it securely, and prepare to lift for peg tranfer",
+        "31": "reach_to_grasp: move the gripper to the object, grasp it securely, and prepare to lift for peg transfer",
         "32": "lift_and_transport: lift the object clear of the peg, then transport it to a position near the target peg",
         "33": "release_and_retract: release the object onto the target peg, then retract the gripper",
         "34": "reposition_to_next: reposition the gripper(s) and move the next position for peg transfer as needed"
@@ -113,7 +113,7 @@
         "42": "grasp_tissue: grasp or regrasp the tissue (or the object) during tissue manipulation",
         "43": "lift_move_tissue: lift and move the tissue (or the object) towards the desired position when grasping during tissue manipulation",
         "44": "release_tissue: release the tissue (or the object) at the target area; or open the gripper for the next step during tissue manipulation",
-        "45": "reposition_to_next: roposition the surgical instruments to prepare for the next step during tissue manipulation"
+        "45": "reposition_to_next: reposition the surgical instruments to prepare for the next step during tissue manipulation"
       },
       "gesture": {}
     },
