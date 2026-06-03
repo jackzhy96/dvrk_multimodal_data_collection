@@ -12,6 +12,8 @@ PNGs + JSONs from a packed release.
 Author: Haoying (Jack) Zhou — `hzhou62@jh.edu` / `hzhou6@wpi.edu` ·
 [github.com/jackzhy96](https://github.com/jackzhy96).
 
+**Dataset:** [huggingface.co/datasets/jackzhy/surgsync](https://huggingface.co/datasets/jackzhy/surgsync)
+
 ---
 
 ## Contents
